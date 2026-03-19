@@ -62,6 +62,8 @@ linux:
 appImage:
   artifactName: "SMSHub-${version}.AppImage"
 
+afterPack: ./scripts/after-pack.js
+
 # ─── Auto-update — GitHub Releases ────────────────────────────
 publish:
   provider: github
