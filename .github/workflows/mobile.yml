@@ -53,6 +53,8 @@ jobs:
 
       - name: Check EXPO_TOKEN
         id: check
+        env:
+          NODE_OPTIONS: "--no-experimental-strip-types"
         run: |
           if [ -z "${{ secrets.EXPO_TOKEN }}" ]; then
             echo "skip=true" >> "$GITHUB_OUTPUT"
@@ -76,7 +78,7 @@ jobs:
             PROFILE="production"
           fi
           echo "Building iOS with profile: $PROFILE"
-          eas build --platform ios --profile $PROFILE --non-interactive
+          NODE_OPTIONS="--no-experimental-strip-types" eas build --platform ios --profile $PROFILE --non-interactive
 
       - name: Submit to TestFlight
         if: steps.check.outputs.skip != 'true' && (inputs.submit || startsWith(github.ref, 'refs/tags/v'))
@@ -126,7 +128,7 @@ jobs:
             PROFILE="production"
           fi
           echo "Building Android with profile: $PROFILE"
-          eas build --platform android --profile $PROFILE --non-interactive
+          NODE_OPTIONS="--no-experimental-strip-types" eas build --platform android --profile $PROFILE --non-interactive
 
       - name: Submit to Google Play
         if: steps.check.outputs.skip != 'true' && (inputs.submit || startsWith(github.ref, 'refs/tags/v'))
@@ -171,7 +173,7 @@ jobs:
         if: steps.check.outputs.skip != 'true'
         run: |
           VERSION=$(node -p "require('../package.json').version")
-          eas update --branch preview --message "v${VERSION}" --non-interactive
+          NODE_OPTIONS="--no-experimental-strip-types" eas update --branch preview --message "v${VERSION}" --non-interactive
         continue-on-error: true
 
       - name: Get build URLs
