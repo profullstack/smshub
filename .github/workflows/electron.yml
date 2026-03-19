@@ -75,11 +75,15 @@ jobs:
 
       - name: Build Electron (macOS)
         working-directory: electron
-        run: pnpm ci:package:mac
+        run: |
+          if [ -n "$CSC_LINK" ]; then
+            pnpm ci:package:mac
+          else
+            CSC_IDENTITY_AUTO_DISCOVERY=false pnpm ci:package:mac --config.mac.identity=null
+          fi
         env:
           CSC_LINK: ${{ secrets.MAC_CERTS }}
           CSC_KEY_PASSWORD: ${{ secrets.MAC_CERTS_PASSWORD }}
-          CSC_IDENTITY_AUTO_DISCOVERY: false
 
       - name: Upload macOS artifact
         uses: actions/upload-artifact@v4

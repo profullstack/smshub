@@ -78,7 +78,6 @@ jobs:
 
       - name: Build iOS
         if: steps.check-token.outputs.skip != 'true'
-        env:
         run: |
           PROFILE="${{ inputs.profile || 'preview' }}"
           if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
@@ -135,7 +134,6 @@ jobs:
 
       - name: Build Android
         if: steps.check-token.outputs.skip != 'true'
-        env:
         run: |
           PROFILE="${{ inputs.profile || 'preview' }}"
           if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
