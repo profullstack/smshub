@@ -72,13 +72,15 @@ jobs:
 
       - name: Build iOS
         if: steps.check.outputs.skip != 'true'
+        env:
+          NODE_OPTIONS: "--no-experimental-strip-types"
         run: |
           PROFILE="${{ inputs.profile || 'preview' }}"
           if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
             PROFILE="production"
           fi
           echo "Building iOS with profile: $PROFILE"
-          NODE_OPTIONS="--no-experimental-strip-types" eas build --platform ios --profile $PROFILE --non-interactive
+          eas build --platform ios --profile $PROFILE --non-interactive
 
       - name: Submit to TestFlight
         if: steps.check.outputs.skip != 'true' && (inputs.submit || startsWith(github.ref, 'refs/tags/v'))
@@ -122,13 +124,15 @@ jobs:
 
       - name: Build Android
         if: steps.check.outputs.skip != 'true'
+        env:
+          NODE_OPTIONS: "--no-experimental-strip-types"
         run: |
           PROFILE="${{ inputs.profile || 'preview' }}"
           if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
             PROFILE="production"
           fi
           echo "Building Android with profile: $PROFILE"
-          NODE_OPTIONS="--no-experimental-strip-types" eas build --platform android --profile $PROFILE --non-interactive
+          eas build --platform android --profile $PROFILE --non-interactive
 
       - name: Submit to Google Play
         if: steps.check.outputs.skip != 'true' && (inputs.submit || startsWith(github.ref, 'refs/tags/v'))
@@ -171,9 +175,11 @@ jobs:
 
       - name: Push OTA Update
         if: steps.check.outputs.skip != 'true'
+        env:
+          NODE_OPTIONS: "--no-experimental-strip-types"
         run: |
           VERSION=$(node -p "require('../package.json').version")
-          NODE_OPTIONS="--no-experimental-strip-types" eas update --branch preview --message "v${VERSION}" --non-interactive
+          eas update --branch preview --message "v${VERSION}" --non-interactive
         continue-on-error: true
 
       - name: Get build URLs
