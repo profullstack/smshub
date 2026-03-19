@@ -19,9 +19,6 @@ files:
   - "!electron-builder.yml"
   - "!electron.vite.config.ts"
 
-extraMetadata:
-  main: dist/main/entry.js
-
 # ─── Protocol handler (deep links) ────────────────────────────
 protocols:
   - name: SMSHub
