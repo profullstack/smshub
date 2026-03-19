@@ -25,7 +25,7 @@ export default function SettingsPage() {
   const [providers, setProviders] = useState<ProviderRow[]>([]);
   const [phoneNumbers, setPhoneNumbers] = useState<PhoneNumberRow[]>([]);
   const [newProvider, setNewProvider] = useState({
-    type: "twilio" as "twilio" | "telnyx",
+    type: "twilio" as "twilio" | "telnyx" | "phonenumbers-bot",
     apiKey: "",
     apiSecret: "",
   });
@@ -172,11 +172,12 @@ export default function SettingsPage() {
             <h3 className="font-medium">Add Provider</h3>
             <select
               value={newProvider.type}
-              onChange={(e) => setNewProvider({ ...newProvider, type: e.target.value as "twilio" | "telnyx" })}
+              onChange={(e) => setNewProvider({ ...newProvider, type: e.target.value as "twilio" | "telnyx" | "phonenumbers-bot" })}
               className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg"
             >
               <option value="twilio">Twilio</option>
               <option value="telnyx">Telnyx</option>
+              <option value="phonenumbers-bot">phonenumbers.bot</option>
             </select>
             <input
               type="text"
@@ -272,6 +273,58 @@ export default function SettingsPage() {
               </button>
             </form>
           )}
+        </section>
+        {/* Contact Import/Export */}
+        <section className="space-y-4">
+          <h2 className="text-lg font-semibold">Contacts</h2>
+
+          <div className="bg-gray-900 rounded-lg p-4 border border-gray-800 space-y-3">
+            <h3 className="font-medium">Import / Export</h3>
+            <p className="text-sm text-gray-400">
+              CSV format: phone,name
+            </p>
+            <div className="flex gap-3">
+              <a
+                href="/api/contacts/export"
+                className="px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg text-sm font-medium transition-colors inline-block"
+                download
+              >
+                ⬇ Export CSV
+              </a>
+              <label className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-sm font-medium transition-colors cursor-pointer">
+                ⬆ Import CSV
+                <input
+                  type="file"
+                  accept=".csv,text/csv"
+                  className="hidden"
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    const formData = new FormData();
+                    formData.append("file", file);
+                    try {
+                      const res = await fetch("/api/contacts/import", {
+                        method: "POST",
+                        body: formData,
+                      });
+                      const data = await res.json();
+                      if (res.ok) {
+                        addToast(
+                          `Imported ${data.imported} contacts (${data.skipped} skipped)`,
+                          "success"
+                        );
+                      } else {
+                        addToast(data.error || "Import failed", "error");
+                      }
+                    } catch {
+                      addToast("Import failed", "error");
+                    }
+                    e.target.value = "";
+                  }}
+                />
+              </label>
+            </div>
+          </div>
         </section>
       </div>
     </div>

@@ -1,4 +1,4 @@
-export type Provider = "twilio" | "telnyx";
+export type Provider = "twilio" | "telnyx" | "phonenumbers-bot";
 export type MessageDirection = "inbound" | "outbound";
 export type MessageStatus = "queued" | "sent" | "delivered" | "failed";
 
@@ -91,6 +91,7 @@ export interface Database {
           phone_number_id: string;
           last_message_at: string;
           last_read_at: string | null;
+          archived: boolean;
           created_at: string;
         };
         Insert: {
@@ -100,6 +101,7 @@ export interface Database {
           phone_number_id: string;
           last_message_at?: string;
           last_read_at?: string | null;
+          archived?: boolean;
           created_at?: string;
         };
         Update: {
@@ -109,6 +111,7 @@ export interface Database {
           phone_number_id?: string;
           last_message_at?: string;
           last_read_at?: string | null;
+          archived?: boolean;
           created_at?: string;
         };
       };
@@ -121,6 +124,8 @@ export interface Database {
           status: MessageStatus;
           provider: Provider;
           provider_message_id: string | null;
+          retry_count: number;
+          media_url: string | null;
           created_at: string;
         };
         Insert: {
@@ -131,6 +136,8 @@ export interface Database {
           status?: MessageStatus;
           provider: Provider;
           provider_message_id?: string | null;
+          retry_count?: number;
+          media_url?: string | null;
           created_at?: string;
         };
         Update: {
@@ -141,6 +148,8 @@ export interface Database {
           status?: MessageStatus;
           provider?: Provider;
           provider_message_id?: string | null;
+          retry_count?: number;
+          media_url?: string | null;
           created_at?: string;
         };
       };

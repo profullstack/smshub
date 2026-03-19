@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from "vitest";
 import { getProvider, sendSMS, parseWebhook } from "../index";
 import { TwilioProvider } from "../twilio";
 import { TelnyxProvider } from "../telnyx";
+import { PhoneNumbersBotProvider } from "../phonenumbers-bot";
 
 describe("Provider index", () => {
   describe("getProvider", () => {
@@ -13,6 +14,11 @@ describe("Provider index", () => {
     it("returns TelnyxProvider for telnyx", () => {
       const provider = getProvider("telnyx");
       expect(provider).toBeInstanceOf(TelnyxProvider);
+    });
+
+    it("returns PhoneNumbersBotProvider for phonenumbers-bot", () => {
+      const provider = getProvider("phonenumbers-bot");
+      expect(provider).toBeInstanceOf(PhoneNumbersBotProvider);
     });
 
     it("throws for unknown provider", () => {

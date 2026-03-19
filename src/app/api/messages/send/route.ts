@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { sendSMS } from "@/lib/providers";
+import { withRetry } from "@/lib/retry";
+import { checkRateLimit } from "@/lib/rate-limit";
+
+const SEND_RATE_LIMIT = { limit: 10, windowMs: 60 * 1000 };
 
 export async function POST(request: Request) {
   try {
@@ -13,8 +17,22 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    // Rate limit: 10 sends per minute per user
+    const rl = checkRateLimit(`send:${user.id}`, SEND_RATE_LIMIT);
+    if (!rl.allowed) {
+      return NextResponse.json(
+        { error: "Rate limit exceeded" },
+        {
+          status: 429,
+          headers: {
+            "Retry-After": String(Math.ceil((rl.retryAfterMs || 1000) / 1000)),
+          },
+        }
+      );
+    }
+
     const body = await request.json();
-    const { to, phoneNumberId, message } = body;
+    const { to, phoneNumberId, message, mediaUrl } = body;
 
     if (!to || !phoneNumberId || !message) {
       return NextResponse.json(
@@ -93,30 +111,42 @@ export async function POST(request: Request) {
       conversation = newConvo;
     }
 
-    // Send via provider
-    const result = await sendSMS({
-      to,
-      from: phoneNumber.number,
-      body: message,
-      provider: providerData.type,
-      credentials: {
-        apiKey: providerData.api_key,
-        apiSecret: providerData.api_secret,
+    // Send via provider with retry logic
+    const retryResult = await withRetry(
+      async () => {
+        const result = await sendSMS({
+          to,
+          from: phoneNumber.number,
+          body: message,
+          provider: providerData.type,
+          credentials: {
+            apiKey: providerData.api_key,
+            apiSecret: providerData.api_secret,
+          },
+          mediaUrl,
+        });
+        if (!result.success) {
+          throw new Error(result.error || "Send failed");
+        }
+        return result;
       },
-    });
+      { maxAttempts: 3, baseDelayMs: 1000 }
+    );
 
-    if (!result.success) {
-      // Save as failed
+    if (!retryResult.success) {
+      // Save as failed with retry count
       await supabase.from("messages").insert({
         conversation_id: conversation!.id,
         direction: "outbound",
         body: message,
         status: "failed",
         provider: providerData.type,
+        retry_count: retryResult.attempts,
+        media_url: mediaUrl || null,
       });
 
       return NextResponse.json(
-        { error: result.error || "Send failed" },
+        { error: retryResult.error || "Send failed", retryAttempts: retryResult.attempts },
         { status: 500 }
       );
     }
@@ -130,7 +160,9 @@ export async function POST(request: Request) {
         body: message,
         status: "sent",
         provider: providerData.type,
-        provider_message_id: result.messageId || null,
+        provider_message_id: retryResult.data?.messageId || null,
+        retry_count: retryResult.attempts - 1, // successful on Nth attempt = N-1 retries
+        media_url: mediaUrl || null,
       })
       .select()
       .single();

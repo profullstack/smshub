@@ -1,0 +1,22 @@
+SMSHub App Icon — Placeholder Description
+==========================================
+
+Design: A rounded rectangle (iOS style) / adaptive circle (Android) with:
+- Background: Dark gradient from #030712 (gray-950) to #111827 (gray-900)
+- Foreground: A chat/message bubble icon in #2563eb (blue-600)
+  - Single speech bubble, rounded corners
+  - Three small dots inside (typing indicator style)
+  - Subtle drop shadow for depth
+- Size: 1024x1024 PNG (will be scaled down)
+
+To generate the actual icon:
+1. Use Figma, Sketch, or any SVG editor
+2. Export at 1024x1024 PNG
+3. Save as mobile/assets/icon.png (replacing this file)
+4. For Android adaptive icon, also export the foreground layer separately
+   as mobile/assets/adaptive-icon.png (with transparent background, centered in safe zone)
+
+Color reference:
+- Primary Blue: #2563eb
+- Light Blue accent: #60a5fa
+- Dark background: #030712

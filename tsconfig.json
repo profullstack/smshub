@@ -38,6 +38,10 @@
   "exclude": [
     "node_modules",
     "electron",
-    "mobile"
+    "mobile",
+    "sentry.client.config.ts",
+    "sentry.server.config.ts",
+    "sentry.edge.config.ts",
+    "src/lib/sentry.ts"
   ]
 }

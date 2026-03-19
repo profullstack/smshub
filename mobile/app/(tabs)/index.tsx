@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import {
   View,
   Text,
@@ -14,6 +14,13 @@ import {
 import { router } from "expo-router";
 import { supabase } from "@/lib/supabase";
 import { sendMessage } from "@/lib/api";
+import {
+  isOnline,
+  onConnectivityChange,
+  saveConversations,
+  loadConversations as loadCachedConversations,
+  queueMessage,
+} from "@/lib/offline-store";
 import { colors, spacing } from "@/lib/constants";
 
 interface Conversation {
@@ -34,6 +41,8 @@ export default function InboxScreen() {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [online, setOnline] = useState(isOnline());
+  const [searchQuery, setSearchQuery] = useState("");
 
   // New conversation modal state
   const [showNewConvo, setShowNewConvo] = useState(false);
@@ -44,7 +53,30 @@ export default function InboxScreen() {
   const [sendingNew, setSendingNew] = useState(false);
   const [showNumberPicker, setShowNumberPicker] = useState(false);
 
+  // Monitor connectivity
+  useEffect(() => {
+    const unsubscribe = onConnectivityChange((isOnlineNow) => {
+      setOnline(isOnlineNow);
+      if (isOnlineNow) {
+        // Refresh from server when back online
+        loadConversations();
+      }
+    });
+    return unsubscribe;
+  }, []);
+
   const loadConversations = useCallback(async () => {
+    if (!isOnline()) {
+      // Load from cache when offline
+      const cached = await loadCachedConversations();
+      if (cached.length > 0) {
+        setConversations(cached as Conversation[]);
+      }
+      setLoading(false);
+      setRefreshing(false);
+      return;
+    }
+
     const { data } = await supabase
       .from("conversations")
       .select(
@@ -57,7 +89,11 @@ export default function InboxScreen() {
       })
       .limit(1, { referencedTable: "messages" });
 
-    if (data) setConversations(data as Conversation[]);
+    if (data) {
+      setConversations(data as Conversation[]);
+      // Cache for offline use
+      saveConversations(data as Conversation[]).catch(console.error);
+    }
     setLoading(false);
     setRefreshing(false);
   }, []);
@@ -90,7 +126,28 @@ export default function InboxScreen() {
     loadConversations();
   }, [loadConversations]);
 
+  // Filter conversations by search query
+  const filteredConversations = useMemo(() => {
+    if (!searchQuery.trim()) return conversations;
+
+    const q = searchQuery.toLowerCase().trim();
+    return conversations.filter((conv) => {
+      const name = conv.contacts?.name?.toLowerCase() || "";
+      const phone = conv.contacts?.phone?.toLowerCase() || "";
+      const lastMsg = conv.messages?.[0]?.body?.toLowerCase() || "";
+      return name.includes(q) || phone.includes(q) || lastMsg.includes(q);
+    });
+  }, [conversations, searchQuery]);
+
   const openNewConversation = async () => {
+    if (!isOnline()) {
+      Alert.alert(
+        "Offline",
+        "You need an internet connection to start a new conversation."
+      );
+      return;
+    }
+
     // Load user's phone numbers
     const { data } = await supabase
       .from("phone_numbers")
@@ -118,11 +175,24 @@ export default function InboxScreen() {
 
     setSendingNew(true);
     try {
-      await sendMessage({
-        to: recipientPhone.trim(),
-        phoneNumberId: selectedNumber.id,
-        message: firstMessage.trim(),
-      });
+      if (isOnline()) {
+        await sendMessage({
+          to: recipientPhone.trim(),
+          phoneNumberId: selectedNumber.id,
+          message: firstMessage.trim(),
+        });
+      } else {
+        // Queue for later
+        await queueMessage({
+          to: recipientPhone.trim(),
+          phoneNumberId: selectedNumber.id,
+          message: firstMessage.trim(),
+        });
+        Alert.alert(
+          "Queued",
+          "Message will be sent when you're back online."
+        );
+      }
       setShowNewConvo(false);
       loadConversations();
     } catch (error: any) {
@@ -206,16 +276,45 @@ export default function InboxScreen() {
 
   return (
     <View style={styles.container}>
-      {conversations.length === 0 ? (
-        <View style={styles.center}>
-          <Text style={styles.emptyText}>No conversations yet</Text>
-          <Text style={styles.emptySubtext}>
-            Tap + to start a new conversation
+      {/* Offline indicator */}
+      {!online && (
+        <View style={styles.offlineBanner}>
+          <Text style={styles.offlineBannerText}>
+            📡 You're offline — showing cached data
           </Text>
+        </View>
+      )}
+
+      {/* Search bar */}
+      <View style={styles.searchContainer}>
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Search conversations..."
+          placeholderTextColor={colors.textMuted}
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          autoCapitalize="none"
+          autoCorrect={false}
+          clearButtonMode="while-editing"
+        />
+      </View>
+
+      {filteredConversations.length === 0 ? (
+        <View style={styles.center}>
+          <Text style={styles.emptyText}>
+            {searchQuery.trim()
+              ? "No matching conversations"
+              : "No conversations yet"}
+          </Text>
+          {!searchQuery.trim() && (
+            <Text style={styles.emptySubtext}>
+              Tap + to start a new conversation
+            </Text>
+          )}
         </View>
       ) : (
         <FlatList
-          data={conversations}
+          data={filteredConversations}
           renderItem={renderItem}
           keyExtractor={(item) => item.id}
           refreshControl={
@@ -346,6 +445,35 @@ const styles = StyleSheet.create({
   emptySubtext: {
     color: colors.textMuted,
     fontSize: 13,
+  },
+
+  // Offline banner
+  offlineBanner: {
+    backgroundColor: "#92400e", // amber-800
+    paddingVertical: 8,
+    paddingHorizontal: spacing.lg,
+    alignItems: "center",
+  },
+  offlineBannerText: {
+    color: "#fef3c7", // amber-100
+    fontSize: 13,
+    fontWeight: "500",
+  },
+
+  // Search bar
+  searchContainer: {
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  searchInput: {
+    backgroundColor: colors.surface,
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    color: colors.text,
+    fontSize: 15,
   },
 
   // Conversation item

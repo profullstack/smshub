@@ -1,0 +1,10 @@
+SMSHub Tray Icon — Placeholder
+================================
+
+Design: Monochrome message bubble icon for system tray.
+- macOS: 22x22, white on transparent (Template image — append "Template" to filename)
+- Windows: 16x16 ICO or PNG
+- Linux: 22x22 PNG
+
+The tray icon should be simple and recognizable at small sizes.
+Use a single-color chat bubble silhouette.

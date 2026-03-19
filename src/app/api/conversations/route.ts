@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const supabase = await createServerSupabaseClient();
     const {
@@ -12,7 +12,10 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { data: conversations, error } = await supabase
+    const url = new URL(request.url);
+    const showArchived = url.searchParams.get("archived") === "true";
+
+    let query = supabase
       .from("conversations")
       .select(
         `
@@ -25,6 +28,12 @@ export async function GET() {
       .eq("user_id", user.id)
       .order("last_message_at", { ascending: false })
       .limit(1, { referencedTable: "messages" });
+
+    if (!showArchived) {
+      query = query.eq("archived", false);
+    }
+
+    const { data: conversations, error } = await query;
 
     if (error) throw error;
 

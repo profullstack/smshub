@@ -1,0 +1,15 @@
+SMSHub Splash Screen — Placeholder Description
+================================================
+
+Design: Full-screen splash for app launch:
+- Background: Solid #030712 (gray-950)
+- Center: SMSHub logo (message bubble icon from app icon, slightly larger)
+- Below icon: "SMSHub" text in #f9fafb (gray-50), Inter or system font, 600 weight
+- Size: 1284x2778 (iPhone 14 Pro Max resolution, will be scaled)
+
+To generate:
+1. Create 1284x2778 canvas with #030712 background
+2. Center the message bubble icon (~200px)
+3. Add "SMSHub" text below
+4. Export as PNG
+5. Save as mobile/assets/splash.png

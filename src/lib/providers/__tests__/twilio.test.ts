@@ -64,6 +64,27 @@ describe("TwilioProvider", () => {
       expect(result.error).toBe("Network error");
     });
 
+    it("sends with MediaUrl for MMS", async () => {
+      const mockResponse = {
+        ok: true,
+        json: async () => ({ sid: "SM_MMS" }),
+      };
+      vi.spyOn(global, "fetch").mockResolvedValue(mockResponse as Response);
+
+      const result = await provider.send({
+        to: "+1234567890",
+        from: "+0987654321",
+        body: "Check this!",
+        credentials: { apiKey: "ACXXX", apiSecret: "auth_token_123" },
+        mediaUrl: "https://example.com/image.jpg",
+      });
+
+      expect(result.success).toBe(true);
+      const callArgs = vi.mocked(fetch).mock.calls[0];
+      const body = (callArgs[1] as RequestInit).body as string;
+      expect(body).toContain("MediaUrl=");
+    });
+
     it("sends correct authorization header", async () => {
       const mockResponse = {
         ok: true,

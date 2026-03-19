@@ -1,9 +1,25 @@
 import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 import { getProvider } from "@/lib/providers";
+import { checkRateLimit } from "@/lib/rate-limit";
+
+const WEBHOOK_RATE_LIMIT = { limit: 100, windowMs: 60 * 1000 };
 
 export async function POST(request: Request) {
   try {
+    // Rate limit: 100 per minute per IP
+    const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+    const rl = checkRateLimit(`webhook:twilio:${ip}`, WEBHOOK_RATE_LIMIT);
+    if (!rl.allowed) {
+      return NextResponse.json(
+        { error: "Rate limit exceeded" },
+        {
+          status: 429,
+          headers: { "Retry-After": String(Math.ceil((rl.retryAfterMs || 1000) / 1000)) },
+        }
+      );
+    }
+
     const rawBody = await request.text();
     const headers = request.headers;
     const url = request.url;

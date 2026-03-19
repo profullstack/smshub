@@ -1,0 +1,25 @@
+SMSHub Desktop Icon — Placeholder
+====================================
+
+Required icon files (place in electron/resources/):
+
+1. icon.icns — macOS (use iconutil to convert from iconset)
+2. icon.ico — Windows (256x256 multi-res ICO)
+3. icons/ directory — Linux PNGs:
+   - icons/16x16.png
+   - icons/32x32.png
+   - icons/48x48.png
+   - icons/64x64.png
+   - icons/128x128.png
+   - icons/256x256.png
+   - icons/512x512.png
+
+Design: Same as mobile icon — dark background (#030712) with blue (#2563eb) message bubble.
+
+For tray icon: Use a simpler, monochrome version:
+- macOS: 22x22 "Template" image (white on transparent, system handles dark/light)
+- Windows: 16x16 or 32x32 ICO
+- Linux: 22x22 PNG
+
+Generate with:
+  npx electron-icon-builder --input=icon-source.png --output=resources/

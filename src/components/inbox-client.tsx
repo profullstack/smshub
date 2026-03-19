@@ -13,6 +13,7 @@ interface Conversation {
   phone_number_id: string;
   last_message_at: string;
   last_read_at: string | null;
+  archived: boolean;
   contacts: { id: string; phone: string; name: string | null } | null;
   phone_numbers: {
     id: string;
@@ -28,10 +29,15 @@ interface Message {
   direction: "inbound" | "outbound";
   body: string;
   status: string;
+  retry_count?: number;
+  media_url?: string | null;
   created_at: string;
 }
 
-function MessageStatusIcon({ status }: { status: string }) {
+function MessageStatusIcon({ status, retryCount }: { status: string; retryCount?: number }) {
+  if (status === "failed" && retryCount && retryCount > 0) {
+    return <span className="text-orange-400 ml-1" title={`Retried ${retryCount}x`}>⟳ Failed</span>;
+  }
   switch (status) {
     case "delivered":
       return <span className="text-green-400 ml-1" title="Delivered">✓✓</span>;
@@ -60,14 +66,20 @@ export function InboxClient({
   const [sending, setSending] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [showNewMessage, setShowNewMessage] = useState(false);
+  const [showArchived, setShowArchived] = useState(false);
+  const [suggestingReply, setSuggestingReply] = useState(false);
   const [_selectedIndex, setSelectedIndex] = useState(-1);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
   const supabase = createClient();
   const { addToast } = useToast();
 
-  // Filter conversations by search
+  // Filter conversations by search and archived status
   const filteredConversations = conversations.filter((convo) => {
+    // Filter by archived status
+    if (!showArchived && convo.archived) return false;
+    if (showArchived && !convo.archived) return false;
+
     if (!searchQuery.trim()) return true;
     const q = searchQuery.toLowerCase();
     const name = convo.contacts?.name?.toLowerCase() || "";
@@ -242,18 +254,85 @@ export function InboxClient({
     }
   };
 
+  const handleSuggestReply = async () => {
+    if (!selectedConvo) return;
+    setSuggestingReply(true);
+    try {
+      const res = await fetch("/api/messages/suggest-reply", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ conversation_id: selectedConvo.id }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setNewMessage(data.suggestion || "");
+        addToast("AI suggestion loaded", "success");
+      } else {
+        const data = await res.json();
+        addToast(data.error || "Failed to get suggestion", "error");
+      }
+    } catch {
+      addToast("Failed to get AI suggestion", "error");
+    } finally {
+      setSuggestingReply(false);
+    }
+  };
+
+  const handleArchive = async () => {
+    if (!selectedConvo) return;
+    const newArchived = !selectedConvo.archived;
+    try {
+      const res = await fetch(`/api/conversations/${selectedConvo.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ archived: newArchived }),
+      });
+      if (res.ok) {
+        addToast(newArchived ? "Conversation archived" : "Conversation unarchived", "success");
+        setConversations((prev) =>
+          prev.map((c) => (c.id === selectedConvo.id ? { ...c, archived: newArchived } : c))
+        );
+        setSelectedConvo(null);
+      }
+    } catch {
+      addToast("Failed to update conversation", "error");
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!selectedConvo) return;
+    if (!confirm("Delete this conversation? This cannot be undone.")) return;
+    try {
+      const res = await fetch(`/api/conversations/${selectedConvo.id}?hard=true`, {
+        method: "DELETE",
+      });
+      if (res.ok) {
+        addToast("Conversation deleted", "success");
+        setConversations((prev) => prev.filter((c) => c.id !== selectedConvo.id));
+        setSelectedConvo(null);
+      }
+    } catch {
+      addToast("Failed to delete conversation", "error");
+    }
+  };
+
   const handleLogout = async () => {
     await supabase.auth.signOut();
     window.location.href = "/login";
   };
 
   const reloadConversations = async () => {
-    const res = await fetch("/api/conversations");
+    const res = await fetch(`/api/conversations${showArchived ? "?archived=true" : ""}`);
     const data = await res.json();
     if (data.conversations) {
       setConversations(data.conversations);
     }
   };
+
+  // Reload conversations when toggling archived view
+  useEffect(() => {
+    reloadConversations();
+  }, [showArchived]);
 
   const handleContactUpdated = (newName: string) => {
     if (!selectedConvo) return;
@@ -326,12 +405,24 @@ export function InboxClient({
             placeholder="Search conversations... (Ctrl+K)"
             className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
+
+          {/* Show Archived Toggle */}
+          <button
+            onClick={() => setShowArchived(!showArchived)}
+            className={`w-full mt-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+              showArchived
+                ? "bg-yellow-600/20 text-yellow-400 hover:bg-yellow-600/30"
+                : "bg-gray-800 text-gray-400 hover:bg-gray-700"
+            }`}
+          >
+            {showArchived ? "📦 Showing Archived" : "📦 Show Archived"}
+          </button>
         </div>
 
         <div className="flex-1 overflow-y-auto">
           {filteredConversations.length === 0 ? (
             <div className="p-4 text-gray-500 text-center text-sm">
-              {searchQuery ? "No matches" : "No conversations yet"}
+              {searchQuery ? "No matches" : showArchived ? "No archived conversations" : "No conversations yet"}
             </div>
           ) : (
             filteredConversations.map((convo, index) => {
@@ -350,6 +441,7 @@ export function InboxClient({
                   <div className="flex-1 min-w-0">
                     <div className={`font-medium truncate ${unread > 0 ? "text-white" : ""}`}>
                       {convo.contacts?.name || convo.contacts?.phone || "Unknown"}
+                      {convo.archived && <span className="text-xs text-yellow-500 ml-1">📦</span>}
                     </div>
                     <div className="text-sm text-gray-400 truncate">
                       {convo.phone_numbers?.friendly_name || convo.phone_numbers?.number}
@@ -373,16 +465,36 @@ export function InboxClient({
           <>
             {/* Chat Header */}
             <div className="p-4 border-b border-gray-800 bg-gray-900">
-              <ContactNameEditor
-                contactId={selectedConvo.contacts?.id || ""}
-                currentName={selectedConvo.contacts?.name || null}
-                phone={selectedConvo.contacts?.phone || "Unknown"}
-                onUpdated={handleContactUpdated}
-              />
-              <div className="text-sm text-gray-400">
-                via{" "}
-                {selectedConvo.phone_numbers?.friendly_name ||
-                  selectedConvo.phone_numbers?.number}
+              <div className="flex items-center justify-between">
+                <div>
+                  <ContactNameEditor
+                    contactId={selectedConvo.contacts?.id || ""}
+                    currentName={selectedConvo.contacts?.name || null}
+                    phone={selectedConvo.contacts?.phone || "Unknown"}
+                    onUpdated={handleContactUpdated}
+                  />
+                  <div className="text-sm text-gray-400">
+                    via{" "}
+                    {selectedConvo.phone_numbers?.friendly_name ||
+                      selectedConvo.phone_numbers?.number}
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={handleArchive}
+                    className="px-3 py-1.5 bg-gray-800 hover:bg-gray-700 rounded-lg text-xs font-medium text-gray-300 transition-colors"
+                    title={selectedConvo.archived ? "Unarchive" : "Archive"}
+                  >
+                    {selectedConvo.archived ? "📤 Unarchive" : "📦 Archive"}
+                  </button>
+                  <button
+                    onClick={handleDelete}
+                    className="px-3 py-1.5 bg-red-900/50 hover:bg-red-800/50 rounded-lg text-xs font-medium text-red-400 transition-colors"
+                    title="Delete conversation"
+                  >
+                    🗑 Delete
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -402,6 +514,17 @@ export function InboxClient({
                         : "bg-gray-800 text-gray-100"
                     }`}
                   >
+                    {/* MMS image */}
+                    {msg.media_url && (
+                      <div className="mb-2">
+                        <img
+                          src={msg.media_url}
+                          alt="MMS attachment"
+                          className="max-w-full rounded-lg cursor-pointer"
+                          onClick={() => window.open(msg.media_url!, "_blank")}
+                        />
+                      </div>
+                    )}
                     <p className="text-sm">{msg.body}</p>
                     <p
                       className={`text-xs mt-1 flex items-center ${
@@ -412,7 +535,7 @@ export function InboxClient({
                     >
                       {new Date(msg.created_at).toLocaleTimeString()}
                       {msg.direction === "outbound" && (
-                        <MessageStatusIcon status={msg.status} />
+                        <MessageStatusIcon status={msg.status} retryCount={msg.retry_count} />
                       )}
                     </p>
                   </div>
@@ -435,11 +558,20 @@ export function InboxClient({
                   className="flex-1 px-4 py-2 bg-gray-800 border border-gray-700 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
                 <button
+                  type="button"
+                  onClick={handleSuggestReply}
+                  disabled={suggestingReply || messages.length === 0}
+                  className="px-3 py-2 bg-purple-600 hover:bg-purple-700 disabled:opacity-50 rounded-full text-sm font-medium transition-colors"
+                  title="AI Suggest Reply"
+                >
+                  {suggestingReply ? "..." : "✨ AI"}
+                </button>
+                <button
                   type="submit"
                   disabled={sending || !newMessage.trim()}
                   className="px-6 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 rounded-full font-medium transition-colors"
                 >
-                  Send
+                  {sending ? "Sending..." : "Send"}
                 </button>
               </div>
             </form>

@@ -1,15 +1,18 @@
 import { TwilioProvider } from "./twilio";
 import { TelnyxProvider } from "./telnyx";
+import { PhoneNumbersBotProvider } from "./phonenumbers-bot";
 import type {
   SendSMSParams,
   SendSMSResult,
   SMSProvider,
   InboundMessage,
+  ProviderType,
 } from "./types";
 
 const providers: Record<string, SMSProvider> = {
   twilio: new TwilioProvider(),
   telnyx: new TelnyxProvider(),
+  "phonenumbers-bot": new PhoneNumbersBotProvider(),
 };
 
 export function getProvider(name: string): SMSProvider {
@@ -44,4 +47,4 @@ export function validateWebhook(
   return provider.validateWebhook(rawBody, headers, url);
 }
 
-export type { SendSMSParams, SendSMSResult, SMSProvider, InboundMessage };
+export type { SendSMSParams, SendSMSResult, SMSProvider, InboundMessage, ProviderType };

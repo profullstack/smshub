@@ -1,0 +1,17 @@
+SMSHub Android Adaptive Icon — Placeholder Description
+=======================================================
+
+Design: Foreground layer for Android adaptive icons:
+- Transparent background
+- Chat/message bubble icon centered in the safe zone (66.67% of total area)
+- Icon color: #2563eb (blue-600) with slight gradient to #60a5fa
+- Size: 1024x1024 PNG with transparency
+
+The Android system will mask this with a circle, squircle, or other shape
+depending on the device manufacturer. Keep the icon well within the safe zone.
+
+To generate:
+1. Create 1024x1024 canvas with transparent background
+2. Center the message bubble icon within the inner 682x682 area
+3. Export as PNG with alpha
+4. Save as mobile/assets/adaptive-icon.png

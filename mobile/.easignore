@@ -1,0 +1,37 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+.expo/
+ios/Pods/
+
+# Environment files
+.env
+.env.local
+.env.staging
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test files
+__tests__/
+*.test.ts
+*.test.tsx
+*.spec.ts
+*.spec.tsx
+coverage/
+
+# Docs
+docs/
+*.md
+!README.md
+
+# Git
+.git/
+.gitignore

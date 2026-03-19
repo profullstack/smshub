@@ -3,12 +3,24 @@ import type {
   SMSProvider,
   SendSMSParams,
   SendSMSResult,
+  SendMMSParams,
   InboundMessage,
 } from "./types";
 
 export class TelnyxProvider implements SMSProvider {
   async send(params: Omit<SendSMSParams, "provider">): Promise<SendSMSResult> {
-    const { to, from, body, credentials } = params;
+    const { to, from, body, credentials, mediaUrl } = params;
+
+    const payload: Record<string, unknown> = {
+      from,
+      to,
+      text: body,
+      type: mediaUrl ? "MMS" : "SMS",
+    };
+
+    if (mediaUrl) {
+      payload.media_urls = [mediaUrl];
+    }
 
     try {
       const response = await fetch("https://api.telnyx.com/v2/messages", {
@@ -17,12 +29,7 @@ export class TelnyxProvider implements SMSProvider {
           Authorization: `Bearer ${credentials.apiKey}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          from,
-          to,
-          text: body,
-          type: "SMS",
-        }),
+        body: JSON.stringify(payload),
       });
 
       const data = await response.json();
@@ -43,12 +50,24 @@ export class TelnyxProvider implements SMSProvider {
     }
   }
 
+  async sendMMS(params: SendMMSParams): Promise<SendSMSResult> {
+    return this.send({
+      to: params.to,
+      from: params.from,
+      body: params.body,
+      credentials: params.credentials,
+      mediaUrl: params.mediaUrl,
+    });
+  }
+
   parseWebhook(body: Record<string, unknown>, _headers: Headers): InboundMessage {
     const data = body.data as Record<string, unknown> | undefined;
     const payload = data?.payload as Record<string, unknown> | undefined;
     const from = (payload?.from as Record<string, unknown>)?.phone_number;
     const toArr = payload?.to as Array<Record<string, unknown>> | undefined;
     const to = toArr?.[0]?.phone_number;
+    const mediaArr = payload?.media as Array<Record<string, unknown>> | undefined;
+    const mediaUrl = mediaArr?.[0]?.url ? String(mediaArr[0].url) : undefined;
 
     return {
       from: String(from || ""),
@@ -56,6 +75,7 @@ export class TelnyxProvider implements SMSProvider {
       body: String(payload?.text || ""),
       providerMessageId: String(data?.id || ""),
       provider: "telnyx",
+      mediaUrl,
     };
   }
 

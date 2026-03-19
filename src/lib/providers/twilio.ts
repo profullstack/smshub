@@ -3,6 +3,7 @@ import type {
   SMSProvider,
   SendSMSParams,
   SendSMSResult,
+  SendMMSParams,
   InboundMessage,
 } from "./types";
 
@@ -18,11 +19,16 @@ function getSignature(
 
 export class TwilioProvider implements SMSProvider {
   async send(params: Omit<SendSMSParams, "provider">): Promise<SendSMSResult> {
-    const { to, from, body, credentials } = params;
+    const { to, from, body, credentials, mediaUrl } = params;
     const accountSid = credentials.apiKey;
     const authToken = credentials.apiSecret!;
 
     const url = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`;
+
+    const formParams: Record<string, string> = { To: to, From: from, Body: body };
+    if (mediaUrl) {
+      formParams.MediaUrl = mediaUrl;
+    }
 
     try {
       const response = await fetch(url, {
@@ -32,7 +38,7 @@ export class TwilioProvider implements SMSProvider {
             "Basic " + Buffer.from(`${accountSid}:${authToken}`).toString("base64"),
           "Content-Type": "application/x-www-form-urlencoded",
         },
-        body: new URLSearchParams({ To: to, From: from, Body: body }).toString(),
+        body: new URLSearchParams(formParams).toString(),
       });
 
       const data = await response.json();
@@ -50,13 +56,25 @@ export class TwilioProvider implements SMSProvider {
     }
   }
 
+  async sendMMS(params: SendMMSParams): Promise<SendSMSResult> {
+    return this.send({
+      to: params.to,
+      from: params.from,
+      body: params.body,
+      credentials: params.credentials,
+      mediaUrl: params.mediaUrl,
+    });
+  }
+
   parseWebhook(body: Record<string, unknown>, _headers: Headers): InboundMessage {
+    const mediaUrl = body.MediaUrl0 ? String(body.MediaUrl0) : undefined;
     return {
       from: String(body.From || ""),
       to: String(body.To || ""),
       body: String(body.Body || ""),
       providerMessageId: String(body.MessageSid || ""),
       provider: "twilio",
+      mediaUrl,
     };
   }
 

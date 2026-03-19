@@ -7,19 +7,54 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
     "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
       "backgroundColor": "#030712"
     },
     "assetBundlePatterns": ["**/*"],
+    "scheme": "smshub",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.smshub.app"
+      "bundleIdentifier": "com.smshub.app",
+      "infoPlist": {
+        "UIBackgroundModes": ["fetch", "remote-notification"]
+      }
     },
     "android": {
       "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#030712"
       },
-      "package": "com.smshub.app"
+      "package": "com.smshub.app",
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "smshub",
+              "host": "chat",
+              "pathPrefix": "/"
+            },
+            {
+              "scheme": "smshub",
+              "host": "compose"
+            }
+          ],
+          "category": ["DEFAULT", "BROWSABLE"]
+        }
+      ]
     },
-    "plugins": ["expo-router", "expo-notifications"]
+    "plugins": [
+      "expo-router",
+      "expo-notifications",
+      "expo-background-fetch",
+      [
+        "expo-linking",
+        {
+          "scheme": "smshub"
+        }
+      ]
+    ]
   }
 }

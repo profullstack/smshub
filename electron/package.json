@@ -11,7 +11,11 @@
     "package": "tsc && electron-builder --config electron-builder.yml",
     "package:linux": "tsc && electron-builder --linux --config electron-builder.yml",
     "package:mac": "tsc && electron-builder --mac --config electron-builder.yml",
-    "package:win": "tsc && electron-builder --win --config electron-builder.yml"
+    "package:win": "tsc && electron-builder --win --config electron-builder.yml",
+    "ci:build": "tsc",
+    "ci:package:linux": "tsc && electron-builder --linux AppImage --config electron-builder.yml --publish never",
+    "ci:package:mac": "tsc && electron-builder --mac dmg --config electron-builder.yml --publish never",
+    "ci:package:win": "tsc && electron-builder --win nsis --config electron-builder.yml --publish never"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.49.0",
