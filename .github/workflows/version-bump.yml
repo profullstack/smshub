@@ -11,24 +11,35 @@ jobs:
   bump:
     name: Patch Version Bump
     runs-on: ubuntu-latest
-    # Skip if commit message already has version bump (avoid infinite loop)
-    if: ${{ !contains(github.event.head_commit.message, 'chore: bump version') }}
     timeout-minutes: 5
 
     steps:
+      - name: Check if version bump commit
+        id: check
+        run: |
+          MSG="${{ github.event.head_commit.message }}"
+          if echo "$MSG" | grep -q "chore: bump version"; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - uses: actions/checkout@v4
+        if: steps.check.outputs.skip != 'true'
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - uses: actions/setup-node@v4
+        if: steps.check.outputs.skip != 'true'
         with:
           node-version: 22
 
       - name: Bump patch version
-        run: |
-          bash scripts/version.sh patch
+        if: steps.check.outputs.skip != 'true'
+        run: bash scripts/version.sh patch
 
       - name: Commit & push
+        if: steps.check.outputs.skip != 'true'
         run: |
           VERSION=$(node -p "require('./package.json').version")
           git config user.name "github-actions"
