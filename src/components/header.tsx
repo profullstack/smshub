@@ -20,16 +20,16 @@ export function Header() {
         </Link>
 
         <nav className="hidden sm:flex items-center gap-6">
-          <Link href="#features" className="text-sm text-gray-400 hover:text-white transition-colors">
+          <Link href="/#features" className="text-sm text-gray-400 hover:text-white transition-colors">
             Features
           </Link>
-          <Link href="#pricing" className="text-sm text-gray-400 hover:text-white transition-colors">
+          <Link href="/#pricing" className="text-sm text-gray-400 hover:text-white transition-colors">
             Pricing
           </Link>
-          <Link href="#api" className="text-sm text-gray-400 hover:text-white transition-colors">
+          <Link href="/#api" className="text-sm text-gray-400 hover:text-white transition-colors">
             API
           </Link>
-          <Link href="#apps" className="text-sm text-gray-400 hover:text-white transition-colors">
+          <Link href="/#apps" className="text-sm text-gray-400 hover:text-white transition-colors">
             Apps
           </Link>
           <Link href="/phonenumbers" className="text-sm text-gray-400 hover:text-white transition-colors">
