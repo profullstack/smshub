@@ -287,19 +287,21 @@ export default function SettingsPage() {
               const name = (form.elements.namedItem("contactName") as HTMLInputElement).value.trim();
               if (!phone) { addToast("Phone number is required", "error"); return; }
 
-              const { data: { user } } = await supabase.auth.getUser();
-              if (!user) return;
-
-              const { error } = await supabase.from("contacts").upsert(
-                { user_id: user.id, phone, name: name || null },
-                { onConflict: "user_id,phone" }
-              );
-
-              if (error) {
+              try {
+                const res = await fetch("/api/contacts", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ phone, name: name || null }),
+                });
+                if (res.ok) {
+                  addToast(`Contact ${name || phone} added`, "success");
+                  form.reset();
+                } else {
+                  const data = await res.json();
+                  addToast(data.error || "Failed to add contact", "error");
+                }
+              } catch {
                 addToast("Failed to add contact", "error");
-              } else {
-                addToast(`Contact ${name || phone} added`, "success");
-                form.reset();
               }
             }}
             className="bg-gray-900 rounded-lg p-4 border border-gray-800 space-y-3"
