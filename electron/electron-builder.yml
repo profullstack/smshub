@@ -7,6 +7,9 @@ directories:
   buildResources: resources
   app: .
 
+extraMetadata:
+  main: dist/main/entry.js
+
 files:
   - dist/**/*
   - package.json
@@ -65,7 +68,7 @@ linux:
 appImage:
   artifactName: "SMSHub-${version}.AppImage"
 
-# afterPack: ./scripts/after-pack.js  # Don't remove chrome-sandbox — Chromium needs it present
+afterPack: ./scripts/after-pack.js
 
 # ─── Auto-update — GitHub Releases ────────────────────────────
 publish:
