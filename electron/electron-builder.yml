@@ -7,6 +7,8 @@ directories:
   buildResources: resources
   app: .
 
+icon: resources/icon.png
+
 extraMetadata:
   main: dist/main/entry.js
 
