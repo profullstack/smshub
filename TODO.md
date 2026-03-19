@@ -70,8 +70,11 @@
 
 ## Remaining Setup (requires credentials/infra)
 
-- [ ] Wire up Supabase project and run all migrations
-- [ ] Configure Twilio/Telnyx webhook URLs
+- [x] Wire up Supabase project and run all migrations
+- [x] Configure Telnyx API key
+- [x] Configure OpenAI API key
+- [ ] Configure Twilio credentials (optional — Telnyx is active)
+- [ ] Configure Telnyx webhook URLs (point to deployed app)
 - [ ] Set up Railway project and connect repo
 - [ ] Configure GitHub Actions secrets (RAILWAY_TOKEN, etc.)
 - [ ] Set up Sentry project and add DSN
