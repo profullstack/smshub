@@ -1,0 +1,25 @@
+{
+  "expo": {
+    "name": "SMSHub",
+    "slug": "smshub",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "splash": {
+      "backgroundColor": "#030712"
+    },
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.smshub.app"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#030712"
+      },
+      "package": "com.smshub.app"
+    },
+    "plugins": ["expo-router", "expo-notifications"]
+  }
+}
