@@ -54,7 +54,7 @@ jobs:
       - name: Check EXPO_TOKEN
         id: check
         env:
-          NODE_OPTIONS: "--no-experimental-strip-types"
+          NODE_OPTIONS: "--experimental-strip-types --experimental-transform-types"
         run: |
           if [ -z "${{ secrets.EXPO_TOKEN }}" ]; then
             echo "skip=true" >> "$GITHUB_OUTPUT"
@@ -73,7 +73,7 @@ jobs:
       - name: Build iOS
         if: steps.check.outputs.skip != 'true'
         env:
-          NODE_OPTIONS: "--no-experimental-strip-types"
+          NODE_OPTIONS: "--experimental-strip-types --experimental-transform-types"
         run: |
           PROFILE="${{ inputs.profile || 'preview' }}"
           if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
@@ -125,7 +125,7 @@ jobs:
       - name: Build Android
         if: steps.check.outputs.skip != 'true'
         env:
-          NODE_OPTIONS: "--no-experimental-strip-types"
+          NODE_OPTIONS: "--experimental-strip-types --experimental-transform-types"
         run: |
           PROFILE="${{ inputs.profile || 'preview' }}"
           if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
@@ -176,7 +176,7 @@ jobs:
       - name: Push OTA Update
         if: steps.check.outputs.skip != 'true'
         env:
-          NODE_OPTIONS: "--no-experimental-strip-types"
+          NODE_OPTIONS: "--experimental-strip-types --experimental-transform-types"
         run: |
           VERSION=$(node -p "require('../package.json').version")
           eas update --branch preview --message "v${VERSION}" --non-interactive
