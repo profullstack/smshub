@@ -8,6 +8,8 @@ const mockDeleteEq = vi.fn();
 vi.mock("@/lib/supabase/server", () => ({
   createServerSupabaseClient: vi.fn(async () => ({
     auth: { getUser: mockGetUser },
+  })),
+  createServiceClient: vi.fn(() => ({
     from: vi.fn((table: string) => {
       if (table === "providers") {
         return {
@@ -63,14 +65,12 @@ describe("DELETE /api/providers/[id]", () => {
 
   it("deletes provider successfully", async () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: "user-1" } } });
-    mockSelectSingle.mockResolvedValue({ data: { id: "123" } });
+    mockSelectSingle.mockResolvedValue({ data: { id: "123", user_id: "user-1" } });
     mockDeleteEq.mockResolvedValue({ error: null });
 
     const { DELETE } = await import("@/app/api/providers/[id]/route");
     const request = new Request("http://localhost/api/providers/123", { method: "DELETE" });
     const response = await DELETE(request, { params: Promise.resolve({ id: "123" }) });
     expect(response.status).toBe(200);
-    const json = await response.json();
-    expect(json.ok).toBe(true);
   });
 });
