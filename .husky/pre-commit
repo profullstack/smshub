@@ -1,0 +1,12 @@
+#!/usr/bin/env sh
+
+echo "🧪 Running tests..."
+pnpm test || exit 1
+
+echo "🔍 Running TypeScript check..."
+pnpm tsc --noEmit || exit 1
+
+echo "🔍 Linting staged files..."
+pnpm lint-staged || exit 1
+
+echo "✅ All checks passed!"
