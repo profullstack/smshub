@@ -1,0 +1,39 @@
+name: Version Bump
+
+on:
+  push:
+    branches: [master]
+
+permissions:
+  contents: write
+
+jobs:
+  bump:
+    name: Patch Version Bump
+    runs-on: ubuntu-latest
+    # Skip if commit message already has version bump (avoid infinite loop)
+    if: ${{ !contains(github.event.head_commit.message, 'chore: bump version') }}
+    timeout-minutes: 5
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Bump patch version
+        run: |
+          bash scripts/version.sh patch
+
+      - name: Commit & push
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          git add package.json mobile/package.json electron/package.json mobile/app.json
+          git diff --cached --quiet && echo "No version change" && exit 0
+          git commit -m "chore: bump version to v${VERSION}"
+          git push
