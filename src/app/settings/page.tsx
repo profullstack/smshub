@@ -274,10 +274,61 @@ export default function SettingsPage() {
             </form>
           )}
         </section>
-        {/* Contact Import/Export */}
+        {/* Contacts */}
         <section className="space-y-4">
           <h2 className="text-lg font-semibold">Contacts</h2>
 
+          {/* Add Contact */}
+          <form
+            onSubmit={async (e) => {
+              e.preventDefault();
+              const form = e.target as HTMLFormElement;
+              const phone = (form.elements.namedItem("phone") as HTMLInputElement).value.trim();
+              const name = (form.elements.namedItem("contactName") as HTMLInputElement).value.trim();
+              if (!phone) { addToast("Phone number is required", "error"); return; }
+
+              const { data: { user } } = await supabase.auth.getUser();
+              if (!user) return;
+
+              const { error } = await supabase.from("contacts").upsert(
+                { user_id: user.id, phone, name: name || null },
+                { onConflict: "user_id,phone" }
+              );
+
+              if (error) {
+                addToast("Failed to add contact", "error");
+              } else {
+                addToast(`Contact ${name || phone} added`, "success");
+                form.reset();
+              }
+            }}
+            className="bg-gray-900 rounded-lg p-4 border border-gray-800 space-y-3"
+          >
+            <h3 className="font-medium">Add Contact</h3>
+            <div className="flex gap-2">
+              <input
+                name="phone"
+                type="tel"
+                placeholder="+1234567890"
+                required
+                className="flex-1 px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-sm"
+              />
+              <input
+                name="contactName"
+                type="text"
+                placeholder="Name (optional)"
+                className="flex-1 px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-sm"
+              />
+              <button
+                type="submit"
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-sm font-medium transition-colors whitespace-nowrap"
+              >
+                + Add
+              </button>
+            </div>
+          </form>
+
+          {/* Import / Export */}
           <div className="bg-gray-900 rounded-lg p-4 border border-gray-800 space-y-3">
             <h3 className="font-medium">Import / Export</h3>
             <p className="text-sm text-gray-400">
