@@ -26,7 +26,7 @@ on:
           - preview
           - production
       submit:
-        description: 'Auto-submit to stores (production only)'
+        description: 'Auto-submit to stores'
         required: false
         default: false
         type: boolean
@@ -41,53 +41,47 @@ jobs:
     defaults:
       run:
         working-directory: mobile
-
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js 22
-        uses: actions/setup-node@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: 20
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v4
         with:
           version: latest
-
-      - name: Install dependencies
-        run: pnpm install
+      - run: pnpm install
 
       - name: Check EXPO_TOKEN
-        id: check-token
+        id: check
         run: |
           if [ -z "${{ secrets.EXPO_TOKEN }}" ]; then
             echo "skip=true" >> "$GITHUB_OUTPUT"
-            echo "⚠ EXPO_TOKEN not set — skipping iOS build"
+            echo "⚠ EXPO_TOKEN not set — skipping build"
           else
             echo "skip=false" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Setup EAS
-        if: steps.check-token.outputs.skip != 'true'
+        if: steps.check.outputs.skip != 'true'
         uses: expo/expo-github-action@v8
         with:
           eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
 
       - name: Build iOS
-        if: steps.check-token.outputs.skip != 'true'
+        if: steps.check.outputs.skip != 'true'
         run: |
           PROFILE="${{ inputs.profile || 'preview' }}"
           if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
             PROFILE="production"
           fi
+          echo "Building iOS with profile: $PROFILE"
           eas build --platform ios --profile $PROFILE --non-interactive
 
-      - name: Submit to App Store
-        if: steps.check-token.outputs.skip != 'true' && inputs.profile == 'production' && inputs.submit
+      - name: Submit to TestFlight
+        if: steps.check.outputs.skip != 'true' && (inputs.submit || startsWith(github.ref, 'refs/tags/v'))
         run: eas submit --platform ios --latest --non-interactive
+        continue-on-error: true
 
   build-android:
     name: Build Android
@@ -97,50 +91,99 @@ jobs:
     defaults:
       run:
         working-directory: mobile
-
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js 22
-        uses: actions/setup-node@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: 20
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v4
         with:
           version: latest
-
-      - name: Install dependencies
-        run: pnpm install
+      - run: pnpm install
 
       - name: Check EXPO_TOKEN
-        id: check-token
+        id: check
         run: |
           if [ -z "${{ secrets.EXPO_TOKEN }}" ]; then
             echo "skip=true" >> "$GITHUB_OUTPUT"
-            echo "⚠ EXPO_TOKEN not set — skipping Android build"
+            echo "⚠ EXPO_TOKEN not set — skipping build"
           else
             echo "skip=false" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Setup EAS
-        if: steps.check-token.outputs.skip != 'true'
+        if: steps.check.outputs.skip != 'true'
         uses: expo/expo-github-action@v8
         with:
           eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
 
       - name: Build Android
-        if: steps.check-token.outputs.skip != 'true'
+        if: steps.check.outputs.skip != 'true'
         run: |
           PROFILE="${{ inputs.profile || 'preview' }}"
           if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
             PROFILE="production"
           fi
+          echo "Building Android with profile: $PROFILE"
           eas build --platform android --profile $PROFILE --non-interactive
 
       - name: Submit to Google Play
-        if: steps.check-token.outputs.skip != 'true' && inputs.profile == 'production' && inputs.submit
+        if: steps.check.outputs.skip != 'true' && (inputs.submit || startsWith(github.ref, 'refs/tags/v'))
         run: eas submit --platform android --latest --non-interactive
+        continue-on-error: true
+
+  publish-mobile-release:
+    name: Publish Mobile Release
+    runs-on: ubuntu-latest
+    needs: [build-ios, build-android]
+    if: always() && (needs.build-ios.result == 'success' || needs.build-android.result == 'success')
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - uses: pnpm/action-setup@v4
+        with:
+          version: latest
+      - run: pnpm install
+
+      - name: Check EXPO_TOKEN
+        id: check
+        run: |
+          if [ -z "${{ secrets.EXPO_TOKEN }}" ]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Setup EAS
+        if: steps.check.outputs.skip != 'true'
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Push OTA Update
+        if: steps.check.outputs.skip != 'true'
+        run: |
+          VERSION=$(node -p "require('../package.json').version")
+          eas update --branch preview --message "v${VERSION}" --non-interactive
+        continue-on-error: true
+
+      - name: Get build URLs
+        if: steps.check.outputs.skip != 'true'
+        id: builds
+        run: |
+          echo "## 📱 Mobile Builds" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Builds are available on [Expo Dashboard](https://expo.dev/accounts/profullstack/projects/smshub/builds)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **iOS:** Install via TestFlight (once Apple review completes)" >> $GITHUB_STEP_SUMMARY
+          echo "- **Android:** Download APK from Expo dashboard or install via internal distribution" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### OTA Update" >> $GITHUB_STEP_SUMMARY
+          echo "Existing installs will receive an over-the-air update automatically." >> $GITHUB_STEP_SUMMARY
