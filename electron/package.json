@@ -18,7 +18,6 @@
     "ci:package:win": "electron-vite build && electron-builder --win nsis --config electron-builder.yml --publish never"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.49.0",
     "electron-updater": "^6.3.0"
   },
   "devDependencies": {
