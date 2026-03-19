@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useToast } from "@/contexts/toast-context";
@@ -45,7 +44,6 @@ export default function SettingsPage() {
   });
   const [newNumber, setNewNumber] = useState({ number: "", providerId: "", friendlyName: "" });
   const [loading, setLoading] = useState(false);
-  const supabase = createClient();
   const router = useRouter();
   const { addToast } = useToast();
 
@@ -55,39 +53,58 @@ export default function SettingsPage() {
   }, []);
 
   const loadData = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) { router.push("/login"); return; }
+    try {
+      const [provRes, numRes] = await Promise.all([
+        fetch("/api/providers"),
+        fetch("/api/phone-numbers"),
+      ]);
 
-    const [provRes, numRes] = await Promise.all([
-      supabase.from("providers").select("*").eq("user_id", user.id),
-      supabase.from("phone_numbers").select("*").eq("user_id", user.id),
-    ]);
+      if (provRes.status === 401 || numRes.status === 401) {
+        router.push("/login");
+        return;
+      }
 
-    if (provRes.data) setProviders(provRes.data);
-    if (numRes.data) setPhoneNumbers(numRes.data);
+      if (provRes.ok) {
+        const provData = await provRes.json();
+        setProviders(provData.providers || []);
+      }
+      if (numRes.ok) {
+        const numData = await numRes.json();
+        setPhoneNumbers(numData.phone_numbers || []);
+      }
+    } catch {
+      addToast("Failed to load settings data", "error");
+    }
   };
 
   const addProvider = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
 
-    const { error } = await supabase.from("providers").insert({
-      user_id: user.id,
-      type: newProvider.type,
-      api_key: newProvider.apiKey,
-      api_secret: newProvider.apiSecret || null,
-    });
+    try {
+      const res = await fetch("/api/providers", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: newProvider.type,
+          api_key: newProvider.apiKey,
+          api_secret: newProvider.apiSecret || null,
+        }),
+      });
 
-    if (error) {
+      if (res.ok) {
+        addToast("Provider added!", "success");
+        setNewProvider({ type: "twilio", apiKey: "", apiSecret: "" });
+        loadData();
+      } else {
+        const data = await res.json();
+        addToast(data.error || "Failed to add provider", "error");
+      }
+    } catch {
       addToast("Failed to add provider", "error");
-    } else {
-      addToast("Provider added!", "success");
-      setNewProvider({ type: "twilio", apiKey: "", apiSecret: "" });
     }
+
     setLoading(false);
-    loadData();
   };
 
   const deleteProvider = async (id: string) => {
@@ -109,24 +126,31 @@ export default function SettingsPage() {
   const addPhoneNumber = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
 
-    const { error } = await supabase.from("phone_numbers").insert({
-      user_id: user.id,
-      provider_id: newNumber.providerId,
-      number: newNumber.number,
-      friendly_name: newNumber.friendlyName || null,
-    });
+    try {
+      const res = await fetch("/api/phone-numbers", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          number: newNumber.number,
+          provider_id: newNumber.providerId,
+          friendly_name: newNumber.friendlyName || null,
+        }),
+      });
 
-    if (error) {
+      if (res.ok) {
+        addToast("Phone number added!", "success");
+        setNewNumber({ number: "", providerId: "", friendlyName: "" });
+        loadData();
+      } else {
+        const data = await res.json();
+        addToast(data.error || "Failed to add phone number", "error");
+      }
+    } catch {
       addToast("Failed to add phone number", "error");
-    } else {
-      addToast("Phone number added!", "success");
-      setNewNumber({ number: "", providerId: "", friendlyName: "" });
     }
+
     setLoading(false);
-    loadData();
   };
 
   const deletePhoneNumber = async (id: string) => {

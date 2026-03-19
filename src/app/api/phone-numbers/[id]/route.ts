@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { createServerSupabaseClient, createServiceClient } from "@/lib/supabase/server";
 
 export async function DELETE(
   _request: Request,
@@ -14,8 +14,9 @@ export async function DELETE(
     }
 
     const { id } = await params;
+    const serviceClient = createServiceClient();
 
-    const { data: phoneNumber } = await supabase
+    const { data: phoneNumber } = await serviceClient
       .from("phone_numbers")
       .select("id")
       .eq("id", id)
@@ -26,7 +27,7 @@ export async function DELETE(
       return NextResponse.json({ error: "Phone number not found" }, { status: 404 });
     }
 
-    const { error } = await supabase
+    const { error } = await serviceClient
       .from("phone_numbers")
       .delete()
       .eq("id", id)

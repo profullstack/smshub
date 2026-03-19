@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { createServerSupabaseClient, createServiceClient } from "@/lib/supabase/server";
 
 export async function DELETE(
   _request: Request,
@@ -14,9 +14,10 @@ export async function DELETE(
     }
 
     const { id } = await params;
+    const serviceClient = createServiceClient();
 
     // Check ownership
-    const { data: provider } = await supabase
+    const { data: provider } = await serviceClient
       .from("providers")
       .select("id")
       .eq("id", id)
@@ -28,7 +29,7 @@ export async function DELETE(
     }
 
     // Delete cascades to phone_numbers via FK
-    const { error } = await supabase
+    const { error } = await serviceClient
       .from("providers")
       .delete()
       .eq("id", id)
