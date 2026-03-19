@@ -56,6 +56,11 @@ linux:
   category: Network
   mimeTypes:
     - x-scheme-handler/smshub
+  desktop:
+    StartupWMClass: smshub
+
+appImage:
+  artifactName: "SMSHub-${version}.AppImage"
 
 # ─── Auto-update — GitHub Releases ────────────────────────────
 publish:

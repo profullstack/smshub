@@ -4,7 +4,7 @@ import { getConfig } from "./config";
 import { initNotifications, cleanupNotifications } from "./notifications";
 import { initAutoUpdater } from "./updater";
 
-// Fix AppImage sandbox issue on Linux
+// Fix AppImage/Linux SUID sandbox issue
 if (process.platform === "linux") {
   app.commandLine.appendSwitch("no-sandbox");
 }

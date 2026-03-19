@@ -8,7 +8,7 @@ const path_1 = __importDefault(require("path"));
 const config_1 = require("./config");
 const notifications_1 = require("./notifications");
 const updater_1 = require("./updater");
-// Fix AppImage sandbox issue on Linux
+// Fix AppImage/Linux SUID sandbox issue
 if (process.platform === "linux") {
     electron_1.app.commandLine.appendSwitch("no-sandbox");
 }
