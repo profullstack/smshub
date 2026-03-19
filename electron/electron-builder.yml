@@ -1,6 +1,6 @@
 appId: com.smshub.desktop
 productName: SMSHub
-copyright: Copyright © 2025 SMSHub
+copyright: Copyright © 2026 Profullstack, Inc.
 
 directories:
   output: release
@@ -9,11 +9,6 @@ directories:
 files:
   - dist/**/*
   - package.json
-  # Include Next.js build output for production
-  - from: ../out
-    to: renderer
-    filter:
-      - "**/*"
 
 extraMetadata:
   main: dist/main.js
@@ -32,18 +27,9 @@ mac:
       arch:
         - x64
         - arm64
-  icon: resources/icon.icns
-  # Code signing — set these env vars in CI:
-  #   CSC_LINK — path to .p12 certificate or base64-encoded
-  #   CSC_KEY_PASSWORD — certificate password
-  #   APPLE_ID — Apple ID for notarization
-  #   APPLE_APP_SPECIFIC_PASSWORD — app-specific password
-  #   APPLE_TEAM_ID — Apple Developer Team ID
   hardenedRuntime: true
   gatekeeperAssess: false
-  entitlements: resources/entitlements.mac.plist
-  entitlementsInherit: resources/entitlements.mac.plist
-  notarize: false  # Set to true when Apple credentials are configured
+  notarize: false
 
 # ─── Windows ──────────────────────────────────────────────────
 win:
@@ -51,19 +37,11 @@ win:
     - target: nsis
       arch:
         - x64
-  icon: resources/icon.ico
-  # Code signing — set these env vars in CI:
-  #   CSC_LINK — path to .pfx certificate or base64-encoded
-  #   CSC_KEY_PASSWORD — certificate password
-  # Or use certificateFile/certificatePassword in nsis section below.
 
 nsis:
   oneClick: false
   allowToChangeInstallationDirectory: true
   createDesktopShortcut: true
-  # Windows code signing (alternative to env vars):
-  # certificateFile: path/to/certificate.pfx
-  # certificatePassword: ${env.WIN_CSC_KEY_PASSWORD}
 
 # ─── Linux ────────────────────────────────────────────────────
 linux:
@@ -72,16 +50,12 @@ linux:
       arch:
         - x64
   category: Network
-  icon: resources/icons
   mimeTypes:
     - x-scheme-handler/smshub
 
 # ─── Auto-update — GitHub Releases ────────────────────────────
 publish:
   provider: github
-  owner: smshub
+  owner: profullstack
   repo: smshub
   releaseType: release
-
-# ─── After sign (for notarization on macOS) ───────────────────
-# afterSign: scripts/notarize.js
