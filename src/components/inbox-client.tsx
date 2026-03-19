@@ -287,6 +287,13 @@ export function InboxClient({
             <h1 className="text-xl font-bold">SMSHub</h1>
             <div className="flex items-center gap-2">
               <a
+                href="/phonenumbers"
+                className="text-xs text-blue-400 hover:text-blue-300 font-medium"
+                title="phonenumbers.bot — Real SIM API"
+              >
+                📱 API
+              </a>
+              <a
                 href="/settings"
                 className="text-sm text-gray-400 hover:text-gray-200"
                 title="Settings"
