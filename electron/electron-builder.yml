@@ -10,12 +10,14 @@ directories:
 files:
   - dist/**/*
   - package.json
+  - "!src/**"
   - "!*.ts"
   - "!tsconfig.json"
   - "!electron-builder.yml"
+  - "!electron.vite.config.ts"
 
 extraMetadata:
-  main: dist/main.js
+  main: dist/main/index.js
 
 # ─── Protocol handler (deep links) ────────────────────────────
 protocols:

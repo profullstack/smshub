@@ -42,3 +42,4 @@ mobile/node_modules/
 electron/node_modules/
 electron/release/
 electron/node_modules/
+electron/dist/

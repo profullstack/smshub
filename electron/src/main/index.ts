@@ -136,7 +136,7 @@ function createWindow() {
     icon: getAppIcon(),
     backgroundColor: "#030712", // gray-950
     webPreferences: {
-      preload: path.join(__dirname, "preload.js"),
+      preload: path.join(__dirname, "../preload/index.js"),
       contextIsolation: true,
       nodeIntegration: false,
     },
