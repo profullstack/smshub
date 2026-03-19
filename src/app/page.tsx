@@ -208,7 +208,7 @@ export default function LandingPage() {
                 "Priority support",
               ]}
               cta="Contact Sales"
-              href="/register"
+              href="mailto:sales@smshub.dev"
             />
           </div>
         </div>

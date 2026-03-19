@@ -6,14 +6,16 @@ const PUBLIC_ROUTES = [
   "/",
   "/login",
   "/register",
+  "/forgot-password",
   "/phonenumbers",
   "/offline",
   "/install",
   "/privacy",
   "/terms",
-  "/api/webhooks",
-  "/api/v1",
-  "/api/health",
+  "/api",
+  "/manifest.json",
+  "/robots.txt",
+  "/sitemap.xml",
 ];
 
 function isPublicRoute(pathname: string): boolean {
