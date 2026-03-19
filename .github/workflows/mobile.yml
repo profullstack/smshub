@@ -45,7 +45,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 18
+          node-version: 20
       - uses: pnpm/action-setup@v4
         with:
           version: latest
@@ -65,7 +65,7 @@ jobs:
         if: steps.check.outputs.skip != 'true'
         uses: expo/expo-github-action@v8
         with:
-          eas-version: latest
+          eas-version: 16.x.x
           token: ${{ secrets.EXPO_TOKEN }}
 
       - name: Build iOS
@@ -95,7 +95,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 18
+          node-version: 20
       - uses: pnpm/action-setup@v4
         with:
           version: latest
@@ -115,7 +115,7 @@ jobs:
         if: steps.check.outputs.skip != 'true'
         uses: expo/expo-github-action@v8
         with:
-          eas-version: latest
+          eas-version: 16.x.x
           token: ${{ secrets.EXPO_TOKEN }}
 
       - name: Build Android
@@ -145,7 +145,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 18
+          node-version: 20
       - uses: pnpm/action-setup@v4
         with:
           version: latest
@@ -164,7 +164,7 @@ jobs:
         if: steps.check.outputs.skip != 'true'
         uses: expo/expo-github-action@v8
         with:
-          eas-version: latest
+          eas-version: 16.x.x
           token: ${{ secrets.EXPO_TOKEN }}
 
       - name: Push OTA Update
