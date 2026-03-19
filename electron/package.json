@@ -1,6 +1,6 @@
 {
   "name": "smshub-desktop",
-  "version": "0.1.12",
+  "version": "0.1.13",
   "description": "SMSHub Desktop — Real-time SMS messaging",
   "main": "dist/main/index.js",
   "author": "SMSHub",
