@@ -139,7 +139,7 @@ export default function SettingsPage() {
       <div className="max-w-2xl mx-auto space-y-8">
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-bold">Settings</h1>
-          <Link href="/" className="text-blue-400 hover:text-blue-300 text-sm">
+          <Link href="/inbox" className="text-blue-400 hover:text-blue-300 text-sm">
             ← Back to Inbox
           </Link>
         </div>

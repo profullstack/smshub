@@ -40,7 +40,7 @@ export default function RegisterPage() {
       setError(error.message);
       setLoading(false);
     } else {
-      router.push("/");
+      router.push("/inbox");
       router.refresh();
     }
   };

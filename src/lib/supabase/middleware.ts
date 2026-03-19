@@ -1,6 +1,24 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
+// Public routes that don't require authentication
+const PUBLIC_ROUTES = [
+  "/",
+  "/login",
+  "/register",
+  "/phonenumbers",
+  "/offline",
+  "/api/webhooks",
+  "/api/v1",
+  "/api/health",
+];
+
+function isPublicRoute(pathname: string): boolean {
+  return PUBLIC_ROUTES.some(
+    (route) => pathname === route || pathname.startsWith(route + "/")
+  );
+}
+
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
 
@@ -29,19 +47,25 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const isAuthPage =
-    request.nextUrl.pathname.startsWith("/login") ||
-    request.nextUrl.pathname.startsWith("/register");
+  const pathname = request.nextUrl.pathname;
+  const isAuth = pathname.startsWith("/login") || pathname.startsWith("/register");
 
-  if (!user && !isAuthPage && !request.nextUrl.pathname.startsWith("/api/webhooks")) {
+  // Redirect authenticated users away from auth pages → inbox
+  if (user && isAuth) {
     const url = request.nextUrl.clone();
-    url.pathname = "/login";
+    url.pathname = "/inbox";
     return NextResponse.redirect(url);
   }
 
-  if (user && isAuthPage) {
+  // Allow public routes without auth
+  if (isPublicRoute(pathname)) {
+    return supabaseResponse;
+  }
+
+  // Redirect unauthenticated users to login for protected routes
+  if (!user) {
     const url = request.nextUrl.clone();
-    url.pathname = "/";
+    url.pathname = "/login";
     return NextResponse.redirect(url);
   }
 
