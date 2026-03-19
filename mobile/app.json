@@ -63,6 +63,11 @@
           "scheme": "smshub"
         }
       ]
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "b6ad3433-7f28-4fad-a3c1-84f4310a1e81"
+      }
+    }
   }
 }
