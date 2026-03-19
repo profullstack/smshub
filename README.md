@@ -1,15 +1,58 @@
 # 📱 SMSHub
 
+[![Next.js](https://img.shields.io/badge/Next.js-16-black?logo=next.js)](https://nextjs.org/)
+[![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=white)](https://react.dev/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.9-3178C6?logo=typescript&logoColor=white)](https://typescriptlang.org/)
+[![Supabase](https://img.shields.io/badge/Supabase-Postgres%20%2B%20Realtime-3FCF8E?logo=supabase&logoColor=white)](https://supabase.com/)
+[![Expo](https://img.shields.io/badge/Expo-React%20Native-000020?logo=expo&logoColor=white)](https://expo.dev/)
+[![Electron](https://img.shields.io/badge/Electron-Desktop-47848F?logo=electron&logoColor=white)](https://electronjs.org/)
+[![Vitest](https://img.shields.io/badge/Tests-48%20passing-6E9F18?logo=vitest&logoColor=white)](https://vitest.dev/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](http://makeapullrequest.com)
+
 A multi-platform, real-time SMS messaging platform with unified inbox, multi-provider support (Twilio + Telnyx), and an API-first architecture.
+
+> **🚀 Coming Soon:** [phonenumbers.bot](https://phonenumbers.bot) — Real SIM phone numbers with a developer-first API
+
+## Platforms
+
+| Platform | Tech | Status |
+|---|---|---|
+| 🌐 Web | Next.js 16 (App Router) | ✅ v1 |
+| 📲 PWA | Service Worker + Manifest | ✅ v1 |
+| 📱 iOS | React Native (Expo) | ✅ v1 |
+| 🤖 Android | React Native (Expo) | ✅ v1 |
+| 🖥 Desktop | Electron | ✅ v1 |
+
+## Features
+
+- **Unified Inbox** — Threaded conversations across all devices
+- **Real-time Messaging** — Sub-second updates via Supabase Realtime
+- **Multi-Provider** — Twilio + Telnyx with unified API (`sendSMS()`)
+- **Compose Flow** — New message modal with sender number picker
+- **Unread Tracking** — Badge counts, auto-mark read on open
+- **Search** — Filter conversations by name or phone number
+- **Contact Management** — Auto-create on inbound, inline name editing
+- **Delivery Receipts** — Live status updates (queued → sent → delivered → failed)
+- **Keyboard Shortcuts** — Ctrl+N (compose), Ctrl+K (search), arrows, Escape
+- **Push Notifications** — Native on mobile (Expo), OS notifications on desktop (Electron)
+- **PWA** — Installable, offline support, background sync
+- **Dark Mode** — Default, developer-focused UI
 
 ## Tech Stack
 
-- **Frontend:** Next.js 16 (App Router), React 19, TypeScript, TailwindCSS
-- **Backend:** Next.js API routes
-- **Database:** Supabase (Postgres + Realtime + Auth)
-- **SMS Providers:** Twilio, Telnyx
-- **Testing:** Vitest
-- **Linting:** ESLint + lint-staged + Husky pre-commit hooks
+| Layer | Technology |
+|---|---|
+| Frontend | Next.js 16, React 19, TailwindCSS |
+| Mobile | React Native, Expo, expo-router |
+| Desktop | Electron, electron-builder |
+| Backend | Next.js API routes |
+| Database | Supabase (Postgres + Realtime + Auth + RLS) |
+| Providers | Twilio, Telnyx |
+| Testing | Vitest (48 tests) |
+| CI | Husky pre-commit (tests + typecheck + lint) |
+| Mobile Deploy | Expo EAS (expo.dev) |
+| Desktop Build | electron-builder (AppImage, dmg, NSIS) |
 
 ## Getting Started
 
@@ -29,18 +72,40 @@ pnpm install
 # Copy env file and fill in your values
 cp .env.example .env
 
-# Run the database migration against your Supabase project
-# (paste supabase/migrations/001_initial_schema.sql into the Supabase SQL editor)
+# Run database migrations against your Supabase project
+# (paste supabase/migrations/*.sql into the Supabase SQL editor)
 
 # Start dev server
 pnpm dev
+```
+
+### Mobile (Expo)
+
+```bash
+cd mobile
+pnpm install
+npx expo start
+
+# Build for iOS/Android via Expo EAS
+eas build --profile production --platform all
+```
+
+### Desktop (Electron)
+
+```bash
+cd electron
+pnpm install
+pnpm dev
+
+# Package distributable
+pnpm package
 ```
 
 ### Environment Variables
 
 | Variable | Description |
 |---|---|
-| `NEXT_PUBLIC_SUPABASE_URL` | Your Supabase project URL |
+| `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anon/public key |
 | `SUPABASE_SERVICE_ROLE_KEY` | Supabase service role key (server-only) |
 | `TWILIO_ACCOUNT_SID` | Twilio Account SID |
@@ -52,33 +117,48 @@ pnpm dev
 ## Project Structure
 
 ```
-src/
+src/                          # Web app (Next.js)
 ├── app/
 │   ├── api/
-│   │   ├── contacts/          # GET /api/contacts
-│   │   ├── conversations/     # GET /api/conversations
-│   │   ├── messages/          # GET /api/messages, POST /api/messages/send
-│   │   └── webhooks/          # POST /api/webhooks/twilio, /api/webhooks/telnyx
-│   ├── login/                 # Login page
-│   ├── register/              # Register page
-│   ├── settings/              # Provider & phone number management
-│   ├── layout.tsx             # Root layout (dark mode)
-│   └── page.tsx               # Main inbox
+│   │   ├── contacts/         # GET, PATCH /api/contacts/[id]
+│   │   ├── conversations/    # GET, POST /api/conversations/[id]/read
+│   │   ├── messages/         # GET, POST /api/messages/send
+│   │   ├── providers/        # DELETE /api/providers/[id]
+│   │   ├── phone-numbers/    # DELETE /api/phone-numbers/[id]
+│   │   └── webhooks/         # Twilio + Telnyx inbound & status callbacks
+│   ├── login/                # Login page
+│   ├── register/             # Register page
+│   ├── settings/             # Provider & phone number management
+│   ├── phonenumbers/         # phonenumbers.bot coming soon page
+│   └── offline/              # PWA offline fallback
 ├── components/
-│   └── inbox-client.tsx       # Inbox UI (conversations sidebar + chat view)
+│   ├── inbox-client.tsx      # Main inbox (sidebar + chat + realtime)
+│   ├── new-message-modal.tsx # Compose new conversation
+│   ├── contact-name-editor.tsx
+│   ├── toast-container.tsx   # Toast notifications
+│   └── sw-register.tsx       # Service worker registration
+├── contexts/
+│   └── toast-context.tsx     # Global toast state
 ├── lib/
-│   ├── providers/             # SMS provider layer
-│   │   ├── twilio.ts          # Twilio send/parse/validate
-│   │   ├── telnyx.ts          # Telnyx send/parse/validate
-│   │   ├── index.ts           # Unified sendSMS() + getProvider()
-│   │   └── types.ts           # Provider interfaces
-│   ├── supabase/              # Supabase client/server/middleware helpers
-│   └── types/
-│       └── database.ts        # Database type definitions
-├── middleware.ts               # Auth guard middleware
+│   ├── providers/            # Twilio + Telnyx unified layer
+│   ├── supabase/             # Client/server/middleware helpers
+│   └── types/                # TypeScript definitions
+├── middleware.ts              # Auth guard
+mobile/                        # React Native (Expo)
+├── app/                       # expo-router screens
+│   ├── (tabs)/                # Inbox + Settings tabs
+│   ├── chat/[id].tsx          # Chat screen
+│   └── auth.tsx               # Login/register
+├── lib/                       # Supabase, API client, notifications
+└── eas.json                   # Expo EAS build profiles
+electron/                      # Desktop app
+├── main.ts                    # Window + tray + IPC
+├── preload.ts                 # Renderer bridge
+├── notifications.ts           # Supabase Realtime → OS notifications
+├── updater.ts                 # Auto-updater
+└── electron-builder.yml       # Build config
 supabase/
-└── migrations/
-    └── 001_initial_schema.sql  # Full schema with RLS policies
+└── migrations/                # 001_initial_schema + 002_unread_tracking
 ```
 
 ## API Endpoints
@@ -86,11 +166,17 @@ supabase/
 | Method | Endpoint | Description |
 |---|---|---|
 | `POST` | `/api/messages/send` | Send an SMS |
+| `GET` | `/api/messages?conversation_id=` | Get messages for a conversation |
+| `GET` | `/api/conversations` | List conversations |
+| `POST` | `/api/conversations/[id]/read` | Mark conversation as read |
+| `GET` | `/api/contacts` | List contacts |
+| `PATCH` | `/api/contacts/[id]` | Update contact name |
+| `DELETE` | `/api/providers/[id]` | Delete a provider |
+| `DELETE` | `/api/phone-numbers/[id]` | Delete a phone number |
 | `POST` | `/api/webhooks/twilio` | Twilio inbound webhook |
 | `POST` | `/api/webhooks/telnyx` | Telnyx inbound webhook |
-| `GET` | `/api/conversations` | List conversations |
-| `GET` | `/api/messages?conversation_id=` | Get messages for a conversation |
-| `GET` | `/api/contacts` | List contacts |
+| `POST` | `/api/webhooks/twilio/status` | Twilio delivery status callback |
+| `POST` | `/api/webhooks/telnyx/status` | Telnyx delivery status callback |
 
 ## Scripts
 
@@ -98,7 +184,7 @@ supabase/
 pnpm dev              # Start development server
 pnpm build            # Production build
 pnpm start            # Start production server
-pnpm test             # Run tests
+pnpm test             # Run tests (48 passing)
 pnpm test:watch       # Run tests in watch mode
 pnpm test:coverage    # Run tests with coverage
 pnpm lint             # Lint source files
@@ -108,17 +194,27 @@ pnpm typecheck        # TypeScript type checking
 ## Pre-commit Hook
 
 Every commit automatically runs:
-1. **Tests** — `vitest run`
-2. **Type check** — `tsc --noEmit`
-3. **Lint** — `eslint --fix` on staged `.ts/.tsx` files
+1. 🧪 **Tests** — `vitest run`
+2. 🔍 **Type check** — `tsc --noEmit`
+3. ✨ **Lint** — `eslint --fix` on staged `.ts/.tsx` files
 
 ## Database Schema
 
 Tables: `providers`, `phone_numbers`, `contacts`, `conversations`, `messages`
 
-All tables have Row Level Security (RLS) enabled. Realtime is enabled on `messages` and `conversations`.
+- Row Level Security (RLS) on all tables
+- Realtime enabled on `messages` and `conversations`
+- Unread tracking via `last_read_at` + computed count
 
-See `supabase/migrations/001_initial_schema.sql` for the full schema.
+See `supabase/migrations/` for the full schema.
+
+## Contributing
+
+PRs welcome! Please ensure all checks pass before submitting:
+
+```bash
+pnpm test && pnpm tsc --noEmit && pnpm lint
+```
 
 ## License
 

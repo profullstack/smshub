@@ -1,6 +1,6 @@
 # TODO
 
-## MVP (In Progress)
+## v1 ✅ Complete
 
 - [x] Project scaffolding (Next.js 16, TypeScript, TailwindCSS)
 - [x] Supabase schema + migrations + RLS
@@ -8,46 +8,50 @@
 - [x] API routes (send, webhooks, conversations, messages, contacts)
 - [x] Auth (login/register with Supabase Auth)
 - [x] Inbox UI (sidebar + chat view + realtime)
-- [x] Settings page (providers + phone numbers)
-- [x] Test suite (24 tests, Vitest)
+- [x] Settings page (providers + phone numbers + delete)
+- [x] Test suite (48 tests, Vitest)
 - [x] Pre-commit hook (tests + typecheck + lint)
+- [x] New conversation compose flow
+- [x] Unread message indicators
+- [x] Contact name editing
+- [x] Search/filter conversations
+- [x] Message delivery receipts (Twilio + Telnyx status callbacks)
+- [x] Toast notification system
+- [x] PWA support (manifest, service worker, offline page)
+- [x] Keyboard shortcuts (Ctrl+N, Ctrl+K, arrows, Escape)
+- [x] Electron desktop app (window, tray, IPC, notifications, auto-updater)
+- [x] React Native mobile app (Expo, chat, push notifications, EAS deploy)
+- [x] phonenumbers.bot coming soon page
+
+## v2 — Next Up
+
 - [ ] Wire up Supabase project and test end-to-end
 - [ ] Configure Twilio/Telnyx webhook URLs
-- [ ] Message status updates (delivery receipts)
-- [ ] Unread message indicators
-- [ ] New conversation compose flow
-- [ ] Contact name editing
-- [ ] Search/filter conversations
-- [ ] Error toasts / notification UI
-
-## Post-MVP
-
-- [ ] PWA support (service worker, offline cache, push notifications)
-- [ ] Keyboard shortcuts (power users)
+- [ ] phonenumbers.bot provider integration
 - [ ] Message retry logic on failure
 - [ ] Rate limiting on API routes
 - [ ] Bulk message operations
+- [ ] MMS support
+- [ ] Contact import/export
+- [ ] Conversation archive/delete
 
-## Desktop (Electron)
+## Mobile Enhancements
 
-- [ ] Electron wrapper setup
-- [ ] Native window + tray icon
-- [ ] Background notifications
+- [ ] Offline support (SQLite / MMKV)
+- [ ] Background fetch
 - [ ] Deep linking
+- [ ] App icon + splash screen assets
+- [ ] Contact search on mobile
 
-## Mobile (React Native)
+## Desktop Enhancements
 
-- [ ] Expo project setup
-- [ ] Auth screen
-- [ ] Conversations list
-- [ ] Chat screen
-- [ ] Settings screen
-- [ ] Push notifications (Expo / FCM / APNs)
-- [ ] Offline support (SQLite or MMKV)
+- [ ] App icon (tray + window)
+- [ ] Code signing
+- [ ] Auto-update from GitHub Releases
+- [ ] Deep link handler (smshub://)
 
 ## Future Features
 
-- [ ] MMS support
 - [ ] AI auto-replies (OpenAI / local LLMs)
 - [ ] Bulk messaging campaigns
 - [ ] Outbound webhooks / event system
