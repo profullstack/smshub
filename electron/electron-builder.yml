@@ -1,0 +1,53 @@
+appId: com.smshub.desktop
+productName: SMSHub
+copyright: Copyright © 2025 SMSHub
+
+directories:
+  output: release
+  buildResources: resources
+
+files:
+  - dist/**/*
+  - package.json
+  # Include Next.js build output for production
+  - from: ../out
+    to: renderer
+    filter:
+      - "**/*"
+
+extraMetadata:
+  main: dist/main.js
+
+mac:
+  category: public.app-category.social-networking
+  target:
+    - target: dmg
+      arch:
+        - x64
+        - arm64
+  icon: resources/icon.icns
+
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+  icon: resources/icon.ico
+
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+
+linux:
+  target:
+    - target: AppImage
+      arch:
+        - x64
+  category: Network
+  icon: resources/icons
+
+publish:
+  provider: github
+  owner: smshub
+  repo: smshub

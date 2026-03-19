@@ -90,6 +90,7 @@ export interface Database {
           contact_id: string;
           phone_number_id: string;
           last_message_at: string;
+          last_read_at: string | null;
           created_at: string;
         };
         Insert: {
@@ -98,6 +99,7 @@ export interface Database {
           contact_id: string;
           phone_number_id: string;
           last_message_at?: string;
+          last_read_at?: string | null;
           created_at?: string;
         };
         Update: {
@@ -106,6 +108,7 @@ export interface Database {
           contact_id?: string;
           phone_number_id?: string;
           last_message_at?: string;
+          last_read_at?: string | null;
           created_at?: string;
         };
       };

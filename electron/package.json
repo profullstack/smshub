@@ -1,0 +1,26 @@
+{
+  "name": "smshub-desktop",
+  "version": "1.0.0",
+  "description": "SMSHub Desktop — Real-time SMS messaging",
+  "main": "dist/main.js",
+  "author": "SMSHub",
+  "license": "MIT",
+  "scripts": {
+    "dev": "tsc && electron dist/main.js",
+    "build": "tsc",
+    "package": "tsc && electron-builder --config electron-builder.yml",
+    "package:linux": "tsc && electron-builder --linux --config electron-builder.yml",
+    "package:mac": "tsc && electron-builder --mac --config electron-builder.yml",
+    "package:win": "tsc && electron-builder --win --config electron-builder.yml"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.49.0",
+    "electron-updater": "^6.3.0"
+  },
+  "devDependencies": {
+    "electron": "^33.0.0",
+    "electron-builder": "^25.1.0",
+    "typescript": "^5.7.0",
+    "@types/node": "^22.0.0"
+  }
+}

@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { useToast } from "@/contexts/toast-context";
 
 interface ProviderRow {
   id: string;
@@ -32,6 +33,7 @@ export default function SettingsPage() {
   const [loading, setLoading] = useState(false);
   const supabase = createClient();
   const router = useRouter();
+  const { addToast } = useToast();
 
   useEffect(() => {
     loadData();
@@ -56,16 +58,37 @@ export default function SettingsPage() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
-    await supabase.from("providers").insert({
+    const { error } = await supabase.from("providers").insert({
       user_id: user.id,
       type: newProvider.type,
       api_key: newProvider.apiKey,
       api_secret: newProvider.apiSecret || null,
     });
 
-    setNewProvider({ type: "twilio", apiKey: "", apiSecret: "" });
+    if (error) {
+      addToast("Failed to add provider", "error");
+    } else {
+      addToast("Provider added!", "success");
+      setNewProvider({ type: "twilio", apiKey: "", apiSecret: "" });
+    }
     setLoading(false);
     loadData();
+  };
+
+  const deleteProvider = async (id: string) => {
+    if (!confirm("Delete this provider? This will also remove associated phone numbers.")) return;
+
+    try {
+      const res = await fetch(`/api/providers/${id}`, { method: "DELETE" });
+      if (res.ok) {
+        addToast("Provider deleted", "success");
+        loadData();
+      } else {
+        addToast("Failed to delete provider", "error");
+      }
+    } catch {
+      addToast("Failed to delete provider", "error");
+    }
   };
 
   const addPhoneNumber = async (e: React.FormEvent) => {
@@ -74,16 +97,41 @@ export default function SettingsPage() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
-    await supabase.from("phone_numbers").insert({
+    const { error } = await supabase.from("phone_numbers").insert({
       user_id: user.id,
       provider_id: newNumber.providerId,
       number: newNumber.number,
       friendly_name: newNumber.friendlyName || null,
     });
 
-    setNewNumber({ number: "", providerId: "", friendlyName: "" });
+    if (error) {
+      addToast("Failed to add phone number", "error");
+    } else {
+      addToast("Phone number added!", "success");
+      setNewNumber({ number: "", providerId: "", friendlyName: "" });
+    }
     setLoading(false);
     loadData();
+  };
+
+  const deletePhoneNumber = async (id: string) => {
+    if (!confirm("Delete this phone number?")) return;
+
+    try {
+      const res = await fetch(`/api/phone-numbers/${id}`, { method: "DELETE" });
+      if (res.ok) {
+        addToast("Phone number deleted", "success");
+        loadData();
+      } else {
+        addToast("Failed to delete phone number", "error");
+      }
+    } catch {
+      addToast("Failed to delete phone number", "error");
+    }
+  };
+
+  const getProviderForNumber = (providerId: string): ProviderRow | undefined => {
+    return providers.find((p) => p.id === providerId);
   };
 
   return (
@@ -103,8 +151,16 @@ export default function SettingsPage() {
           {providers.map((p) => (
             <div key={p.id} className="bg-gray-900 rounded-lg p-4 border border-gray-800">
               <div className="flex justify-between items-center">
-                <span className="font-medium capitalize">{p.type}</span>
-                <span className="text-xs text-gray-500">{p.id.slice(0, 8)}...</span>
+                <div>
+                  <span className="font-medium capitalize">{p.type}</span>
+                  <span className="text-xs text-gray-500 ml-2">{p.id.slice(0, 8)}...</span>
+                </div>
+                <button
+                  onClick={() => deleteProvider(p.id)}
+                  className="text-red-400 hover:text-red-300 text-sm"
+                >
+                  Delete
+                </button>
               </div>
               <div className="text-sm text-gray-400 mt-1">
                 API Key: {p.api_key.slice(0, 8)}...
@@ -151,12 +207,30 @@ export default function SettingsPage() {
         <section className="space-y-4">
           <h2 className="text-lg font-semibold">Phone Numbers</h2>
 
-          {phoneNumbers.map((pn) => (
-            <div key={pn.id} className="bg-gray-900 rounded-lg p-4 border border-gray-800">
-              <div className="font-medium">{pn.friendly_name || pn.number}</div>
-              <div className="text-sm text-gray-400">{pn.number}</div>
-            </div>
-          ))}
+          {phoneNumbers.map((pn) => {
+            const provider = getProviderForNumber(pn.provider_id);
+            return (
+              <div key={pn.id} className="bg-gray-900 rounded-lg p-4 border border-gray-800">
+                <div className="flex justify-between items-center">
+                  <div>
+                    <div className="font-medium">{pn.friendly_name || pn.number}</div>
+                    <div className="text-sm text-gray-400">{pn.number}</div>
+                    {provider && (
+                      <div className="text-xs text-gray-500 mt-1">
+                        Provider: <span className="capitalize">{provider.type}</span> ({provider.api_key.slice(0, 8)}...)
+                      </div>
+                    )}
+                  </div>
+                  <button
+                    onClick={() => deletePhoneNumber(pn.id)}
+                    className="text-red-400 hover:text-red-300 text-sm"
+                  >
+                    Delete
+                  </button>
+                </div>
+              </div>
+            );
+          })}
 
           {providers.length > 0 && (
             <form onSubmit={addPhoneNumber} className="bg-gray-900 rounded-lg p-4 border border-gray-800 space-y-3">

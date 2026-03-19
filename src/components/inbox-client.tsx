@@ -1,7 +1,10 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { useToast } from "@/contexts/toast-context";
+import { NewMessageModal } from "./new-message-modal";
+import { ContactNameEditor } from "./contact-name-editor";
 
 interface Conversation {
   id: string;
@@ -9,12 +12,14 @@ interface Conversation {
   contact_id: string;
   phone_number_id: string;
   last_message_at: string;
+  last_read_at: string | null;
   contacts: { id: string; phone: string; name: string | null } | null;
   phone_numbers: {
     id: string;
     number: string;
     friendly_name: string | null;
   } | null;
+  unread_count?: number;
 }
 
 interface Message {
@@ -26,6 +31,21 @@ interface Message {
   created_at: string;
 }
 
+function MessageStatusIcon({ status }: { status: string }) {
+  switch (status) {
+    case "delivered":
+      return <span className="text-green-400 ml-1" title="Delivered">✓✓</span>;
+    case "sent":
+      return <span className="text-blue-300 ml-1" title="Sent">✓</span>;
+    case "queued":
+      return <span className="text-gray-400 ml-1" title="Queued">◷</span>;
+    case "failed":
+      return <span className="text-red-400 ml-1" title="Failed">✗</span>;
+    default:
+      return null;
+  }
+}
+
 export function InboxClient({
   conversations: initialConversations,
   userId: _userId,
@@ -33,28 +53,56 @@ export function InboxClient({
   conversations: Conversation[];
   userId: string;
 }) {
-  const [conversations] =
-    useState<Conversation[]>(initialConversations);
+  const [conversations, setConversations] = useState<Conversation[]>(initialConversations);
   const [selectedConvo, setSelectedConvo] = useState<Conversation | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState("");
   const [sending, setSending] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [showNewMessage, setShowNewMessage] = useState(false);
+  const [_selectedIndex, setSelectedIndex] = useState(-1);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
   const supabase = createClient();
+  const { addToast } = useToast();
+
+  // Filter conversations by search
+  const filteredConversations = conversations.filter((convo) => {
+    if (!searchQuery.trim()) return true;
+    const q = searchQuery.toLowerCase();
+    const name = convo.contacts?.name?.toLowerCase() || "";
+    const phone = convo.contacts?.phone?.toLowerCase() || "";
+    return name.includes(q) || phone.includes(q);
+  });
+
+  // Compute unread counts client-side
+  const getUnreadCount = useCallback((convo: Conversation): number => {
+    if (convo.unread_count !== undefined) return convo.unread_count;
+    return 0;
+  }, []);
 
   // Load messages for selected conversation
   useEffect(() => {
     if (!selectedConvo) return;
 
     const loadMessages = async () => {
-      const res = await fetch(
-        `/api/messages?conversation_id=${selectedConvo.id}`
-      );
+      const res = await fetch(`/api/messages?conversation_id=${selectedConvo.id}`);
       const data = await res.json();
       if (data.messages) setMessages(data.messages);
     };
 
     loadMessages();
+
+    // Mark as read
+    fetch(`/api/conversations/${selectedConvo.id}/read`, { method: "POST" }).then(() => {
+      setConversations((prev) =>
+        prev.map((c) =>
+          c.id === selectedConvo.id
+            ? { ...c, last_read_at: new Date().toISOString(), unread_count: 0 }
+            : c
+        )
+      );
+    });
   }, [selectedConvo]);
 
   // Realtime subscription for new messages
@@ -68,7 +116,28 @@ export function InboxClient({
           const newMsg = payload.new as Message;
           if (selectedConvo && newMsg.conversation_id === selectedConvo.id) {
             setMessages((prev) => [...prev, newMsg]);
+            // Auto mark-read since we're viewing
+            fetch(`/api/conversations/${selectedConvo.id}/read`, { method: "POST" });
+          } else {
+            // Increment unread count for other conversations
+            setConversations((prev) =>
+              prev.map((c) =>
+                c.id === newMsg.conversation_id
+                  ? { ...c, unread_count: (c.unread_count || 0) + 1 }
+                  : c
+              )
+            );
           }
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "messages" },
+        (payload) => {
+          const updated = payload.new as Message;
+          setMessages((prev) =>
+            prev.map((m) => (m.id === updated.id ? updated : m))
+          );
         }
       )
       .subscribe();
@@ -82,6 +151,63 @@ export function InboxClient({
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ctrl+N: New message
+      if ((e.ctrlKey || e.metaKey) && e.key === "n") {
+        e.preventDefault();
+        setShowNewMessage(true);
+        return;
+      }
+
+      // Ctrl+K: Focus search
+      if ((e.ctrlKey || e.metaKey) && e.key === "k") {
+        e.preventDefault();
+        searchRef.current?.focus();
+        return;
+      }
+
+      // Escape: Close modals / clear search
+      if (e.key === "Escape") {
+        if (showNewMessage) {
+          setShowNewMessage(false);
+        } else if (searchQuery) {
+          setSearchQuery("");
+        }
+        return;
+      }
+
+      // Arrow keys for conversation navigation (only when not typing)
+      const active = document.activeElement;
+      const isInput = active?.tagName === "INPUT" || active?.tagName === "TEXTAREA";
+      if (!isInput) {
+        if (e.key === "ArrowDown") {
+          e.preventDefault();
+          setSelectedIndex((prev) => {
+            const next = Math.min(prev + 1, filteredConversations.length - 1);
+            if (filteredConversations[next]) {
+              setSelectedConvo(filteredConversations[next]);
+            }
+            return next;
+          });
+        } else if (e.key === "ArrowUp") {
+          e.preventDefault();
+          setSelectedIndex((prev) => {
+            const next = Math.max(prev - 1, 0);
+            if (filteredConversations[next]) {
+              setSelectedConvo(filteredConversations[next]);
+            }
+            return next;
+          });
+        }
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [showNewMessage, searchQuery, filteredConversations]);
 
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -101,15 +227,16 @@ export function InboxClient({
 
       if (res.ok) {
         setNewMessage("");
-        // Message will arrive via realtime, but also fetch to be safe
-        const msgRes = await fetch(
-          `/api/messages?conversation_id=${selectedConvo.id}`
-        );
+        addToast("Message sent!", "success");
+        const msgRes = await fetch(`/api/messages?conversation_id=${selectedConvo.id}`);
         const data = await msgRes.json();
         if (data.messages) setMessages(data.messages);
+      } else {
+        const data = await res.json();
+        addToast(data.error || "Failed to send message", "error");
       }
-    } catch (error) {
-      console.error("Failed to send:", error);
+    } catch {
+      addToast("Failed to send message", "error");
     } finally {
       setSending(false);
     }
@@ -120,43 +247,115 @@ export function InboxClient({
     window.location.href = "/login";
   };
 
+  const reloadConversations = async () => {
+    const res = await fetch("/api/conversations");
+    const data = await res.json();
+    if (data.conversations) {
+      setConversations(data.conversations);
+    }
+  };
+
+  const handleContactUpdated = (newName: string) => {
+    if (!selectedConvo) return;
+    setConversations((prev) =>
+      prev.map((c) =>
+        c.id === selectedConvo.id && c.contacts
+          ? { ...c, contacts: { ...c.contacts, name: newName } }
+          : c
+      )
+    );
+    setSelectedConvo((prev) =>
+      prev && prev.contacts
+        ? { ...prev, contacts: { ...prev.contacts, name: newName } }
+        : prev
+    );
+  };
+
   return (
     <div className="h-screen flex">
+      {/* New Message Modal */}
+      <NewMessageModal
+        isOpen={showNewMessage}
+        onClose={() => setShowNewMessage(false)}
+        onSent={reloadConversations}
+      />
+
       {/* Sidebar */}
       <div className="w-80 bg-gray-900 border-r border-gray-800 flex flex-col">
-        <div className="p-4 border-b border-gray-800 flex items-center justify-between">
-          <h1 className="text-xl font-bold">SMSHub</h1>
+        <div className="p-4 border-b border-gray-800">
+          <div className="flex items-center justify-between mb-3">
+            <h1 className="text-xl font-bold">SMSHub</h1>
+            <div className="flex items-center gap-2">
+              <a
+                href="/settings"
+                className="text-sm text-gray-400 hover:text-gray-200"
+                title="Settings"
+              >
+                ⚙️
+              </a>
+              <button
+                onClick={handleLogout}
+                className="text-sm text-gray-400 hover:text-gray-200"
+              >
+                Logout
+              </button>
+            </div>
+          </div>
+
+          {/* New Message Button */}
           <button
-            onClick={handleLogout}
-            className="text-sm text-gray-400 hover:text-gray-200"
+            onClick={() => setShowNewMessage(true)}
+            className="w-full mb-3 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg font-medium text-sm transition-colors"
           >
-            Logout
+            + New Message
           </button>
+
+          {/* Search */}
+          <input
+            ref={searchRef}
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search conversations... (Ctrl+K)"
+            className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
         </div>
 
         <div className="flex-1 overflow-y-auto">
-          {conversations.length === 0 ? (
+          {filteredConversations.length === 0 ? (
             <div className="p-4 text-gray-500 text-center text-sm">
-              No conversations yet
+              {searchQuery ? "No matches" : "No conversations yet"}
             </div>
           ) : (
-            conversations.map((convo) => (
-              <button
-                key={convo.id}
-                onClick={() => setSelectedConvo(convo)}
-                className={`w-full p-4 text-left border-b border-gray-800 hover:bg-gray-800/50 transition-colors ${
-                  selectedConvo?.id === convo.id ? "bg-gray-800" : ""
-                }`}
-              >
-                <div className="font-medium">
-                  {convo.contacts?.name || convo.contacts?.phone || "Unknown"}
-                </div>
-                <div className="text-sm text-gray-400">
-                  {convo.phone_numbers?.friendly_name ||
-                    convo.phone_numbers?.number}
-                </div>
-              </button>
-            ))
+            filteredConversations.map((convo, index) => {
+              const unread = getUnreadCount(convo);
+              return (
+                <button
+                  key={convo.id}
+                  onClick={() => {
+                    setSelectedConvo(convo);
+                    setSelectedIndex(index);
+                  }}
+                  className={`w-full p-4 text-left border-b border-gray-800 hover:bg-gray-800/50 transition-colors flex items-center gap-3 ${
+                    selectedConvo?.id === convo.id ? "bg-gray-800" : ""
+                  }`}
+                >
+                  <div className="flex-1 min-w-0">
+                    <div className={`font-medium truncate ${unread > 0 ? "text-white" : ""}`}>
+                      {convo.contacts?.name || convo.contacts?.phone || "Unknown"}
+                    </div>
+                    <div className="text-sm text-gray-400 truncate">
+                      {convo.phone_numbers?.friendly_name || convo.phone_numbers?.number}
+                    </div>
+                  </div>
+                  {unread > 0 && (
+                    <span className="bg-blue-600 text-white text-xs font-bold rounded-full min-w-[20px] h-5 flex items-center justify-center px-1.5">
+                      {unread}
+                    </span>
+                  )}
+                </button>
+              );
+            })
           )}
         </div>
       </div>
@@ -167,11 +366,12 @@ export function InboxClient({
           <>
             {/* Chat Header */}
             <div className="p-4 border-b border-gray-800 bg-gray-900">
-              <div className="font-medium">
-                {selectedConvo.contacts?.name ||
-                  selectedConvo.contacts?.phone ||
-                  "Unknown"}
-              </div>
+              <ContactNameEditor
+                contactId={selectedConvo.contacts?.id || ""}
+                currentName={selectedConvo.contacts?.name || null}
+                phone={selectedConvo.contacts?.phone || "Unknown"}
+                onUpdated={handleContactUpdated}
+              />
               <div className="text-sm text-gray-400">
                 via{" "}
                 {selectedConvo.phone_numbers?.friendly_name ||
@@ -197,15 +397,15 @@ export function InboxClient({
                   >
                     <p className="text-sm">{msg.body}</p>
                     <p
-                      className={`text-xs mt-1 ${
+                      className={`text-xs mt-1 flex items-center ${
                         msg.direction === "outbound"
                           ? "text-blue-200"
                           : "text-gray-500"
                       }`}
                     >
                       {new Date(msg.created_at).toLocaleTimeString()}
-                      {msg.direction === "outbound" && msg.status === "failed" && (
-                        <span className="ml-1 text-red-300">• Failed</span>
+                      {msg.direction === "outbound" && (
+                        <MessageStatusIcon status={msg.status} />
                       )}
                     </p>
                   </div>
@@ -239,7 +439,12 @@ export function InboxClient({
           </>
         ) : (
           <div className="flex-1 flex items-center justify-center text-gray-500">
-            Select a conversation to start messaging
+            <div className="text-center">
+              <p>Select a conversation to start messaging</p>
+              <p className="text-sm mt-2 text-gray-600">
+                or press <kbd className="bg-gray-800 px-1.5 py-0.5 rounded text-xs">Ctrl+N</kbd> for new message
+              </p>
+            </div>
           </div>
         )}
       </div>
