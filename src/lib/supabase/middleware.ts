@@ -8,6 +8,8 @@ const PUBLIC_ROUTES = [
   "/register",
   "/phonenumbers",
   "/offline",
+  "/privacy",
+  "/terms",
   "/api/webhooks",
   "/api/v1",
   "/api/health",
