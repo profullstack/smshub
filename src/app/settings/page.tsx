@@ -24,6 +24,20 @@ interface PhoneNumberRow {
 export default function SettingsPage() {
   const [providers, setProviders] = useState<ProviderRow[]>([]);
   const [phoneNumbers, setPhoneNumbers] = useState<PhoneNumberRow[]>([]);
+  const [contacts, setContacts] = useState<{ id: string; phone: string; name: string | null }[]>([]);
+  const [editingContact, setEditingContact] = useState<string | null>(null);
+  const [editName, setEditName] = useState("");
+
+  const loadContacts = async () => {
+    try {
+      const res = await fetch("/api/contacts");
+      if (res.ok) {
+        const data = await res.json();
+        setContacts(data.contacts || []);
+      }
+    } catch {}
+  };
+
   const [newProvider, setNewProvider] = useState({
     type: "twilio" as "twilio" | "telnyx" | "phonenumbers-bot",
     apiKey: "",
@@ -37,6 +51,7 @@ export default function SettingsPage() {
 
   useEffect(() => {
     loadData();
+    loadContacts();
   }, []);
 
   const loadData = async () => {
@@ -296,6 +311,7 @@ export default function SettingsPage() {
                 if (res.ok) {
                   addToast(`Contact ${name || phone} added`, "success");
                   form.reset();
+                  loadContacts();
                 } else {
                   const data = await res.json();
                   addToast(data.error || "Failed to add contact", "error");
@@ -329,6 +345,82 @@ export default function SettingsPage() {
               </button>
             </div>
           </form>
+
+          {/* Contact List */}
+          {contacts.length > 0 && (
+            <div className="space-y-2">
+              {contacts.map((c) => (
+                <div key={c.id} className="bg-gray-900 border border-gray-800 rounded-lg p-3 flex items-center justify-between">
+                  {editingContact === c.id ? (
+                    <div className="flex gap-2 flex-1">
+                      <input
+                        value={editName}
+                        onChange={(e) => setEditName(e.target.value)}
+                        className="flex-1 px-2 py-1 bg-gray-800 border border-gray-700 rounded text-sm"
+                        placeholder="Name"
+                        autoFocus
+                      />
+                      <button
+                        onClick={async () => {
+                          const res = await fetch(`/api/contacts/${c.id}`, {
+                            method: "PATCH",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ name: editName || null }),
+                          });
+                          if (res.ok) {
+                            addToast("Contact updated", "success");
+                            setEditingContact(null);
+                            loadContacts();
+                          } else {
+                            addToast("Failed to update", "error");
+                          }
+                        }}
+                        className="px-3 py-1 bg-blue-600 hover:bg-blue-700 rounded text-xs font-medium"
+                      >
+                        Save
+                      </button>
+                      <button
+                        onClick={() => setEditingContact(null)}
+                        className="px-3 py-1 bg-gray-700 hover:bg-gray-600 rounded text-xs"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      <div>
+                        <div className="font-medium text-sm">{c.name || c.phone}</div>
+                        {c.name && <div className="text-xs text-gray-400">{c.phone}</div>}
+                      </div>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => { setEditingContact(c.id); setEditName(c.name || ""); }}
+                          className="text-xs text-gray-400 hover:text-white"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick={async () => {
+                            if (!confirm(`Delete ${c.name || c.phone}?`)) return;
+                            const res = await fetch(`/api/contacts/${c.id}`, { method: "DELETE" });
+                            if (res.ok) {
+                              addToast("Contact deleted", "success");
+                              loadContacts();
+                            } else {
+                              addToast("Failed to delete", "error");
+                            }
+                          }}
+                          className="text-xs text-red-400 hover:text-red-300"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
 
           {/* Import / Export */}
           <div className="bg-gray-900 rounded-lg p-4 border border-gray-800 space-y-3">
