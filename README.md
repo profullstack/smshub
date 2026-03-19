@@ -1,5 +1,9 @@
 # 📱 SMSHub
 
+<p align="center">
+  <img src="./public/logo.svg" alt="SMSHub logo" width="160" />
+</p>
+
 [![Next.js](https://img.shields.io/badge/Next.js-16-black?logo=next.js)](https://nextjs.org/)
 [![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=white)](https://react.dev/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.9-3178C6?logo=typescript&logoColor=white)](https://typescriptlang.org/)
