@@ -39,7 +39,6 @@ export const metadata: Metadata = {
     title: "SMSHub",
   },
   other: {
-    "mobile-web-app-capable": "yes",
     "msapplication-TileColor": "#030712",
     "msapplication-config": "/browserconfig.xml",
     "msapplication-TileImage": "/icons/apple-touch-icon-144x144.png",
@@ -51,12 +50,21 @@ export const metadata: Metadata = {
     url: "https://smshub.dev",
     siteName: "SMSHub",
     type: "website",
+    images: [
+      {
+        url: "/icons/icon-512x512.png",
+        width: 512,
+        height: 512,
+        alt: "SMSHub",
+      },
+    ],
   },
   twitter: {
     card: "summary_large_image",
     title: "SMSHub — Multi-platform SMS Messaging",
     description:
       "One inbox for all your SMS. Web, iOS, Android, desktop. Multi-provider support with developer-first API.",
+    images: ["/icons/icon-512x512.png"],
   },
 };
 
