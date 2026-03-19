@@ -5,10 +5,14 @@ copyright: Copyright © 2026 Profullstack, Inc.
 directories:
   output: release
   buildResources: resources
+  app: .
 
 files:
   - dist/**/*
   - package.json
+  - "!*.ts"
+  - "!tsconfig.json"
+  - "!electron-builder.yml"
 
 extraMetadata:
   main: dist/main.js
