@@ -1,6 +1,10 @@
 name: Mobile Builds (EAS)
 
 on:
+  push:
+    branches: [master]
+    tags:
+      - 'v*'
   workflow_dispatch:
     inputs:
       platform:
@@ -26,12 +30,13 @@ on:
         required: false
         default: false
         type: boolean
+  workflow_call:
 
 jobs:
   build-ios:
     name: Build iOS
     runs-on: ubuntu-latest
-    if: ${{ inputs.platform == 'all' || inputs.platform == 'ios' }}
+    if: ${{ !inputs.platform || inputs.platform == 'all' || inputs.platform == 'ios' }}
     timeout-minutes: 60
     defaults:
       run:
@@ -52,25 +57,42 @@ jobs:
           version: latest
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: pnpm install
+
+      - name: Check EXPO_TOKEN
+        id: check-token
+        run: |
+          if [ -z "${{ secrets.EXPO_TOKEN }}" ]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "⚠ EXPO_TOKEN not set — skipping iOS build"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Setup EAS
+        if: steps.check-token.outputs.skip != 'true'
         uses: expo/expo-github-action@v8
         with:
           eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
 
       - name: Build iOS
-        run: eas build --platform ios --profile ${{ inputs.profile }} --non-interactive
+        if: steps.check-token.outputs.skip != 'true'
+        run: |
+          PROFILE="${{ inputs.profile || 'preview' }}"
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            PROFILE="production"
+          fi
+          eas build --platform ios --profile $PROFILE --non-interactive
 
       - name: Submit to App Store
-        if: ${{ inputs.profile == 'production' && inputs.submit }}
+        if: steps.check-token.outputs.skip != 'true' && inputs.profile == 'production' && inputs.submit
         run: eas submit --platform ios --latest --non-interactive
 
   build-android:
     name: Build Android
     runs-on: ubuntu-latest
-    if: ${{ inputs.platform == 'all' || inputs.platform == 'android' }}
+    if: ${{ !inputs.platform || inputs.platform == 'all' || inputs.platform == 'android' }}
     timeout-minutes: 60
     defaults:
       run:
@@ -91,17 +113,34 @@ jobs:
           version: latest
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: pnpm install
+
+      - name: Check EXPO_TOKEN
+        id: check-token
+        run: |
+          if [ -z "${{ secrets.EXPO_TOKEN }}" ]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "⚠ EXPO_TOKEN not set — skipping Android build"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Setup EAS
+        if: steps.check-token.outputs.skip != 'true'
         uses: expo/expo-github-action@v8
         with:
           eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
 
       - name: Build Android
-        run: eas build --platform android --profile ${{ inputs.profile }} --non-interactive
+        if: steps.check-token.outputs.skip != 'true'
+        run: |
+          PROFILE="${{ inputs.profile || 'preview' }}"
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            PROFILE="production"
+          fi
+          eas build --platform android --profile $PROFILE --non-interactive
 
       - name: Submit to Google Play
-        if: ${{ inputs.profile == 'production' && inputs.submit }}
+        if: steps.check-token.outputs.skip != 'true' && inputs.profile == 'production' && inputs.submit
         run: eas submit --platform android --latest --non-interactive
