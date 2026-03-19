@@ -10,7 +10,7 @@ directories:
 icon: resources/icon.png
 
 extraMetadata:
-  main: dist/main/entry.js
+  main: dist/main/index.js
 
 files:
   - dist/**/*

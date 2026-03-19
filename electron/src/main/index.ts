@@ -1,24 +1,15 @@
 import { app, BrowserWindow, Tray, Menu, nativeImage, ipcMain, Notification } from "electron";
 import path from "path";
-import { getConfig } from "./config";
-import { initNotifications, cleanupNotifications } from "./notifications";
-import { initAutoUpdater } from "./updater";
 
-// Fix Linux sandbox — disable sandbox for AppImage compatibility
-if (process.platform === "linux") {
-  app.commandLine.appendSwitch("no-sandbox");
-  app.commandLine.appendSwitch("disable-gpu-sandbox");
-  app.commandLine.appendSwitch("disable-setuid-sandbox");
-}
+// ─── Constants ──────────────────────────────────────────────
+const APP_URL = "https://smshub.dev";
+const APP_NAME = "SMSHub";
 
 let mainWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
 
 // ─── Deep link / single instance ──────────────────────────────
-
-// Register smshub:// protocol for deep links
 if (process.defaultApp) {
-  // Dev mode — register with full path
   if (process.argv.length >= 2) {
     app.setAsDefaultProtocolClient("smshub", process.execPath, [
       path.resolve(process.argv[1]),
@@ -28,79 +19,38 @@ if (process.defaultApp) {
   app.setAsDefaultProtocolClient("smshub");
 }
 
-// Single instance lock — second instances pass their argv to the first
-const gotTheLock = app.requestSingleInstanceLock();
-
-if (!gotTheLock) {
+const gotLock = app.requestSingleInstanceLock();
+if (!gotLock) {
   app.quit();
-} else {
-  app.on("second-instance", (_event, commandLine) => {
-    // Windows/Linux: deep link URL is in commandLine
+}
+
+app.on("second-instance", (_event, commandLine) => {
+  if (mainWindow) {
+    if (mainWindow.isMinimized()) mainWindow.restore();
+    mainWindow.focus();
     const url = commandLine.find((arg) => arg.startsWith("smshub://"));
     if (url) handleDeepLink(url);
+  }
+});
 
-    // Focus existing window
-    if (mainWindow) {
-      if (mainWindow.isMinimized()) mainWindow.restore();
-      mainWindow.show();
-      mainWindow.focus();
-    }
-  });
-}
-
-/**
- * Parse and handle smshub:// deep links.
- *
- * Supported:
- *   smshub://chat/{conversationId}
- *   smshub://compose?to={phone}
- */
 function handleDeepLink(url: string) {
-  try {
-    const parsed = new URL(url);
-    // URL: smshub://chat/abc123 → hostname="chat", pathname="/abc123"
-    // URL: smshub://compose?to=+1234 → hostname="compose", search="?to=+1234"
-
-    const host = parsed.hostname;
-    const pathPart = parsed.pathname.replace(/^\//, "");
-
-    if (host === "chat" && pathPart) {
-      navigateRenderer(`/chat/${pathPart}`);
-    } else if (host === "compose") {
-      const to = parsed.searchParams.get("to");
-      if (to) {
-        navigateRenderer(`/?composeTo=${encodeURIComponent(to)}`);
-      } else {
-        navigateRenderer("/");
-      }
-    }
-  } catch (err) {
-    console.error("[deep-link] Failed to parse URL:", url, err);
+  if (!mainWindow) return;
+  const parsed = new URL(url);
+  if (parsed.pathname.startsWith("//chat/")) {
+    const id = parsed.pathname.replace("//chat/", "");
+    mainWindow.loadURL(`${APP_URL}/inbox?conversation=${id}`);
+  } else if (parsed.pathname.startsWith("//compose")) {
+    const to = parsed.searchParams.get("to");
+    mainWindow.loadURL(`${APP_URL}/inbox?compose=true${to ? `&to=${to}` : ""}`);
   }
 }
 
-/**
- * Send a navigation event to the renderer process.
- */
-function navigateRenderer(path: string) {
-  if (mainWindow && !mainWindow.isDestroyed()) {
-    mainWindow.show();
-    mainWindow.focus();
-    mainWindow.webContents.send("navigate", path);
-  }
-}
-
-// ─── Icon helpers ─────────────────────────────────────────────
-
+// ─── Icon helpers ──────────────────────────────────────────────
 function getAppIcon(): Electron.NativeImage {
-  const iconPath =
-    process.platform === "win32"
-      ? path.join(__dirname, "..", "resources", "icon.ico")
-      : process.platform === "darwin"
-        ? path.join(__dirname, "..", "resources", "icon.icns")
-        : path.join(__dirname, "..", "resources", "icons", "256x256.png");
-
   try {
+    const iconPath = app.isPackaged
+      ? path.join(process.resourcesPath, "icon.png")
+      : path.join(__dirname, "..", "resources", "icons", "256x256.png");
     return nativeImage.createFromPath(iconPath);
   } catch {
     return nativeImage.createEmpty();
@@ -108,35 +58,19 @@ function getAppIcon(): Electron.NativeImage {
 }
 
 function getTrayIcon(): Electron.NativeImage {
-  // On macOS, use a template image (monochrome, system handles light/dark)
-  const trayIconName =
-    process.platform === "darwin" ? "tray-iconTemplate.png" : "tray-icon.png";
-  const trayPath = path.join(__dirname, "..", "resources", trayIconName);
-
-  try {
-    const icon = nativeImage.createFromPath(trayPath);
-    if (process.platform === "darwin") {
-      icon.setTemplateImage(true);
-    }
-    return icon;
-  } catch {
-    return getAppIcon().resize({ width: 22, height: 22 });
-  }
+  return getAppIcon().resize({ width: 22, height: 22 });
 }
 
-// ─── Window creation ──────────────────────────────────────────
-
+// ─── Window ──────────────────────────────────────────────────
 function createWindow() {
-  const config = getConfig();
-
   mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
     minWidth: 800,
     minHeight: 600,
-    title: "SMSHub",
+    title: APP_NAME,
     icon: getAppIcon(),
-    backgroundColor: "#030712", // gray-950
+    backgroundColor: "#030712",
     webPreferences: {
       preload: path.join(__dirname, "../preload/index.js"),
       contextIsolation: true,
@@ -144,10 +78,9 @@ function createWindow() {
     },
   });
 
-  mainWindow.loadURL(config.appUrl);
+  mainWindow.loadURL(APP_URL);
 
   mainWindow.on("close", (event) => {
-    // Minimize to tray instead of quitting
     if (tray) {
       event.preventDefault();
       mainWindow?.hide();
@@ -159,103 +92,50 @@ function createWindow() {
   });
 }
 
+// ─── Tray ──────────────────────────────────────────────────
 function createTray() {
   const icon = getTrayIcon();
   tray = new Tray(icon);
 
   const contextMenu = Menu.buildFromTemplate([
-    {
-      label: "Show SMSHub",
-      click: () => mainWindow?.show(),
-    },
+    { label: `Show ${APP_NAME}`, click: () => mainWindow?.show() },
     { type: "separator" },
-    {
-      label: "Quit",
-      click: () => {
-        tray = null;
-        app.quit();
-      },
-    },
+    { label: "Quit", click: () => { tray = null; app.quit(); } },
   ]);
 
-  tray.setToolTip("SMSHub");
+  tray.setToolTip(APP_NAME);
   tray.setContextMenu(contextMenu);
-
-  tray.on("click", () => {
-    mainWindow?.show();
-  });
+  tray.on("click", () => mainWindow?.show());
 }
 
-function registerIpcHandlers() {
-  // Window controls
-  ipcMain.on("window-minimize", () => {
-    mainWindow?.minimize();
-  });
+// ─── IPC handlers ──────────────────────────────────────────────
+ipcMain.on("window-minimize", () => mainWindow?.minimize());
+ipcMain.on("window-maximize", () => {
+  if (mainWindow?.isMaximized()) mainWindow.unmaximize();
+  else mainWindow?.maximize();
+});
+ipcMain.on("window-close", () => mainWindow?.close());
+ipcMain.handle("get-version", () => app.getVersion());
+ipcMain.on("notification", (_event, { title, body }) => {
+  new Notification({ title, body }).show();
+});
 
-  ipcMain.on("window-maximize", () => {
-    if (mainWindow?.isMaximized()) {
-      mainWindow.unmaximize();
-    } else {
-      mainWindow?.maximize();
-    }
-  });
-
-  ipcMain.on("window-close", () => {
-    mainWindow?.close();
-  });
-
-  // App version
-  ipcMain.handle("get-version", () => {
-    return app.getVersion();
-  });
-
-  // Manual notification from renderer
-  ipcMain.on("notification", (_event, { title, body }: { title: string; body: string }) => {
-    if (Notification.isSupported()) {
-      const notification = new Notification({ title, body });
-      notification.on("click", () => {
-        mainWindow?.show();
-        mainWindow?.focus();
-      });
-      notification.show();
-    }
-  });
-}
-
-// ─── App lifecycle ────────────────────────────────────────────
-
+// ─── App ready ──────────────────────────────────────────────
 app.whenReady().then(() => {
-  registerIpcHandlers();
   createWindow();
   createTray();
 
-  // Init realtime notifications
-  if (mainWindow) {
-    initNotifications(mainWindow);
-    initAutoUpdater(mainWindow);
-  }
-
   app.on("activate", () => {
-    if (BrowserWindow.getAllWindows().length === 0) {
-      createWindow();
-    }
+    if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });
 });
 
-// macOS: handle deep link when app is already running
+app.on("window-all-closed", () => {
+  if (process.platform !== "darwin") app.quit();
+});
+
+// macOS deep link handler
 app.on("open-url", (event, url) => {
   event.preventDefault();
   handleDeepLink(url);
-});
-
-app.on("before-quit", () => {
-  cleanupNotifications();
-  // Allow window to actually close when quitting
-  tray = null;
-});
-
-app.on("window-all-closed", () => {
-  if (process.platform !== "darwin") {
-    app.quit();
-  }
 });
