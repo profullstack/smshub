@@ -8,6 +8,7 @@ export default defineConfig({
       rollupOptions: {
         input: {
           index: "src/main/index.ts",
+          entry: "src/main/entry.js",
         },
       },
     },

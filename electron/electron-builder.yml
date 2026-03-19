@@ -17,7 +17,7 @@ files:
   - "!electron.vite.config.ts"
 
 extraMetadata:
-  main: dist/main/index.js
+  main: dist/main/entry.js
 
 # ─── Protocol handler (deep links) ────────────────────────────
 protocols:
@@ -61,10 +61,11 @@ linux:
   desktop:
     StartupWMClass: smshub
 
+
 appImage:
   artifactName: "SMSHub-${version}.AppImage"
 
-afterPack: ./scripts/after-pack.js
+# afterPack: ./scripts/after-pack.js  # Don't remove chrome-sandbox — Chromium needs it present
 
 # ─── Auto-update — GitHub Releases ────────────────────────────
 publish:

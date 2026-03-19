@@ -1,10 +1,16 @@
+// Fix Linux sandbox — must be before electron app module initializes
+// Inject --no-sandbox into process args so Chromium sees it at startup
+if (process.platform === "linux" && !process.argv.includes("--no-sandbox")) {
+  process.argv.push("--no-sandbox");
+}
+
 import { app, BrowserWindow, Tray, Menu, nativeImage, ipcMain, Notification } from "electron";
 import path from "path";
 import { getConfig } from "./config";
 import { initNotifications, cleanupNotifications } from "./notifications";
 import { initAutoUpdater } from "./updater";
 
-// Fix AppImage/Linux SUID sandbox issue
+// Also set via commandLine API as backup
 if (process.platform === "linux") {
   app.commandLine.appendSwitch("no-sandbox");
 }
