@@ -1,7 +1,7 @@
-# 📱 SMSHub
+# SMSHub
 
 <p align="center">
-  <img src="./public/logo.svg" alt="SMSHub logo" width="160" />
+  <img src="./public/banner.png" alt="SMSHub logo"  />
 </p>
 
 [![Next.js](https://img.shields.io/badge/Next.js-16-black?logo=next.js)](https://nextjs.org/)
