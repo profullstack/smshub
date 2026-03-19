@@ -76,6 +76,10 @@ install_macos() {
     cp -R "${mount_point}/SMSHub.app" "${APPLICATIONS_DIR}/"
     hdiutil detach "$mount_point" -quiet 2>/dev/null
 
+    # Remove quarantine flag (unsigned app fix)
+    info "Removing macOS quarantine flag..."
+    xattr -cr "${APPLICATIONS_DIR}/SMSHub.app" 2>/dev/null || true
+
     mkdir -p "$BIN_DIR"
     cat > "$BIN_DIR/smshub" << 'WRAPPER'
 #!/bin/bash

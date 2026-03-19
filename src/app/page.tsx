@@ -144,14 +144,14 @@ export default function LandingPage() {
               desc="Native desktop app for macOS, Windows, and Linux with system tray, notifications, and auto-updates."
               badge="Available"
               badgeColor="green"
-              href="https://github.com/profullstack/smshub/releases"
+              href="/install"
             />
           </div>
 
           <div className="mt-8 text-center">
             <p className="text-gray-500 text-sm">
               Desktop app available on{" "}
-              <a href="https://github.com/profullstack/smshub/releases" className="text-blue-400 hover:text-blue-300">
+              <a href="/install" className="text-blue-400 hover:text-blue-300">
                 GitHub Releases
               </a>
               . iOS and Android coming soon.

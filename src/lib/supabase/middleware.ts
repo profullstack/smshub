@@ -8,6 +8,7 @@ const PUBLIC_ROUTES = [
   "/register",
   "/phonenumbers",
   "/offline",
+  "/install",
   "/privacy",
   "/terms",
   "/api/webhooks",
