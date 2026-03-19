@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { Logo } from "@/components/logo";
 
 const APP_ROUTES = ["/inbox", "/settings", "/campaigns", "/contacts", "/analytics", "/org"];
 
@@ -14,10 +15,7 @@ export function Header() {
   return (
     <header className="border-b border-gray-800 bg-gray-950/80 backdrop-blur-sm sticky top-0 z-50">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
-        <Link href="/" className="flex items-center gap-2">
-          <span className="text-2xl">📱</span>
-          <span className="text-xl font-bold">SMSHub</span>
-        </Link>
+        <Logo priority />
 
         <nav className="hidden sm:flex items-center gap-6">
           <Link href="/#features" className="text-sm text-gray-400 hover:text-white transition-colors">

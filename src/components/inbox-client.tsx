@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/contexts/toast-context";
 import { NewMessageModal } from "./new-message-modal";
 import { ContactNameEditor } from "./contact-name-editor";
+import { Logo } from "./logo";
 
 interface Conversation {
   id: string;
@@ -363,7 +364,11 @@ export function InboxClient({
       <div className="w-80 bg-gray-900 border-r border-gray-800 flex flex-col">
         <div className="p-4 border-b border-gray-800">
           <div className="flex items-center justify-between mb-3">
-            <h1 className="text-xl font-bold">SMSHub</h1>
+            <Logo
+              textClassName="text-xl font-bold"
+              imageClassName="h-8 w-auto"
+              className="flex items-center gap-3"
+            />
             <div className="flex items-center gap-2">
               <a
                 href="/phonenumbers"

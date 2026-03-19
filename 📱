@@ -1,0 +1,67 @@
+README.md:1:# 📱 SMSHub
+README.md:23:| 📱 iOS | React Native (Expo) | ✅ v1 |
+SMSHub:1:mobile/app/(tabs)/settings.tsx:79:        return "📱";
+SMSHub:2:README.md:1:# 📱 SMSHub
+SMSHub:3:README.md:23:| 📱 iOS | React Native (Expo) | ✅ v1 |
+SMSHub:4:docs/PRD.md:1:# 📱 SMSHub — PRD (Unified Desktop + Web + PWA + Mobile)
+SMSHub:5:docs/PRD.md:12:* 📱 Mobile (React Native iOS + Android)
+SMSHub:8:supabase/templates/invite.html:15:              <span style="font-size:32px;">📱</span>
+SMSHub:11:supabase/templates/recovery.html:15:              <span style="font-size:32px;">📱</span>
+SMSHub:13:supabase/templates/magic_link.html:15:              <span style="font-size:32px;">📱</span>
+SMSHub:15:supabase/templates/confirm.html:15:              <span style="font-size:32px;">📱</span>
+SMSHub:17:supabase/templates/email_change.html:15:              <span style="font-size:32px;">📱</span>
+SMSHub:20:src/components/inbox-client.tsx:373:                📱 API
+SMSHub:21:src/app/page.tsx:90:              emoji="📱"
+SMSHub:22:src/app/page.tsx:110:            <PlatformBadge emoji="📱" label="iOS" status="coming-soon" />
+SMSHub:23:src/app/page.tsx:130:              emoji="📱"
+SMSHub:24:src/components/footer.tsx:21:              <span className="text-2xl">📱</span>
+SMSHub:25:src/components/footer.tsx:45:              <li><span className="text-sm text-gray-400">📱 iOS & Android</span></li>
+SMSHub:26:src/components/header.tsx:18:          <span className="text-2xl">📱</span>
+SMSHub:27:src/app/phonenumbers/page.tsx:46:          <div className="text-6xl">📱</div>
+mobile/app/(tabs)/settings.tsx:79:        return "📱";
+docs/PRD.md:1:# 📱 SMSHub — PRD (Unified Desktop + Web + PWA + Mobile)
+docs/PRD.md:12:* 📱 Mobile (React Native iOS + Android)
+📱:1:README.md:1:# 📱 SMSHub
+📱:2:README.md:23:| 📱 iOS | React Native (Expo) | ✅ v1 |
+📱:3:SMSHub:1:mobile/app/(tabs)/settings.tsx:79:        return "📱";
+📱:4:SMSHub:2:README.md:1:# 📱 SMSHub
+📱:5:SMSHub:3:README.md:23:| 📱 iOS | React Native (Expo) | ✅ v1 |
+📱:6:SMSHub:4:docs/PRD.md:1:# 📱 SMSHub — PRD (Unified Desktop + Web + PWA + Mobile)
+📱:7:SMSHub:5:docs/PRD.md:12:* 📱 Mobile (React Native iOS + Android)
+📱:8:SMSHub:8:supabase/templates/invite.html:15:              <span style="font-size:32px;">📱</span>
+📱:9:SMSHub:11:supabase/templates/recovery.html:15:              <span style="font-size:32px;">📱</span>
+📱:10:SMSHub:13:supabase/templates/magic_link.html:15:              <span style="font-size:32px;">📱</span>
+📱:11:SMSHub:15:supabase/templates/confirm.html:15:              <span style="font-size:32px;">📱</span>
+📱:12:SMSHub:17:supabase/templates/email_change.html:15:              <span style="font-size:32px;">📱</span>
+📱:13:SMSHub:20:src/components/inbox-client.tsx:373:                📱 API
+📱:14:SMSHub:21:src/app/page.tsx:90:              emoji="📱"
+📱:15:SMSHub:22:src/app/page.tsx:110:            <PlatformBadge emoji="📱" label="iOS" status="coming-soon" />
+📱:16:SMSHub:23:src/app/page.tsx:130:              emoji="📱"
+📱:17:SMSHub:24:src/components/footer.tsx:21:              <span className="text-2xl">📱</span>
+📱:18:SMSHub:25:src/components/footer.tsx:45:              <li><span className="text-sm text-gray-400">📱 iOS & Android</span></li>
+📱:19:SMSHub:26:src/components/header.tsx:18:          <span className="text-2xl">📱</span>
+📱:20:SMSHub:27:src/app/phonenumbers/page.tsx:46:          <div className="text-6xl">📱</div>
+📱:21:mobile/app/(tabs)/settings.tsx:79:        return "📱";
+src/components/inbox-client.tsx:378:                📱 API
+src/components/footer.tsx:47:              <li><span className="text-sm text-gray-400">📱 iOS & Android</span></li>
+supabase/templates/invite.html:15:              <span style="font-size:32px;">📱</span>
+supabase/templates/confirm.html:15:              <span style="font-size:32px;">📱</span>
+src/app/contacts/[id]/page.tsx:151:          <h1 className="text-2xl font-bold">
+supabase/templates/email_change.html:15:              <span style="font-size:32px;">📱</span>
+supabase/templates/recovery.html:15:              <span style="font-size:32px;">📱</span>
+supabase/templates/magic_link.html:15:              <span style="font-size:32px;">📱</span>
+src/app/contacts/page.tsx:73:          <h1 className="text-2xl font-bold">Contacts</h1>
+src/app/campaigns/new/page.tsx:107:          <h1 className="text-2xl font-bold">New Campaign</h1>
+src/app/page.tsx:90:              emoji="📱"
+src/app/page.tsx:110:            <PlatformBadge emoji="📱" label="iOS" status="coming-soon" />
+src/app/page.tsx:130:              emoji="📱"
+src/app/phonenumbers/page.tsx:46:          <div className="text-6xl">📱</div>
+src/app/settings/api-keys/page.tsx:93:          <h1 className="text-2xl font-bold">API Keys</h1>
+src/app/settings/page.tsx:141:          <h1 className="text-2xl font-bold">Settings</h1>
+src/app/analytics/page.tsx:73:          <h1 className="text-2xl font-bold">Analytics</h1>
+src/app/analytics/page.tsx:85:            <div className="text-2xl font-bold text-blue-400">
+src/app/analytics/page.tsx:91:            <div className="text-2xl font-bold text-green-400">
+src/app/analytics/page.tsx:97:            <div className="text-2xl font-bold text-purple-400">
+src/app/analytics/page.tsx:105:            <div className="text-2xl font-bold text-yellow-400">
+src/app/campaigns/page.tsx:73:          <h1 className="text-2xl font-bold">Campaigns</h1>
+src/app/org/page.tsx:120:          <h1 className="text-2xl font-bold">Organization</h1>

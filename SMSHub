@@ -1,0 +1,27 @@
+mobile/app/(tabs)/settings.tsx:79:        return "📱";
+README.md:1:# 📱 SMSHub
+README.md:23:| 📱 iOS | React Native (Expo) | ✅ v1 |
+docs/PRD.md:1:# 📱 SMSHub — PRD (Unified Desktop + Web + PWA + Mobile)
+docs/PRD.md:12:* 📱 Mobile (React Native iOS + Android)
+src/app/offline/page.tsx:7:        <h1 className="text-3xl font-bold">You&apos;re Offline</h1>
+src/app/login/page.tsx:39:          <h1 className="text-3xl font-bold">SMSHub</h1>
+supabase/templates/invite.html:15:              <span style="font-size:32px;">📱</span>
+supabase/templates/invite.html:16:              <h1 style="color:#f9fafb;font-size:24px;margin:12px 0 0;">SMSHub</h1>
+src/app/register/page.tsx:52:          <h1 className="text-3xl font-bold">SMSHub</h1>
+supabase/templates/recovery.html:15:              <span style="font-size:32px;">📱</span>
+supabase/templates/recovery.html:16:              <h1 style="color:#f9fafb;font-size:24px;margin:12px 0 0;">SMSHub</h1>
+supabase/templates/magic_link.html:15:              <span style="font-size:32px;">📱</span>
+supabase/templates/magic_link.html:16:              <h1 style="color:#f9fafb;font-size:24px;margin:12px 0 0;">SMSHub</h1>
+supabase/templates/confirm.html:15:              <span style="font-size:32px;">📱</span>
+supabase/templates/confirm.html:16:              <h1 style="color:#f9fafb;font-size:24px;margin:12px 0 0;">SMSHub</h1>
+supabase/templates/email_change.html:15:              <span style="font-size:32px;">📱</span>
+supabase/templates/email_change.html:16:              <h1 style="color:#f9fafb;font-size:24px;margin:12px 0 0;">SMSHub</h1>
+src/components/inbox-client.tsx:366:            <h1 className="text-xl font-bold">SMSHub</h1>
+src/components/inbox-client.tsx:373:                📱 API
+src/app/page.tsx:90:              emoji="📱"
+src/app/page.tsx:110:            <PlatformBadge emoji="📱" label="iOS" status="coming-soon" />
+src/app/page.tsx:130:              emoji="📱"
+src/components/footer.tsx:21:              <span className="text-2xl">📱</span>
+src/components/footer.tsx:45:              <li><span className="text-sm text-gray-400">📱 iOS & Android</span></li>
+src/components/header.tsx:18:          <span className="text-2xl">📱</span>
+src/app/phonenumbers/page.tsx:46:          <div className="text-6xl">📱</div>

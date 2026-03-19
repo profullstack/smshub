@@ -4,6 +4,7 @@ import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { Logo } from "@/components/logo";
 
 export default function RegisterPage() {
   const [email, setEmail] = useState("");
@@ -49,7 +50,14 @@ export default function RegisterPage() {
     <div className="min-h-screen flex items-center justify-center px-4">
       <div className="w-full max-w-sm space-y-6">
         <div className="text-center">
-          <h1 className="text-3xl font-bold">SMSHub</h1>
+          <div className="flex justify-center">
+            <Logo
+              textClassName="text-3xl font-bold"
+              imageClassName="h-10 w-auto"
+              className="flex items-center gap-3"
+              priority
+            />
+          </div>
           <p className="text-gray-400 mt-2">Create your account</p>
         </div>
 

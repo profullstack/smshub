@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { Logo } from "@/components/logo";
 
 const APP_ROUTES = ["/inbox", "/settings", "/campaigns", "/contacts", "/analytics", "/org"];
 
@@ -17,10 +18,11 @@ export function Footer() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
           {/* Brand */}
           <div className="col-span-2 md:col-span-1">
-            <Link href="/" className="flex items-center gap-2 mb-4">
-              <span className="text-2xl">📱</span>
-              <span className="text-lg font-bold">SMSHub</span>
-            </Link>
+            <Logo
+              textClassName="text-lg font-bold"
+              imageClassName="h-7 w-auto"
+              className="flex items-center gap-3 mb-4"
+            />
             <p className="text-sm text-gray-400">
               Multi-platform SMS messaging for developers and businesses.
             </p>
