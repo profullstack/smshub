@@ -3,8 +3,8 @@ import { BrowserWindow, dialog } from "electron";
 
 export function initAutoUpdater(mainWindow: BrowserWindow): void {
   // Don't check for updates in dev
-  if (!mainWindow || process.env.NODE_ENV === "development") {
-    console.log("[updater] Skipping auto-update in dev mode");
+  if (!mainWindow || process.env.NODE_ENV === "development" || !process.env.ELECTRON_UPDATER_ENABLED) {
+    console.log("[updater] Auto-update disabled (set ELECTRON_UPDATER_ENABLED=1 to enable)");
     return;
   }
 

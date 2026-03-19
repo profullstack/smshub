@@ -63,7 +63,7 @@ export function getConfig(): AppConfig {
   _config = {
     appUrl: getEnv(
       "APP_URL",
-      isProd ? `file://${path.join(app.getAppPath(), "renderer", "index.html")}` : "http://localhost:3000"
+      isProd ? "https://smshub.dev" : "http://localhost:3000"
     ),
     supabaseUrl: getEnv("NEXT_PUBLIC_SUPABASE_URL", ""),
     supabaseAnonKey: getEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY", ""),
