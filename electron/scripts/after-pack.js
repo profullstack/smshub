@@ -11,7 +11,7 @@ exports.default = async function (context) {
     console.log("Removed chrome-sandbox from Linux build");
   }
 
-  // Rename the real binary and create a wrapper that adds --no-sandbox
+  // Rename the real binary and create a wrapper that sets ELECTRON_DISABLE_SANDBOX
   const exeName = context.packager.executableName || "smshub-desktop";
   const realBinary = path.join(context.appOutDir, exeName);
   const renamedBinary = path.join(context.appOutDir, exeName + ".bin");
@@ -20,9 +20,14 @@ exports.default = async function (context) {
     fs.renameSync(realBinary, renamedBinary);
     fs.writeFileSync(
       realBinary,
-      `#!/bin/bash\nexec "\$(dirname "\$0")/${exeName}.bin" --no-sandbox "$@"\n`,
+      [
+        '#!/bin/bash',
+        'export ELECTRON_DISABLE_SANDBOX=1',
+        `exec "$(dirname "$0")/${exeName}.bin" --no-sandbox "$@"`,
+        '',
+      ].join('\n'),
       { mode: 0o755 }
     );
-    console.log(`Created --no-sandbox wrapper for ${exeName}`);
+    console.log(`Created sandbox-free wrapper for ${exeName}`);
   }
 };
