@@ -109,7 +109,7 @@ export default function LandingPage() {
             <PlatformBadge emoji="📲" label="PWA" status="live" />
             <PlatformBadge emoji="📱" label="iOS" status="coming-soon" />
             <PlatformBadge emoji="🤖" label="Android" status="coming-soon" />
-            <PlatformBadge emoji="🖥" label="Desktop" status="coming-soon" />
+            <PlatformBadge emoji="🖥" label="Desktop" status="live" />
           </div>
         </div>
       </section>
@@ -142,13 +142,19 @@ export default function LandingPage() {
               emoji="🖥"
               title="Desktop App"
               desc="Native desktop app for macOS, Windows, and Linux with system tray, notifications, and auto-updates."
-              badge="Coming Soon"
+              badge="Available"
+              badgeColor="green"
+              href="https://github.com/profullstack/smshub/releases"
             />
           </div>
 
           <div className="mt-8 text-center">
             <p className="text-gray-500 text-sm">
-              Want early access? Sign up for an account and we&apos;ll notify you when apps launch.
+              Desktop app available on{" "}
+              <a href="https://github.com/profullstack/smshub/releases" className="text-blue-400 hover:text-blue-300">
+                GitHub Releases
+              </a>
+              . iOS and Android coming soon.
             </p>
           </div>
         </div>
@@ -289,22 +295,38 @@ function AppCard({
   title,
   desc,
   badge,
+  badgeColor = "yellow",
+  href,
 }: {
   emoji: string;
   title: string;
   desc: string;
   badge: string;
+  badgeColor?: "yellow" | "green";
+  href?: string;
 }) {
-  return (
-    <div className="bg-gray-900 border border-gray-800 rounded-xl p-6 text-center">
+  const colors = badgeColor === "green"
+    ? "bg-green-500/10 border-green-500/20 text-green-400"
+    : "bg-yellow-500/10 border-yellow-500/20 text-yellow-400";
+
+  const content = (
+    <div className="bg-gray-900 border border-gray-800 rounded-xl p-6 text-center hover:border-gray-700 transition-colors">
       <span className="text-4xl">{emoji}</span>
-      <div className="inline-block bg-yellow-500/10 border border-yellow-500/20 text-yellow-400 text-xs font-semibold px-3 py-1 rounded-full mt-3">
+      <div className={`inline-block ${colors} border text-xs font-semibold px-3 py-1 rounded-full mt-3`}>
         {badge}
       </div>
       <h3 className="text-lg font-semibold mt-3 mb-2">{title}</h3>
       <p className="text-sm text-gray-400">{desc}</p>
+      {href && (
+        <span className="text-xs text-blue-400 mt-3 block">Download →</span>
+      )}
     </div>
   );
+
+  if (href) {
+    return <a href={href} target="_blank" rel="noopener noreferrer">{content}</a>;
+  }
+  return content;
 }
 
 function PricingCard({
