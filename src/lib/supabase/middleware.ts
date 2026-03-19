@@ -45,23 +45,34 @@ export async function updateSession(request: NextRequest) {
     }
   );
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
   const pathname = request.nextUrl.pathname;
+
+  // Check public routes BEFORE auth — no need to hit Supabase for public pages
+  if (isPublicRoute(pathname)) {
+    return supabaseResponse;
+  }
+
   const isAuth = pathname.startsWith("/login") || pathname.startsWith("/register");
+
+  let user = null;
+  try {
+    const { data } = await supabase.auth.getUser();
+    user = data.user;
+  } catch {
+    // Auth check failed — allow public routes, redirect others to login
+    if (!isAuth) {
+      const url = request.nextUrl.clone();
+      url.pathname = "/login";
+      return NextResponse.redirect(url);
+    }
+    return supabaseResponse;
+  }
 
   // Redirect authenticated users away from auth pages → inbox
   if (user && isAuth) {
     const url = request.nextUrl.clone();
     url.pathname = "/inbox";
     return NextResponse.redirect(url);
-  }
-
-  // Allow public routes without auth
-  if (isPublicRoute(pathname)) {
-    return supabaseResponse;
   }
 
   // Redirect unauthenticated users to login for protected routes
