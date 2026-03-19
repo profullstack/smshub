@@ -16,19 +16,6 @@ export const metadata: Metadata = {
   manifest: "/manifest.json",
   icons: {
     icon: [
-      { url: "/icons/favicon-16.png", sizes: "16x16", type: "image/png" },
-      { url: "/icons/favicon-32.png", sizes: "32x32", type: "image/png" },
-      { url: "/icons/favicon.svg", type: "image/svg+xml" },
-    ],
-    shortcut: "/icons/favicon.ico",
-    apple: [
-      { url: "/icons/apple-touch-icon-180x180.png", sizes: "180x180" },
-      { url: "/icons/apple-touch-icon-152x152.png", sizes: "152x152" },
-      { url: "/icons/apple-touch-icon-120x120.png", sizes: "120x120" },
-    ],
-  },
-  icons: {
-    icon: [
       { url: "/favicon.svg", type: "image/svg+xml" },
       { url: "/icons/favicon-32.png", sizes: "32x32", type: "image/png" },
       { url: "/icons/favicon-16.png", sizes: "16x16", type: "image/png" },
