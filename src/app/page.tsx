@@ -105,11 +105,51 @@ export default function LandingPage() {
         <div className="max-w-4xl mx-auto text-center">
           <h2 className="text-3xl sm:text-4xl font-bold mb-12">Available everywhere</h2>
           <div className="grid grid-cols-2 md:grid-cols-5 gap-6">
-            <PlatformBadge emoji="🌐" label="Web" />
-            <PlatformBadge emoji="📲" label="PWA" />
-            <PlatformBadge emoji="📱" label="iOS" />
-            <PlatformBadge emoji="🤖" label="Android" />
-            <PlatformBadge emoji="🖥" label="Desktop" />
+            <PlatformBadge emoji="🌐" label="Web" status="live" />
+            <PlatformBadge emoji="📲" label="PWA" status="live" />
+            <PlatformBadge emoji="📱" label="iOS" status="coming-soon" />
+            <PlatformBadge emoji="🤖" label="Android" status="coming-soon" />
+            <PlatformBadge emoji="🖥" label="Desktop" status="coming-soon" />
+          </div>
+        </div>
+      </section>
+
+      {/* Download Apps */}
+      <section id="apps" className="py-20 px-4 border-t border-gray-800">
+        <div className="max-w-4xl mx-auto">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl sm:text-4xl font-bold mb-4">Native apps coming soon</h2>
+            <p className="text-gray-400 text-lg max-w-2xl mx-auto">
+              Take SMSHub with you everywhere. Native apps for iOS, Android, and desktop — built with
+              React Native and Electron.
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-6">
+            <AppCard
+              emoji="📱"
+              title="iOS App"
+              desc="Native iPhone and iPad app with push notifications, offline support, and deep linking."
+              badge="Coming Soon"
+            />
+            <AppCard
+              emoji="🤖"
+              title="Android App"
+              desc="Material Design Android app with background sync, push notifications, and widget support."
+              badge="Coming Soon"
+            />
+            <AppCard
+              emoji="🖥"
+              title="Desktop App"
+              desc="Native desktop app for macOS, Windows, and Linux with system tray, notifications, and auto-updates."
+              badge="Coming Soon"
+            />
+          </div>
+
+          <div className="mt-8 text-center">
+            <p className="text-gray-500 text-sm">
+              Want early access? Sign up for an account and we&apos;ll notify you when apps launch.
+            </p>
           </div>
         </div>
       </section>
@@ -222,11 +262,47 @@ function FeatureCard({ emoji, title, desc }: { emoji: string; title: string; des
   );
 }
 
-function PlatformBadge({ emoji, label }: { emoji: string; label: string }) {
+function PlatformBadge({
+  emoji,
+  label,
+  status = "live",
+}: {
+  emoji: string;
+  label: string;
+  status?: "live" | "coming-soon";
+}) {
   return (
-    <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 text-center">
+    <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 text-center relative">
       <span className="text-3xl">{emoji}</span>
       <div className="text-sm font-medium mt-2">{label}</div>
+      {status === "coming-soon" ? (
+        <span className="text-[10px] text-yellow-400 font-medium mt-1 block">Coming Soon</span>
+      ) : (
+        <span className="text-[10px] text-green-400 font-medium mt-1 block">Available</span>
+      )}
+    </div>
+  );
+}
+
+function AppCard({
+  emoji,
+  title,
+  desc,
+  badge,
+}: {
+  emoji: string;
+  title: string;
+  desc: string;
+  badge: string;
+}) {
+  return (
+    <div className="bg-gray-900 border border-gray-800 rounded-xl p-6 text-center">
+      <span className="text-4xl">{emoji}</span>
+      <div className="inline-block bg-yellow-500/10 border border-yellow-500/20 text-yellow-400 text-xs font-semibold px-3 py-1 rounded-full mt-3">
+        {badge}
+      </div>
+      <h3 className="text-lg font-semibold mt-3 mb-2">{title}</h3>
+      <p className="text-sm text-gray-400">{desc}</p>
     </div>
   );
 }

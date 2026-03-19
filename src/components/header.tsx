@@ -29,6 +29,9 @@ export function Header() {
           <Link href="#api" className="text-sm text-gray-400 hover:text-white transition-colors">
             API
           </Link>
+          <Link href="#apps" className="text-sm text-gray-400 hover:text-white transition-colors">
+            Apps
+          </Link>
           <Link href="/phonenumbers" className="text-sm text-gray-400 hover:text-white transition-colors">
             Phone Numbers
           </Link>
