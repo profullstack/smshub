@@ -45,7 +45,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 24
+          node-version: 22
       - uses: pnpm/action-setup@v4
         with:
           version: latest
@@ -54,7 +54,6 @@ jobs:
       - name: Check EXPO_TOKEN
         id: check
         env:
-          NODE_OPTIONS: "--experimental-strip-types --experimental-transform-types"
         run: |
           if [ -z "${{ secrets.EXPO_TOKEN }}" ]; then
             echo "skip=true" >> "$GITHUB_OUTPUT"
@@ -67,13 +66,12 @@ jobs:
         if: steps.check.outputs.skip != 'true'
         uses: expo/expo-github-action@v8
         with:
-          eas-version: 16.x.x
+          eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
 
       - name: Build iOS
         if: steps.check.outputs.skip != 'true'
         env:
-          NODE_OPTIONS: "--experimental-strip-types --experimental-transform-types"
         run: |
           PROFILE="${{ inputs.profile || 'preview' }}"
           if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
@@ -99,7 +97,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 24
+          node-version: 22
       - uses: pnpm/action-setup@v4
         with:
           version: latest
@@ -119,13 +117,12 @@ jobs:
         if: steps.check.outputs.skip != 'true'
         uses: expo/expo-github-action@v8
         with:
-          eas-version: 16.x.x
+          eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
 
       - name: Build Android
         if: steps.check.outputs.skip != 'true'
         env:
-          NODE_OPTIONS: "--experimental-strip-types --experimental-transform-types"
         run: |
           PROFILE="${{ inputs.profile || 'preview' }}"
           if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
@@ -151,7 +148,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 24
+          node-version: 22
       - uses: pnpm/action-setup@v4
         with:
           version: latest
@@ -170,13 +167,12 @@ jobs:
         if: steps.check.outputs.skip != 'true'
         uses: expo/expo-github-action@v8
         with:
-          eas-version: 16.x.x
+          eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
 
       - name: Push OTA Update
         if: steps.check.outputs.skip != 'true'
         env:
-          NODE_OPTIONS: "--experimental-strip-types --experimental-transform-types"
         run: |
           VERSION=$(node -p "require('../package.json').version")
           eas update --branch preview --message "v${VERSION}" --non-interactive
