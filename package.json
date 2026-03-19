@@ -11,7 +11,11 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "typecheck": "tsc --noEmit",
-    "prepare": "husky"
+    "prepare": "husky",
+    "version:patch": "bash scripts/version.sh patch",
+    "version:minor": "bash scripts/version.sh minor",
+    "version:major": "bash scripts/version.sh major",
+    "version:set": "bash scripts/version.sh"
   },
   "lint-staged": {
     "*.{ts,tsx}": [

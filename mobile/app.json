@@ -11,13 +11,18 @@
       "resizeMode": "contain",
       "backgroundColor": "#030712"
     },
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "scheme": "smshub",
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.smshub.app",
       "infoPlist": {
-        "UIBackgroundModes": ["fetch", "remote-notification"]
+        "UIBackgroundModes": [
+          "fetch",
+          "remote-notification"
+        ]
       }
     },
     "android": {
@@ -41,7 +46,10 @@
               "host": "compose"
             }
           ],
-          "category": ["DEFAULT", "BROWSABLE"]
+          "category": [
+            "DEFAULT",
+            "BROWSABLE"
+          ]
         }
       ]
     },
