@@ -5,7 +5,6 @@ import Link from "next/link";
 
 type LogoProps = {
   href?: string;
-  textClassName?: string;
   imageClassName?: string;
   className?: string;
   priority?: boolean;
@@ -13,8 +12,7 @@ type LogoProps = {
 
 export function Logo({
   href = "/",
-  textClassName = "text-xl font-bold",
-  imageClassName = "h-8 w-auto",
+  imageClassName = "h-16 w-auto",
   className = "flex items-center gap-3",
   priority = false,
 }: LogoProps) {
@@ -23,12 +21,11 @@ export function Logo({
       <Image
         src="/logo.svg"
         alt="SMSHub"
-        width={140}
-        height={40}
+        width={280}
+        height={80}
         priority={priority}
         className={imageClassName}
       />
-      <span className={textClassName}>SMSHub</span>
     </Link>
   );
 }

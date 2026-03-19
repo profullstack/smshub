@@ -19,8 +19,7 @@ export function Footer() {
           {/* Brand */}
           <div className="col-span-2 md:col-span-1">
             <Logo
-              textClassName="text-lg font-bold"
-              imageClassName="h-7 w-auto"
+              imageClassName="h-14 w-auto"
               className="flex items-center gap-3 mb-4"
             />
             <p className="text-sm text-gray-400">

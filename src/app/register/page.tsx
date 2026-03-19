@@ -52,8 +52,7 @@ export default function RegisterPage() {
         <div className="text-center">
           <div className="flex justify-center">
             <Logo
-              textClassName="text-3xl font-bold"
-              imageClassName="h-10 w-auto"
+              imageClassName="h-20 w-auto"
               className="flex items-center gap-3"
               priority
             />

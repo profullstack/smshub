@@ -365,8 +365,7 @@ export function InboxClient({
         <div className="p-4 border-b border-gray-800">
           <div className="flex items-center justify-between mb-3">
             <Logo
-              textClassName="text-xl font-bold"
-              imageClassName="h-8 w-auto"
+              imageClassName="h-16 w-auto"
               className="flex items-center gap-3"
             />
             <div className="flex items-center gap-2">
