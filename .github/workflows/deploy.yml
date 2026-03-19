@@ -23,11 +23,22 @@ jobs:
       RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
 
     steps:
+      - name: Check Railway token
+        run: |
+          if [ -z "$RAILWAY_TOKEN" ]; then
+            echo "⚠ RAILWAY_TOKEN not set — skipping deploy"
+            echo "Add RAILWAY_TOKEN to GitHub Secrets to enable auto-deploy"
+            exit 0
+          fi
+
       - name: Checkout
+        if: env.RAILWAY_TOKEN != ''
         uses: actions/checkout@v4
 
       - name: Install Railway CLI
+        if: env.RAILWAY_TOKEN != ''
         run: npm install -g @railway/cli
 
       - name: Deploy to Railway
+        if: env.RAILWAY_TOKEN != ''
         run: railway up --detach
