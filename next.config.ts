@@ -1,19 +1,19 @@
 import type { NextConfig } from "next";
+import { withSentryConfig } from "@sentry/nextjs";
 
 const nextConfig: NextConfig = {
   /* config options here */
 };
 
-// Sentry integration — uncomment when @sentry/nextjs is installed
-// import { withSentryConfig } from "@sentry/nextjs";
-// const sentryConfig = {
-//   org: process.env.SENTRY_ORG,
-//   project: process.env.SENTRY_PROJECT,
-//   widenClientFileUpload: true,
-//   hideSourceMaps: true,
-//   disableLogger: true,
-//   silent: !process.env.CI,
-// };
-// export default withSentryConfig(nextConfig, sentryConfig);
+const sentryConfig = {
+  org: process.env.SENTRY_ORG,
+  project: process.env.SENTRY_PROJECT,
+  widenClientFileUpload: true,
+  hideSourceMaps: true,
+  disableLogger: true,
+  silent: !process.env.CI,
+};
 
-export default nextConfig;
+export default process.env.SENTRY_DSN
+  ? withSentryConfig(nextConfig, sentryConfig)
+  : nextConfig;
