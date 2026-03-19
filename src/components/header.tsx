@@ -43,7 +43,7 @@ export function Header() {
             Sign in
           </Link>
           <Link
-            href="/register"
+            href="/install"
             className="text-sm px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg font-medium transition-colors"
           >
             Get Started
