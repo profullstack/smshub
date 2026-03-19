@@ -61,7 +61,11 @@ export function Footer() {
 
         <div className="border-t border-gray-800 mt-8 pt-8 flex flex-col sm:flex-row justify-between items-center gap-4">
           <p className="text-xs text-gray-500">
-            © {new Date().getFullYear()} SMSHub. All rights reserved.
+            © {new Date().getFullYear()}{" "}
+            <a href="https://profullstack.com" className="hover:text-gray-300 transition-colors">
+              Profullstack, Inc.
+            </a>{" "}
+            All rights reserved.
           </p>
           <div className="flex gap-4">
             <Link href="/privacy" className="text-xs text-gray-500 hover:text-gray-300 transition-colors">
