@@ -1,11 +1,11 @@
 {
-  "name": "smshub",
-  "short_name": "App",
-  "description": "Your app description",
+  "name": "SMSHub",
+  "short_name": "SMSHub",
+  "description": "Send and receive SMS from any device with multi-provider support for Twilio, Telnyx, and real SIM numbers.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#ffffff",
+  "background_color": "#030712",
+  "theme_color": "#030712",
   "orientation": "portrait-primary",
   "icons": [
     {
