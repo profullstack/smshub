@@ -32,7 +32,7 @@ jobs:
       - uses: actions/setup-node@v4
         if: steps.check.outputs.skip != 'true'
         with:
-          node-version: 22
+          node-version: 24
 
       - name: Bump patch version
         if: steps.check.outputs.skip != 'true'
