@@ -1,7 +1,7 @@
 name: Mobile Builds (EAS)
 
 env:
-  NODE_OPTIONS: --no-experimental-strip-types
+  NODE_OPTIONS: --experimental-transform-types --disable-warning=ExperimentalWarning
 
 on:
   push:
