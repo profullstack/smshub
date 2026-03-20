@@ -51,8 +51,16 @@ jobs:
           version: latest
       - run: pnpm install
 
-      - name: Install tsx
-        run: pnpm add -D tsx
+      - name: Patch expo-modules-core for Node compat
+        run: |
+          # expo-modules-core ships raw .ts as "main" which Node can't load.
+          # EAS builds happen remotely; we just need config resolution to not crash.
+          EMC_DIR=$(find node_modules -path '*/expo-modules-core/src/index.ts' -print -quit 2>/dev/null | xargs dirname 2>/dev/null || true)
+          if [ -n "$EMC_DIR" ]; then
+            echo "module.exports = {};" > "$EMC_DIR/index.js"
+            sed -i 's|"main": "src/index.ts"|"main": "src/index.js"|' "$EMC_DIR/../package.json"
+            echo "Patched expo-modules-core at $EMC_DIR"
+          fi
 
       - name: Check EXPO_TOKEN
         id: check
@@ -73,8 +81,6 @@ jobs:
 
       - name: Build iOS
         if: steps.check.outputs.skip != 'true'
-        env:
-          NODE_OPTIONS: --import tsx/esm
         run: |
           PROFILE="${{ inputs.profile || 'preview' }}"
           if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
@@ -106,8 +112,13 @@ jobs:
           version: latest
       - run: pnpm install
 
-      - name: Install tsx
-        run: pnpm add -D tsx
+      - name: Patch expo-modules-core for Node compat
+        run: |
+          EMC_DIR=$(find node_modules -path '*/expo-modules-core/src/index.ts' -print -quit 2>/dev/null | xargs dirname 2>/dev/null || true)
+          if [ -n "$EMC_DIR" ]; then
+            echo "module.exports = {};" > "$EMC_DIR/index.js"
+            sed -i 's|"main": "src/index.ts"|"main": "src/index.js"|' "$EMC_DIR/../package.json"
+          fi
 
       - name: Check EXPO_TOKEN
         id: check
@@ -128,8 +139,6 @@ jobs:
 
       - name: Build Android
         if: steps.check.outputs.skip != 'true'
-        env:
-          NODE_OPTIONS: --import tsx/esm
         run: |
           PROFILE="${{ inputs.profile || 'preview' }}"
           if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
@@ -161,8 +170,13 @@ jobs:
           version: latest
       - run: pnpm install
 
-      - name: Install tsx
-        run: pnpm add -D tsx
+      - name: Patch expo-modules-core for Node compat
+        run: |
+          EMC_DIR=$(find node_modules -path '*/expo-modules-core/src/index.ts' -print -quit 2>/dev/null | xargs dirname 2>/dev/null || true)
+          if [ -n "$EMC_DIR" ]; then
+            echo "module.exports = {};" > "$EMC_DIR/index.js"
+            sed -i 's|"main": "src/index.ts"|"main": "src/index.js"|' "$EMC_DIR/../package.json"
+          fi
 
       - name: Check EXPO_TOKEN
         id: check
@@ -182,8 +196,6 @@ jobs:
 
       - name: Push OTA Update
         if: steps.check.outputs.skip != 'true'
-        env:
-          NODE_OPTIONS: --import tsx/esm
         run: |
           VERSION=$(node -p "require('../package.json').version")
           eas update --branch preview --message "v${VERSION}" --non-interactive
