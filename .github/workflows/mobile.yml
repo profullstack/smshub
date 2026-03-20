@@ -1,8 +1,5 @@
 name: Mobile Builds (EAS)
 
-env:
-  NODE_OPTIONS: --experimental-transform-types --disable-warning=ExperimentalWarning
-
 on:
   push:
     branches: [master]
@@ -73,6 +70,8 @@ jobs:
 
       - name: Build iOS
         if: steps.check.outputs.skip != 'true'
+        env:
+          NODE_OPTIONS: --experimental-transform-types --disable-warning=ExperimentalWarning
         run: |
           PROFILE="${{ inputs.profile || 'preview' }}"
           if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
@@ -123,6 +122,8 @@ jobs:
 
       - name: Build Android
         if: steps.check.outputs.skip != 'true'
+        env:
+          NODE_OPTIONS: --experimental-transform-types --disable-warning=ExperimentalWarning
         run: |
           PROFILE="${{ inputs.profile || 'preview' }}"
           if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
@@ -172,6 +173,8 @@ jobs:
 
       - name: Push OTA Update
         if: steps.check.outputs.skip != 'true'
+        env:
+          NODE_OPTIONS: --experimental-transform-types --disable-warning=ExperimentalWarning
         run: |
           VERSION=$(node -p "require('../package.json').version")
           eas update --branch preview --message "v${VERSION}" --non-interactive
