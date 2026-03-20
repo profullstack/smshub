@@ -2,3 +2,7 @@
 # EAS credentials
 credentials.json
 credentials/
+*.jks
+*.keystore
+*.p12
+*.mobileprovision
