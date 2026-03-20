@@ -52,7 +52,7 @@ jobs:
       - run: pnpm install
 
       - name: Install tsx
-        run: pnpm add -g tsx
+        run: pnpm add -D tsx
 
       - name: Check EXPO_TOKEN
         id: check
@@ -107,7 +107,7 @@ jobs:
       - run: pnpm install
 
       - name: Install tsx
-        run: pnpm add -g tsx
+        run: pnpm add -D tsx
 
       - name: Check EXPO_TOKEN
         id: check
@@ -162,7 +162,7 @@ jobs:
       - run: pnpm install
 
       - name: Install tsx
-        run: pnpm add -g tsx
+        run: pnpm add -D tsx
 
       - name: Check EXPO_TOKEN
         id: check
