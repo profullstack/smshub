@@ -70,6 +70,8 @@ jobs:
 
       - name: Build iOS
         if: steps.check.outputs.skip != 'true'
+        env:
+          NODE_OPTIONS: --no-experimental-strip-types
         run: |
           PROFILE="${{ inputs.profile || 'preview' }}"
           if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
@@ -120,6 +122,8 @@ jobs:
 
       - name: Build Android
         if: steps.check.outputs.skip != 'true'
+        env:
+          NODE_OPTIONS: --no-experimental-strip-types
         run: |
           PROFILE="${{ inputs.profile || 'preview' }}"
           if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
@@ -169,6 +173,8 @@ jobs:
 
       - name: Push OTA Update
         if: steps.check.outputs.skip != 'true'
+        env:
+          NODE_OPTIONS: --no-experimental-strip-types
         run: |
           VERSION=$(node -p "require('../package.json').version")
           eas update --branch preview --message "v${VERSION}" --non-interactive
