@@ -56,13 +56,7 @@
     "plugins": [
       "expo-router",
       "expo-notifications",
-      "expo-background-fetch",
-      [
-        "expo-linking",
-        {
-          "scheme": "smshub"
-        }
-      ]
+      "expo-background-fetch"
     ],
     "extra": {
       "eas": {
