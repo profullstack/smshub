@@ -6,10 +6,13 @@ import { ToastContainer } from "@/components/toast-container";
 import { ServiceWorkerRegister } from "@/components/sw-register";
 import { Header } from "@/components/header";
 import { Footer } from "@/components/footer";
+import { getSiteUrl } from "@/lib/site-url";
 
 const inter = Inter({ subsets: ["latin"] });
+const siteUrl = getSiteUrl();
 
 export const metadata: Metadata = {
+  metadataBase: new URL(siteUrl),
   title: "SMSHub — Multi-platform SMS Messaging",
   description:
     "Send and receive SMS from any device. Multi-provider support with Twilio, Telnyx, and real SIM numbers. Built for developers, designed for everyone.",
@@ -47,7 +50,7 @@ export const metadata: Metadata = {
     title: "SMSHub — Multi-platform SMS Messaging",
     description:
       "One inbox for all your SMS. Web, iOS, Android, desktop. Multi-provider support with developer-first API.",
-    url: "https://smshub.dev",
+    url: siteUrl,
     siteName: "SMSHub",
     type: "website",
     images: [
@@ -65,6 +68,9 @@ export const metadata: Metadata = {
     description:
       "One inbox for all your SMS. Web, iOS, Android, desktop. Multi-provider support with developer-first API.",
     images: ["/icons/icon-512x512.png"],
+  },
+  alternates: {
+    canonical: "/",
   },
 };
 
