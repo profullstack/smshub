@@ -9,8 +9,8 @@ importers:
   .:
     dependencies:
       '@profullstack/referrals':
-        specifier: file:../referrals
-        version: file:../referrals(react@19.2.4)
+        specifier: ^0.1.0
+        version: 0.1.0(react@19.2.4)
       '@sentry/nextjs':
         specifier: ^9.27.0
         version: 9.47.1(@opentelemetry/context-async-hooks@1.30.1(@opentelemetry/api@1.9.0))(@opentelemetry/core@1.30.1(@opentelemetry/api@1.9.0))(@opentelemetry/sdk-trace-base@1.30.1(@opentelemetry/api@1.9.0))(next@16.2.0(@babel/core@7.29.0)(@opentelemetry/api@1.9.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react@19.2.4)(webpack@5.105.4)
@@ -741,8 +741,8 @@ packages:
     peerDependencies:
       '@opentelemetry/api': ^1.8
 
-  '@profullstack/referrals@file:../referrals':
-    resolution: {directory: ../referrals, type: directory}
+  '@profullstack/referrals@0.1.0':
+    resolution: {integrity: sha512-u66SdBVpsv3kc0N+NWISPoYD5vjCERyv5wfD07iSkZwQeC2IA+ihX5jNA4e7Xr+Y4AUvxLycG+3b4VaROqzgRg==}
     engines: {node: '>=18'}
     peerDependencies:
       react: '>=18'
@@ -4355,7 +4355,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@profullstack/referrals@file:../referrals(react@19.2.4)':
+  '@profullstack/referrals@0.1.0(react@19.2.4)':
     optionalDependencies:
       react: 19.2.4
 
