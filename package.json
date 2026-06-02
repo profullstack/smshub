@@ -23,12 +23,13 @@
     ]
   },
   "dependencies": {
+    "@profullstack/referrals": "file:../referrals",
+    "@sentry/nextjs": "^9.27.0",
     "@supabase/ssr": "^0.9.0",
     "@supabase/supabase-js": "^2.99.2",
     "next": "^16.2.0",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
-    "@sentry/nextjs": "^9.27.0",
     "telnyx": "^6.19.0",
     "twilio": "^5.13.0"
   },

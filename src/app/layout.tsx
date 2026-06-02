@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { ReferralProvider } from '@profullstack/referrals/react';
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { ToastProvider } from "@/contexts/toast-context";
@@ -92,7 +93,7 @@ export default function RootLayout({
       >
         <ToastProvider>
           <Header />
-          <main className="flex-1">{children}</main>
+          <main className="flex-1"><ReferralProvider>{children}</ReferralProvider></main>
           <Footer />
           <ToastContainer />
           <ServiceWorkerRegister />
