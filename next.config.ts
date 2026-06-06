@@ -1,6 +1,25 @@
 import type { NextConfig } from "next";
 import { withSentryConfig } from "@sentry/nextjs";
 
+function getSupabaseRealtimeOrigin() {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+
+  if (!supabaseUrl) {
+    return "wss://*.supabase.co";
+  }
+
+  try {
+    const url = new URL(supabaseUrl);
+    const protocol = url.protocol === "http:" ? "ws:" : "wss:";
+
+    return `${protocol}//${url.host}`;
+  } catch {
+    return "wss://*.supabase.co";
+  }
+}
+
+const supabaseRealtimeOrigin = getSupabaseRealtimeOrigin();
+
 const nextConfig: NextConfig = {
   async headers() {
     return [
@@ -9,7 +28,7 @@ const nextConfig: NextConfig = {
         headers: [
           {
             key: "Content-Security-Policy",
-            value: "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https:; frame-ancestors 'none';",
+            value: `default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https: ${supabaseRealtimeOrigin}; frame-ancestors 'none';`,
           },
           {
             key: "X-Frame-Options",
