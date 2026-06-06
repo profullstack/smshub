@@ -53,15 +53,16 @@ export default function PhoneNumbersBotPage() {
         </div>
 
         <div className="bg-gray-900 border border-gray-800 rounded-2xl p-8 space-y-6">
-          <div className="inline-block bg-blue-600/20 text-blue-400 text-sm font-semibold px-4 py-1.5 rounded-full">
-            Coming Soon
+          <div className="inline-block bg-green-600/20 text-green-400 text-sm font-semibold px-4 py-1.5 rounded-full">
+            SMSHub Provider Live!
           </div>
 
           <div className="space-y-4 text-left">
             <Feature
               emoji="🔌"
               title="REST API"
-              desc="Send & receive SMS programmatically with real SIM numbers"
+              badge="Live!"
+              desc="Send SMS programmatically with real SIM numbers"
             />
             <Feature
               emoji="🌍"
@@ -86,6 +87,7 @@ export default function PhoneNumbersBotPage() {
             <Feature
               emoji="🔗"
               title="SMSHub Integration"
+              badge="Live!"
               desc="Use as a provider alongside Twilio & Telnyx in SMSHub"
             />
           </div>
@@ -138,12 +140,29 @@ export default function PhoneNumbersBotPage() {
   );
 }
 
-function Feature({ emoji, title, desc }: { emoji: string; title: string; desc: string }) {
+function Feature({
+  emoji,
+  title,
+  desc,
+  badge,
+}: {
+  emoji: string;
+  title: string;
+  desc: string;
+  badge?: string;
+}) {
   return (
     <div className="flex gap-3 items-start">
       <span className="text-xl mt-0.5">{emoji}</span>
       <div>
-        <div className="font-medium text-white">{title}</div>
+        <div className="flex items-center gap-2">
+          <span className="font-medium text-white">{title}</span>
+          {badge && (
+            <span className="rounded-full bg-green-600/20 px-2 py-0.5 text-xs font-semibold text-green-400">
+              {badge}
+            </span>
+          )}
+        </div>
         <div className="text-sm text-gray-400">{desc}</div>
       </div>
     </div>
