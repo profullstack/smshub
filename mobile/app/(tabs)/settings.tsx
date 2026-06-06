@@ -23,6 +23,12 @@ interface PhoneNumber {
   providers: { type: string } | null;
 }
 
+type PhoneNumberRow = {
+  id: string;
+  number: string;
+  providers: { type: string }[] | { type: string } | null;
+};
+
 export default function SettingsScreen() {
   const [email, setEmail] = useState<string | null>(null);
   const [providers, setProviders] = useState<Provider[]>([]);
@@ -50,7 +56,16 @@ export default function SettingsScreen() {
     const { data: numberData } = await supabase
       .from("phone_numbers")
       .select("id, number, providers:provider_id(type)");
-    if (numberData) setPhoneNumbers(numberData as PhoneNumber[]);
+    if (numberData) {
+      setPhoneNumbers(
+        (numberData as PhoneNumberRow[]).map((phoneNumber) => ({
+          ...phoneNumber,
+          providers: Array.isArray(phoneNumber.providers)
+            ? phoneNumber.providers[0] ?? null
+            : phoneNumber.providers,
+        }))
+      );
+    }
 
     setLoading(false);
   };
