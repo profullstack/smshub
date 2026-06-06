@@ -20,21 +20,43 @@ interface PhoneNumberRow {
   provider_id: string;
 }
 
-interface CoinPayStatus {
-  connected: boolean;
-  configured: boolean;
-  connection: {
-    email: string | null;
-    name: string | null;
-    updated_at: string;
-  } | null;
+interface Entitlements {
+  features: {
+    managedNumbers: {
+      available: boolean;
+      marginPercent: number;
+      plan: string;
+      providers: string[];
+    };
+  };
+  integrations: {
+    coinpay: {
+      oauth: {
+        configured: boolean;
+        connected: boolean;
+        connectUrl: string;
+        connection: {
+          email: string | null;
+          name: string | null;
+          updated_at: string;
+        } | null;
+      };
+      paymentsJs: {
+        live: boolean;
+        configured: boolean;
+        scriptSrc: string;
+        merchantId: string | null;
+        snippet: string | null;
+      };
+    };
+  };
 }
 
 export default function SettingsPage() {
   const [providers, setProviders] = useState<ProviderRow[]>([]);
   const [phoneNumbers, setPhoneNumbers] = useState<PhoneNumberRow[]>([]);
   const [contacts, setContacts] = useState<{ id: string; phone: string; name: string | null }[]>([]);
-  const [coinpayStatus, setCoinpayStatus] = useState<CoinPayStatus | null>(null);
+  const [entitlements, setEntitlements] = useState<Entitlements | null>(null);
   const [editingContact, setEditingContact] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
 
@@ -61,14 +83,14 @@ export default function SettingsPage() {
   useEffect(() => {
     loadData();
     loadContacts();
-    loadCoinpayStatus();
+    loadEntitlements();
   }, []);
 
-  const loadCoinpayStatus = async () => {
+  const loadEntitlements = async () => {
     try {
-      const res = await fetch("/api/coinpay/status");
+      const res = await fetch("/api/entitlements");
       if (res.ok) {
-        setCoinpayStatus(await res.json());
+        setEntitlements(await res.json());
       }
     } catch {}
   };
@@ -219,27 +241,54 @@ export default function SettingsPage() {
               <div>
                 <div className="font-medium">CoinPay account</div>
                 <div className="text-sm text-gray-400">
-                  {coinpayStatus?.connected
-                    ? coinpayStatus.connection?.email ||
-                      coinpayStatus.connection?.name ||
+                  {entitlements?.integrations.coinpay.oauth.connected
+                    ? entitlements.integrations.coinpay.oauth.connection?.email ||
+                      entitlements.integrations.coinpay.oauth.connection?.name ||
                       "Connected"
                     : "Required for managed number purchases"}
                 </div>
               </div>
               <a
-                href="/api/coinpay/connect"
+                href={entitlements?.integrations.coinpay.oauth.connectUrl || "/api/coinpay/connect"}
                 className="inline-flex items-center justify-center rounded-lg bg-green-600 px-4 py-2 text-sm font-medium hover:bg-green-700"
               >
-                {coinpayStatus?.connected ? "Reconnect CoinPay" : "Connect CoinPay"}
+                {entitlements?.integrations.coinpay.oauth.connected
+                  ? "Reconnect CoinPay"
+                  : "Connect CoinPay"}
               </a>
             </div>
 
-            {!coinpayStatus?.configured && (
+            {!entitlements?.integrations.coinpay.oauth.configured && (
               <div className="rounded-lg border border-yellow-500/20 bg-yellow-500/10 p-3 text-sm text-yellow-300">
                 CoinPay OAuth needs COINPAY_CLIENT_ID and COINPAY_CLIENT_SECRET
                 before live account linking can complete.
               </div>
             )}
+
+            <div className="rounded-lg border border-gray-800 bg-gray-950 p-3">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <div className="font-medium">CoinPay payments.js</div>
+                  <div className="mt-1 text-xs text-gray-500">
+                    Drop-in checkout modal resolved from a merchant id.
+                  </div>
+                </div>
+                <span className="text-xs font-medium text-green-400">
+                  {entitlements?.integrations.coinpay.paymentsJs.live ? "Live!" : "Ready"}
+                </span>
+              </div>
+              {entitlements?.integrations.coinpay.paymentsJs.snippet && (
+                <code className="mt-3 block overflow-x-auto rounded bg-gray-900 p-2 text-xs text-gray-300">
+                  {entitlements.integrations.coinpay.paymentsJs.snippet}
+                </code>
+              )}
+              {entitlements &&
+                !entitlements.integrations.coinpay.paymentsJs.configured && (
+                  <div className="mt-3 text-xs text-gray-500">
+                    Set COINPAY_MERCHANT_ID to show the site-specific script tag.
+                  </div>
+                )}
+            </div>
 
             <div className="grid gap-3 sm:grid-cols-3">
               {[

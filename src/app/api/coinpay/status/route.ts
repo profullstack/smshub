@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { getEntitlements } from "@/lib/entitlements";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 
 export async function GET() {
@@ -21,9 +22,11 @@ export async function GET() {
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 
+  const entitlements = getEntitlements(data);
+
   return NextResponse.json({
     connected: Boolean(data),
     connection: data,
-    configured: Boolean(process.env.COINPAY_CLIENT_ID),
+    configured: entitlements.integrations.coinpay.oauth.configured,
   });
 }
