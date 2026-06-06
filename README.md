@@ -10,7 +10,7 @@
 [![Supabase](https://img.shields.io/badge/Supabase-Postgres%20%2B%20Realtime-3FCF8E?logo=supabase&logoColor=white)](https://supabase.com/)
 [![Expo](https://img.shields.io/badge/Expo-React%20Native-000020?logo=expo&logoColor=white)](https://expo.dev/)
 [![Electron](https://img.shields.io/badge/Electron-Desktop-47848F?logo=electron&logoColor=white)](https://electronjs.org/)
-[![Vitest](https://img.shields.io/badge/Tests-103%20passing-6E9F18?logo=vitest&logoColor=white)](https://vitest.dev/)
+[![Tests](https://img.shields.io/badge/Tests-110%20unit%20%2B%20e2e-6E9F18?logo=vitest&logoColor=white)](https://vitest.dev/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](http://makeapullrequest.com)
 
@@ -53,7 +53,7 @@ A multi-platform, real-time SMS messaging platform with unified inbox, multi-pro
 | Backend | Next.js API routes |
 | Database | Supabase (Postgres + Realtime + Auth + RLS) |
 | Providers | Twilio, Telnyx |
-| Testing | Vitest (48 tests) |
+| Testing | Vitest (110 tests), Playwright e2e |
 | CI | Husky pre-commit (tests + typecheck + lint) |
 | Mobile Deploy | Expo EAS (expo.dev) |
 | Desktop Build | electron-builder (AppImage, dmg, NSIS) |
@@ -188,7 +188,8 @@ supabase/
 pnpm dev              # Start development server
 pnpm build            # Production build
 pnpm start            # Start production server
-pnpm test             # Run tests (48 passing)
+pnpm test             # Run unit and contract tests
+pnpm test:e2e         # Run Playwright e2e tests
 pnpm test:watch       # Run tests in watch mode
 pnpm test:coverage    # Run tests with coverage
 pnpm lint             # Lint source files
@@ -217,7 +218,7 @@ See `supabase/migrations/` for the full schema.
 PRs welcome! Please ensure all checks pass before submitting:
 
 ```bash
-pnpm test && pnpm tsc --noEmit && pnpm lint
+pnpm test && pnpm test:e2e && pnpm typecheck && pnpm lint
 ```
 
 ## License
