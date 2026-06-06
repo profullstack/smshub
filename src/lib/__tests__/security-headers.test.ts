@@ -1,30 +1,61 @@
-import { describe, it, expect } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+
+async function loadCspHeader(supabaseUrl: string) {
+  vi.resetModules();
+  vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", supabaseUrl);
+
+  const { default: nextConfig } = await import("../../../next.config");
+  expect(typeof nextConfig.headers).toBe("function");
+
+  const headerRoutes = await nextConfig.headers!();
+  const csp = headerRoutes[0]?.headers.find(
+    (header) => header.key === "Content-Security-Policy"
+  )?.value;
+
+  expect(csp).toBeDefined();
+  return csp!;
+}
 
 describe("Security headers config", () => {
-  it("next.config.ts includes security headers", async () => {
-    const fs = await import("fs");
-    const path = await import("path");
-    const content = fs.readFileSync(
-      path.resolve("next.config.ts"),
-      "utf-8"
-    );
-
-    expect(content).toContain("X-Frame-Options");
-    expect(content).toContain("X-Content-Type-Options");
-    expect(content).toContain("Referrer-Policy");
-    expect(content).toContain("Strict-Transport-Security");
+  afterEach(() => {
+    vi.unstubAllEnvs();
   });
 
-  it("allows Supabase Realtime websocket connections in CSP", async () => {
-    const fs = await import("fs");
-    const path = await import("path");
-    const content = fs.readFileSync(
-      path.resolve("next.config.ts"),
-      "utf-8"
+  it("serves required security headers", async () => {
+    vi.resetModules();
+
+    const { default: nextConfig } = await import("../../../next.config");
+    expect(typeof nextConfig.headers).toBe("function");
+
+    const headerRoutes = await nextConfig.headers!();
+    const headers = headerRoutes.flatMap((route) => route.headers);
+
+    expect(headers).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ key: "Content-Security-Policy" }),
+        expect.objectContaining({ key: "X-Frame-Options" }),
+        expect.objectContaining({ key: "X-Content-Type-Options" }),
+        expect.objectContaining({ key: "Referrer-Policy" }),
+        expect.objectContaining({ key: "Strict-Transport-Security" }),
+      ])
+    );
+  });
+
+  it("allows the configured Supabase Realtime websocket origin in CSP", async () => {
+    const csp = await loadCspHeader(
+      "https://sytajbytcdlsbnbkqpyo.supabase.co"
     );
 
-    expect(content).toContain("NEXT_PUBLIC_SUPABASE_URL");
-    expect(content).toContain("connect-src 'self' https: ${supabaseRealtimeOrigin}");
-    expect(content).toContain("wss://*.supabase.co");
+    expect(csp).toContain("connect-src 'self' https:");
+    expect(csp).toContain("wss://sytajbytcdlsbnbkqpyo.supabase.co");
+    expect(csp).not.toContain("connect-src *");
+  });
+
+  it("falls back to a scoped Supabase websocket origin when env is missing", async () => {
+    const csp = await loadCspHeader("");
+
+    expect(csp).toContain("connect-src 'self' https:");
+    expect(csp).toContain("wss://*.supabase.co");
+    expect(csp).not.toContain("connect-src *");
   });
 });
