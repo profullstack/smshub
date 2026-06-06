@@ -20,10 +20,21 @@ interface PhoneNumberRow {
   provider_id: string;
 }
 
+interface CoinPayStatus {
+  connected: boolean;
+  configured: boolean;
+  connection: {
+    email: string | null;
+    name: string | null;
+    updated_at: string;
+  } | null;
+}
+
 export default function SettingsPage() {
   const [providers, setProviders] = useState<ProviderRow[]>([]);
   const [phoneNumbers, setPhoneNumbers] = useState<PhoneNumberRow[]>([]);
   const [contacts, setContacts] = useState<{ id: string; phone: string; name: string | null }[]>([]);
+  const [coinpayStatus, setCoinpayStatus] = useState<CoinPayStatus | null>(null);
   const [editingContact, setEditingContact] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
 
@@ -50,7 +61,17 @@ export default function SettingsPage() {
   useEffect(() => {
     loadData();
     loadContacts();
+    loadCoinpayStatus();
   }, []);
+
+  const loadCoinpayStatus = async () => {
+    try {
+      const res = await fetch("/api/coinpay/status");
+      if (res.ok) {
+        setCoinpayStatus(await res.json());
+      }
+    } catch {}
+  };
 
   const loadData = async () => {
     try {
@@ -183,9 +204,70 @@ export default function SettingsPage() {
           </Link>
         </div>
 
+        {/* Managed Numbers */}
+        <section className="space-y-4">
+          <div>
+            <h2 className="text-lg font-semibold">Managed Numbers</h2>
+            <p className="text-sm text-gray-400">
+              Connect CoinPay once, then buy numbers from Twilio, Telnyx, or
+              phonenumbers.bot without managing provider credentials.
+            </p>
+          </div>
+
+          <div className="bg-gray-900 rounded-lg p-4 border border-gray-800 space-y-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <div className="font-medium">CoinPay account</div>
+                <div className="text-sm text-gray-400">
+                  {coinpayStatus?.connected
+                    ? coinpayStatus.connection?.email ||
+                      coinpayStatus.connection?.name ||
+                      "Connected"
+                    : "Required for managed number purchases"}
+                </div>
+              </div>
+              <a
+                href="/api/coinpay/connect"
+                className="inline-flex items-center justify-center rounded-lg bg-green-600 px-4 py-2 text-sm font-medium hover:bg-green-700"
+              >
+                {coinpayStatus?.connected ? "Reconnect CoinPay" : "Connect CoinPay"}
+              </a>
+            </div>
+
+            {!coinpayStatus?.configured && (
+              <div className="rounded-lg border border-yellow-500/20 bg-yellow-500/10 p-3 text-sm text-yellow-300">
+                CoinPay OAuth needs COINPAY_CLIENT_ID and COINPAY_CLIENT_SECRET
+                before live account linking can complete.
+              </div>
+            )}
+
+            <div className="grid gap-3 sm:grid-cols-3">
+              {[
+                ["Twilio", "VoIP inventory"],
+                ["Telnyx", "Local and toll-free"],
+                ["phonenumbers.bot", "Real SIM numbers"],
+              ].map(([name, desc]) => (
+                <div key={name} className="rounded-lg border border-gray-800 bg-gray-950 p-3">
+                  <div className="font-medium">{name}</div>
+                  <div className="mt-1 text-xs text-gray-500">{desc}</div>
+                  <div className="mt-3 text-xs font-medium text-green-400">
+                    200% markup pricing
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
         {/* Providers */}
         <section className="space-y-4">
-          <h2 className="text-lg font-semibold">SMS Providers</h2>
+          <div>
+            <h2 className="text-lg font-semibold">Bring Your Own Provider</h2>
+            <p className="text-sm text-gray-400">
+              Advanced setup for users who already have Twilio, Telnyx, or
+              phonenumbers.bot credentials.
+            </p>
+          </div>
 
           {providers.map((p) => (
             <div key={p.id} className="bg-gray-900 rounded-lg p-4 border border-gray-800">

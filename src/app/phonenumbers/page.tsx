@@ -48,52 +48,63 @@ export default function PhoneNumbersBotPage() {
             phonenumbers.bot
           </h1>
           <p className="text-xl text-gray-400">
-            Real SIM phone numbers with a developer-first API
+            Buy managed phone numbers with CoinPay
           </p>
         </div>
 
         <div className="bg-gray-900 border border-gray-800 rounded-2xl p-8 space-y-6">
           <div className="inline-block bg-green-600/20 text-green-400 text-sm font-semibold px-4 py-1.5 rounded-full">
-            SMSHub Provider Live!
+            Managed Numbers Live!
           </div>
 
           <div className="space-y-4 text-left">
             <Feature
-              emoji="🔌"
-              title="REST API"
+              emoji="🪙"
+              title="CoinPay Checkout"
               badge="Live!"
-              desc="Send SMS programmatically with real SIM numbers"
+              desc="Connect CoinPay once and buy numbers without provider setup"
             />
             <Feature
-              emoji="🌍"
-              title="Global Numbers"
-              desc="Local numbers in 50+ countries — no carrier contracts"
+              emoji="🛒"
+              title="Managed Inventory"
+              badge="Live!"
+              desc="Buy from Twilio, Telnyx, or phonenumbers.bot inside SMSHub"
+            />
+            <Feature
+              emoji="💵"
+              title="Simple Pricing"
+              desc="Numbers are sold at provider cost plus a 200% markup"
             />
             <Feature
               emoji="⚡"
-              title="Instant Provisioning"
-              desc="Get a number and start sending in under 60 seconds"
-            />
-            <Feature
-              emoji="💰"
-              title="Pay-as-you-go"
-              desc="No monthly minimums — pay only for what you use"
+              title="Instant Setup"
+              desc="No Twilio or Telnyx credentials required"
             />
             <Feature
               emoji="🔒"
               title="Real SIM, Not VoIP"
-              desc="Bypass VoIP detection — works with 2FA, verifications, and more"
+              desc="Use phonenumbers.bot when a real SIM source is required"
             />
             <Feature
               emoji="🔗"
               title="SMSHub Integration"
               badge="Live!"
-              desc="Use as a provider alongside Twilio & Telnyx in SMSHub"
+              desc="Purchased numbers land in your SMSHub inbox"
             />
           </div>
         </div>
 
         <div className="space-y-4">
+          <a
+            href="/api/coinpay/connect"
+            className="inline-flex items-center justify-center rounded-xl bg-green-600 px-6 py-3 font-semibold text-white transition-colors hover:bg-green-700"
+          >
+            Connect CoinPay
+          </a>
+          <p className="text-sm text-gray-500">
+            Available on the $15/mo plan for managed number purchases.
+          </p>
+
           {status === "success" ? (
             <div className="bg-green-500/10 border border-green-500/20 rounded-xl p-4">
               <p className="text-green-400 font-medium">✅ {message}</p>
@@ -123,11 +134,7 @@ export default function PhoneNumbersBotPage() {
           {status === "error" && (
             <p className="text-sm text-red-400">{message}</p>
           )}
-          {status !== "success" && (
-            <p className="text-sm text-gray-500">
-              Be first to get access when we launch
-            </p>
-          )}
+          {status !== "success" && <p className="text-sm text-gray-500">Join the rollout list for bulk inventory access.</p>}
         </div>
 
         <div className="pt-4 border-t border-gray-800">
