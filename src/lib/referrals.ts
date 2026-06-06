@@ -1,6 +1,16 @@
 import type { ReferralCode, ReferralStore, ReferralUsage } from "@profullstack/referrals";
 import { createClient } from "@supabase/supabase-js";
 
+type ReferralUsageRow = {
+  code: string;
+  affiliate_id: string;
+  new_user_id: string;
+  amount_cents: number;
+  commission_cents: number;
+  discount_cents: number;
+  applied_at: string;
+};
+
 function getAdminClient() {
   return createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -35,7 +45,20 @@ export const referralStore: ReferralStore = {
   },
 
   async getUsagesByAffiliate(affiliateId: string): Promise<ReferralUsage[]> {
-    const { data } = await getAdminClient().from("referral_usages").select("*").eq("affiliate_id", affiliateId).order("applied_at", { ascending: false });
-    return (data ?? []).map((row: any) => ({ code: row.code, affiliateId: row.affiliate_id, newUserId: row.new_user_id, amountCents: row.amount_cents, commissionCents: row.commission_cents, discountCents: row.discount_cents, appliedAt: new Date(row.applied_at) }));
+    const { data } = await getAdminClient()
+      .from("referral_usages")
+      .select("*")
+      .eq("affiliate_id", affiliateId)
+      .order("applied_at", { ascending: false });
+
+    return ((data ?? []) as ReferralUsageRow[]).map((row) => ({
+      code: row.code,
+      affiliateId: row.affiliate_id,
+      newUserId: row.new_user_id,
+      amountCents: row.amount_cents,
+      commissionCents: row.commission_cents,
+      discountCents: row.discount_cents,
+      appliedAt: new Date(row.applied_at),
+    }));
   },
 };

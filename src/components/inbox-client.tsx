@@ -69,7 +69,7 @@ export function InboxClient({
   const [showNewMessage, setShowNewMessage] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
   const [suggestingReply, setSuggestingReply] = useState(false);
-  const [_selectedIndex, setSelectedIndex] = useState(-1);
+  const [, setSelectedIndex] = useState(-1);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
   const supabase = createClient();
