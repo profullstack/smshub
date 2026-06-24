@@ -98,6 +98,7 @@ export default function RootLayout({
           <ToastContainer />
           <ServiceWorkerRegister />
         </ToastProvider>
+      <script async src="https://feedback.profullstack.com/embed/profullstack-feedback.js" data-property="smshub.com"></script>
       </body>
     </html>
   );
