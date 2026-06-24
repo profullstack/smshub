@@ -1,0 +1,30 @@
+version: 2
+# Dependabot was failing the "Dependabot Updates" run with
+# security_update_not_possible for `ws`: it is transitively pinned < 6.2.4 by
+# expo / react-native in /mobile, and no resolvable non-vulnerable version
+# exists, so the security update can never be applied. We ignore `ws` here to
+# stop the unactionable failing run (revisit when expo/react-native are bumped).
+# open-pull-requests-limit: 0 keeps Dependabot from opening version-update PRs;
+# security updates for other dependencies still run.
+updates:
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 0
+    ignore:
+      - dependency-name: "ws"
+  - package-ecosystem: "npm"
+    directory: "/mobile"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 0
+    ignore:
+      - dependency-name: "ws"
+  - package-ecosystem: "npm"
+    directory: "/electron"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 0
+    ignore:
+      - dependency-name: "ws"
