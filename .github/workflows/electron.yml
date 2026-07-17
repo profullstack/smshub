@@ -24,7 +24,7 @@ jobs:
       - uses: pnpm/action-setup@v4
       - name: Install & Build
         working-directory: electron
-        run: pnpm install && pnpm ci:package:linux
+        run: pnpm install --ignore-workspace && pnpm ci:package:linux
       - uses: actions/upload-artifact@v4
         with:
           name: smshub-linux
@@ -43,7 +43,7 @@ jobs:
       - name: Install & Build
         working-directory: electron
         run: |
-          pnpm install
+          pnpm install --ignore-workspace
           if [ -n "$CSC_LINK" ]; then
             pnpm ci:package:mac
           else
@@ -69,7 +69,7 @@ jobs:
       - uses: pnpm/action-setup@v4
       - name: Install & Build
         working-directory: electron
-        run: pnpm install && pnpm ci:package:win
+        run: pnpm install --ignore-workspace && pnpm ci:package:win
       - uses: actions/upload-artifact@v4
         with:
           name: smshub-windows
