@@ -146,5 +146,18 @@ describe("TwilioProvider", () => {
       const result = provider.validateWebhook("Body=test", headers, "https://example.com");
       expect(result).toBe(false);
     });
+
+    it("returns false for a malformed signature length", () => {
+      process.env.TWILIO_AUTH_TOKEN = "auth_token_123";
+      const headers = new Headers({ "x-twilio-signature": "invalid" });
+
+      const result = provider.validateWebhook(
+        "Body=test",
+        headers,
+        "https://example.com"
+      );
+
+      expect(result).toBe(false);
+    });
   });
 });

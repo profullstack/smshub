@@ -91,9 +91,11 @@ export class TwilioProvider implements SMSProvider {
     });
 
     const expected = getSignature(authToken, url, params);
-    return crypto.timingSafeEqual(
-      Buffer.from(signature),
-      Buffer.from(expected)
+    const signatureBuffer = Buffer.from(signature);
+    const expectedBuffer = Buffer.from(expected);
+    return (
+      signatureBuffer.length === expectedBuffer.length &&
+      crypto.timingSafeEqual(signatureBuffer, expectedBuffer)
     );
   }
 }
