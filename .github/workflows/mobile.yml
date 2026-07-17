@@ -60,6 +60,7 @@ jobs:
             echo "⚠ EXPO_TOKEN not set — skipping build"
           else
             echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Setup EAS
         if: steps.check.outputs.skip != 'true'
@@ -74,6 +75,7 @@ jobs:
           PROFILE="${{ inputs.profile || 'preview' }}"
           if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
             PROFILE="production"
+          fi
           echo "Building iOS with profile: $PROFILE"
           eas build --platform ios --profile $PROFILE --non-interactive
 
@@ -109,6 +111,7 @@ jobs:
             echo "⚠ EXPO_TOKEN not set — skipping build"
           else
             echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Setup EAS
         if: steps.check.outputs.skip != 'true'
@@ -123,6 +126,7 @@ jobs:
           PROFILE="${{ inputs.profile || 'preview' }}"
           if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
             PROFILE="production"
+          fi
           echo "Building Android with profile: $PROFILE"
           eas build --platform android --profile $PROFILE --non-interactive
 
@@ -157,6 +161,7 @@ jobs:
             echo "skip=true" >> "$GITHUB_OUTPUT"
           else
             echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Setup EAS
         if: steps.check.outputs.skip != 'true'
