@@ -50,15 +50,7 @@ jobs:
       - run: pnpm install --ignore-workspace
 
       - name: Patch expo-modules-core for Node compat
-        run: |
-          # expo-modules-core ships raw .ts as "main" which Node can't load.
-          # EAS builds happen remotely; we just need config resolution to not crash.
-          EMC_DIR=$(find node_modules -path '*/expo-modules-core/src/index.ts' -print -quit 2>/dev/null | xargs dirname 2>/dev/null || true)
-          if [ -n "$EMC_DIR" ]; then
-            echo "module.exports = {};" > "$EMC_DIR/index.js"
-            sed -i 's|"main": "src/index.ts"|"main": "src/index.js"|' "$EMC_DIR/../package.json"
-            echo "Patched expo-modules-core at $EMC_DIR"
-          fi
+        run: bash scripts/patch-expo-modules-core.sh
 
       - name: Check EXPO_TOKEN
         id: check
@@ -68,7 +60,6 @@ jobs:
             echo "⚠ EXPO_TOKEN not set — skipping build"
           else
             echo "skip=false" >> "$GITHUB_OUTPUT"
-          fi
 
       - name: Setup EAS
         if: steps.check.outputs.skip != 'true'
@@ -83,7 +74,6 @@ jobs:
           PROFILE="${{ inputs.profile || 'preview' }}"
           if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
             PROFILE="production"
-          fi
           echo "Building iOS with profile: $PROFILE"
           eas build --platform ios --profile $PROFILE --non-interactive
 
@@ -109,12 +99,7 @@ jobs:
       - run: pnpm install --ignore-workspace
 
       - name: Patch expo-modules-core for Node compat
-        run: |
-          EMC_DIR=$(find node_modules -path '*/expo-modules-core/src/index.ts' -print -quit 2>/dev/null | xargs dirname 2>/dev/null || true)
-          if [ -n "$EMC_DIR" ]; then
-            echo "module.exports = {};" > "$EMC_DIR/index.js"
-            sed -i 's|"main": "src/index.ts"|"main": "src/index.js"|' "$EMC_DIR/../package.json"
-          fi
+        run: bash scripts/patch-expo-modules-core.sh
 
       - name: Check EXPO_TOKEN
         id: check
@@ -124,7 +109,6 @@ jobs:
             echo "⚠ EXPO_TOKEN not set — skipping build"
           else
             echo "skip=false" >> "$GITHUB_OUTPUT"
-          fi
 
       - name: Setup EAS
         if: steps.check.outputs.skip != 'true'
@@ -139,7 +123,6 @@ jobs:
           PROFILE="${{ inputs.profile || 'preview' }}"
           if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
             PROFILE="production"
-          fi
           echo "Building Android with profile: $PROFILE"
           eas build --platform android --profile $PROFILE --non-interactive
 
@@ -165,12 +148,7 @@ jobs:
       - run: pnpm install --ignore-workspace
 
       - name: Patch expo-modules-core for Node compat
-        run: |
-          EMC_DIR=$(find node_modules -path '*/expo-modules-core/src/index.ts' -print -quit 2>/dev/null | xargs dirname 2>/dev/null || true)
-          if [ -n "$EMC_DIR" ]; then
-            echo "module.exports = {};" > "$EMC_DIR/index.js"
-            sed -i 's|"main": "src/index.ts"|"main": "src/index.js"|' "$EMC_DIR/../package.json"
-          fi
+        run: bash scripts/patch-expo-modules-core.sh
 
       - name: Check EXPO_TOKEN
         id: check
@@ -179,7 +157,6 @@ jobs:
             echo "skip=true" >> "$GITHUB_OUTPUT"
           else
             echo "skip=false" >> "$GITHUB_OUTPUT"
-          fi
 
       - name: Setup EAS
         if: steps.check.outputs.skip != 'true'

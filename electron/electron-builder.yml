@@ -60,8 +60,6 @@ linux:
   category: Network
   mimeTypes:
     - x-scheme-handler/smshub
-  desktop:
-    StartupWMClass: smshub
 
 
 appImage:
