@@ -47,8 +47,6 @@ jobs:
         with:
           node-version: 22
       - uses: pnpm/action-setup@v4
-        with:
-          version: latest
       - run: pnpm install
 
       - name: Patch expo-modules-core for Node compat
@@ -108,8 +106,6 @@ jobs:
         with:
           node-version: 22
       - uses: pnpm/action-setup@v4
-        with:
-          version: latest
       - run: pnpm install
 
       - name: Patch expo-modules-core for Node compat
@@ -166,8 +162,6 @@ jobs:
         with:
           node-version: 22
       - uses: pnpm/action-setup@v4
-        with:
-          version: latest
       - run: pnpm install
 
       - name: Patch expo-modules-core for Node compat
