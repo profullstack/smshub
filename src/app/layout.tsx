@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { ReferralProvider } from '@profullstack/referrals/react';
+import { FeedbackWidget } from "@profullstack/stack/feedback";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { ToastProvider } from "@/contexts/toast-context";
@@ -98,7 +99,7 @@ export default function RootLayout({
           <ToastContainer />
           <ServiceWorkerRegister />
         </ToastProvider>
-      <script async src="https://feedback.profullstack.com/embed/profullstack-feedback.js" data-property="smshub.com"></script>
+      <FeedbackWidget property="smshub.com" />
       </body>
     </html>
   );
