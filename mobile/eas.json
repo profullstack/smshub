@@ -15,7 +15,9 @@
       },
       "env": {
         "EXPO_PUBLIC_API_URL": "http://localhost:3000"
-      }
+      },
+      "node": "24",
+      "pnpm": "10.32.1"
     },
     "preview": {
       "distribution": "internal",
@@ -24,7 +26,9 @@
       },
       "android": {
         "buildType": "apk"
-      }
+      },
+      "node": "24",
+      "pnpm": "10.32.1"
     },
     "production": {
       "autoIncrement": true,
@@ -33,7 +37,9 @@
       },
       "android": {
         "buildType": "app-bundle"
-      }
+      },
+      "node": "24",
+      "pnpm": "10.32.1"
     }
   }
 }
