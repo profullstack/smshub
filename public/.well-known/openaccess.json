@@ -1,0 +1,29 @@
+{
+  "openaccess": "0.1",
+  "name": "smshub",
+  "url": "https://smshub.dev",
+  "operator": "https://logicsrc.com/.well-known/openprofile.md",
+  "redirect_uris": [
+    "https://smshub.dev/api/v1/openaccess/callback"
+  ],
+  "jwks": {
+    "keys": [
+      {
+        "kty": "OKP",
+        "crv": "Ed25519",
+        "kid": "eovthnnTszB1",
+        "x": "ctt3azgfvaRb5CKowHr_ejyDNxQlE1uUCP33doDXZ_4",
+        "alg": "EdDSA",
+        "use": "sig"
+      }
+    ]
+  },
+  "scopes": {},
+  "honours": [
+    "profullstack.com/all-access"
+  ],
+  "webhooks": "https://smshub.dev/api/v1/openaccess/events",
+  "hubs": [
+    "https://openaccess.logicsrc.com"
+  ]
+}
