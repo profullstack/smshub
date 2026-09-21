@@ -6,8 +6,12 @@ import { createServerSupabaseClient } from "@/lib/supabase/server";
  *
  * Supabase sends the user here after verifying the link. With the PKCE flow
  * the URL carries `?code=...`; older-style links carry `?token_hash=...&type=...`.
- * Either way we turn it into a session cookie and continue to `next`.
+ * We hand whichever is present to Supabase, then decide purely on whether a
+ * session now exists: signed in -> `next`, otherwise -> /login.
  */
+
+type OtpType = "signup" | "recovery" | "email" | "email_change" | "magiclink";
+const OTP_TYPES: readonly OtpType[] = ["signup", "recovery", "email", "email_change", "magiclink"];
 
 /** Only allow same-origin relative paths so the redirect cannot leave the site. */
 export function safeNextPath(next: string | null): string {
@@ -19,34 +23,39 @@ export function safeNextPath(next: string | null): string {
 
 export async function GET(request: NextRequest) {
   const url = new URL(request.url);
-  const code = url.searchParams.get("code");
-  const tokenHash = url.searchParams.get("token_hash");
-  const type = url.searchParams.get("type");
+  const code = url.searchParams.get("code") ?? "";
+  const tokenHash = url.searchParams.get("token_hash") ?? "";
+  const rawType = url.searchParams.get("type") ?? "";
+  const type = OTP_TYPES.find((t) => t === rawType);
   const next = safeNextPath(url.searchParams.get("next"));
 
-  const failure = new URL("/login", url.origin);
-  failure.searchParams.set("error", "link");
+  let signedIn = false;
 
   try {
     const supabase = await createServerSupabaseClient();
 
-    if (code) {
-      const { error } = await supabase.auth.exchangeCodeForSession(code);
-      if (error) return NextResponse.redirect(failure);
-      return NextResponse.redirect(new URL(next, url.origin));
+    // Best effort: let Supabase consume whatever the link carried. Errors are
+    // not trusted either way; only the session lookup below decides.
+    if (code.length > 0) {
+      await supabase.auth.exchangeCodeForSession(code);
+    } else if (tokenHash.length > 0 && type) {
+      await supabase.auth.verifyOtp({ token_hash: tokenHash, type });
     }
 
-    if (tokenHash && type) {
-      const { error } = await supabase.auth.verifyOtp({
-        token_hash: tokenHash,
-        type: type as "signup" | "recovery" | "email" | "email_change" | "magiclink",
-      });
-      if (error) return NextResponse.redirect(failure);
-      return NextResponse.redirect(new URL(next, url.origin));
-    }
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    signedIn = Boolean(user);
   } catch (error) {
     console.error("Auth callback error:", error);
+    signedIn = false;
   }
 
+  if (signedIn) {
+    return NextResponse.redirect(new URL(next, url.origin));
+  }
+
+  const failure = new URL("/login", url.origin);
+  failure.searchParams.set("error", "link");
   return NextResponse.redirect(failure);
 }
