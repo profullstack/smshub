@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { getSiteUrl } from "@/lib/site-url";
 
 /**
  * Auth callback for email links (signup confirmation, password recovery).
@@ -8,6 +9,9 @@ import { createServerSupabaseClient } from "@/lib/supabase/server";
  * the URL carries `?code=...`; older-style links carry `?token_hash=...&type=...`.
  * We hand whichever is present to Supabase, then decide purely on whether a
  * session now exists: signed in -> `next`, otherwise -> /login.
+ *
+ * Redirects are built from getSiteUrl(), not request.url: behind Railway's
+ * proxy the request origin is the container's localhost.
  */
 
 type OtpType = "signup" | "recovery" | "email" | "email_change" | "magiclink";
@@ -23,6 +27,7 @@ export function safeNextPath(next: string | null): string {
 
 export async function GET(request: NextRequest) {
   const url = new URL(request.url);
+  const site = getSiteUrl();
   const code = url.searchParams.get("code") ?? "";
   const tokenHash = url.searchParams.get("token_hash") ?? "";
   const rawType = url.searchParams.get("type") ?? "";
@@ -52,10 +57,10 @@ export async function GET(request: NextRequest) {
   }
 
   if (signedIn) {
-    return NextResponse.redirect(new URL(next, url.origin));
+    return NextResponse.redirect(new URL(next, site));
   }
 
-  const failure = new URL("/login", url.origin);
+  const failure = new URL("/login", site);
   failure.searchParams.set("error", "link");
   return NextResponse.redirect(failure);
 }
