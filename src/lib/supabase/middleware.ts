@@ -8,6 +8,7 @@ const PUBLIC_ROUTES = [
   "/login",
   "/register",
   "/forgot-password",
+  "/auth",
   "/phonenumbers",
   "/offline",
   "/install",
