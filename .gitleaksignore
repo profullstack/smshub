@@ -1,0 +1,3 @@
+# Supabase publishable (anon) key: public by design, it ships in every page's JavaScript.
+# Baked into the dev2 build because Next.js inlines NEXT_PUBLIC_* at build time.
+e0a62880cb4eb3ff18f1aa9009aa758db5af5278:.nixpacks/Dockerfile:generic-api-key:19

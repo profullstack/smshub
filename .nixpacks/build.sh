@@ -1,0 +1,1 @@
+docker build /home/anthony/src/profullstack/smshub/.claude/worktrees/dev2-smshub.dev-iv0brqzc -f /home/anthony/src/profullstack/smshub/.claude/worktrees/dev2-smshub.dev-iv0brqzc/.nixpacks/Dockerfile -t 6c301010-8de8-4e4c-b1a0-faca74d83084 --build-arg CI=true --build-arg NIXPACKS_METADATA=node --build-arg NODE_ENV=production --build-arg NPM_CONFIG_PRODUCTION=false
