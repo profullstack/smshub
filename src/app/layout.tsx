@@ -89,6 +89,9 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className="dark">
+      <head>
+        <script data-site="0f7a1259-e26d-4705-a07a-c38aba040251" src="https://crawlproof.com/stats.js" async></script>
+      </head>
       <body
         className={`${inter.className} bg-gray-950 text-gray-100 min-h-screen flex flex-col`}
       >
