@@ -16,8 +16,11 @@ jobs:
     steps:
       - name: Check if version bump commit
         id: check
+        # The message goes through env, never inlined into the script: a commit
+        # message with backticks or $( ) was executed as shell (2026-10-01, #67).
+        env:
+          MSG: ${{ github.event.head_commit.message }}
         run: |
-          MSG="${{ github.event.head_commit.message }}"
           if echo "$MSG" | grep -q "chore: bump version"; then
             echo "skip=true" >> "$GITHUB_OUTPUT"
           else
