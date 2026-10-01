@@ -22,6 +22,10 @@ jobs:
         with:
           node-version: 24
       - uses: pnpm/action-setup@v4
+        # The root app moved to Bun (packageManager bun@...), so pnpm no longer
+        # comes from package.json; electron/ and mobile/ still use it.
+        with:
+          version: 10.32.1
       - name: Install & Build
         working-directory: electron
         run: pnpm install --ignore-workspace && pnpm ci:package:linux
@@ -40,6 +44,10 @@ jobs:
         with:
           node-version: 24
       - uses: pnpm/action-setup@v4
+        # The root app moved to Bun (packageManager bun@...), so pnpm no longer
+        # comes from package.json; electron/ and mobile/ still use it.
+        with:
+          version: 10.32.1
       - name: Install & Build
         working-directory: electron
         run: |
@@ -67,6 +75,10 @@ jobs:
         with:
           node-version: 24
       - uses: pnpm/action-setup@v4
+        # The root app moved to Bun (packageManager bun@...), so pnpm no longer
+        # comes from package.json; electron/ and mobile/ still use it.
+        with:
+          version: 10.32.1
       - name: Install & Build
         working-directory: electron
         run: pnpm install --ignore-workspace && pnpm ci:package:win

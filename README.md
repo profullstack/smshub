@@ -62,8 +62,8 @@ A multi-platform, real-time SMS messaging platform with unified inbox, multi-pro
 
 ### Prerequisites
 
-- Node.js 22+
-- pnpm
+- [Bun](https://bun.sh) 1.4 (package manager and runtime for the web app)
+- pnpm (for mobile/ and electron/ only)
 - A [Supabase](https://supabase.com) project
 - Twilio and/or Telnyx account(s)
 
@@ -71,7 +71,7 @@ A multi-platform, real-time SMS messaging platform with unified inbox, multi-pro
 
 ```bash
 # Install dependencies
-pnpm install
+bun install
 
 # Copy env file and fill in your values
 cp .env.example .env
@@ -80,7 +80,7 @@ cp .env.example .env
 # (paste supabase/migrations/*.sql into the Supabase SQL editor)
 
 # Start dev server
-pnpm dev
+bun dev
 ```
 
 ### Mobile (Expo)
