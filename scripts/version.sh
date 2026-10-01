@@ -3,10 +3,10 @@
 # Sync version across all packages (root, mobile, electron)
 #
 # Usage:
-#   pnpm version:patch   # 0.1.0 → 0.1.1
-#   pnpm version:minor   # 0.1.0 → 0.2.0
-#   pnpm version:major   # 0.1.0 → 1.0.0
-#   pnpm version:set 2.0.0
+#   bun run version:patch   # 0.1.0 → 0.1.1
+#   bun run version:minor   # 0.1.0 → 0.2.0
+#   bun run version:major   # 0.1.0 → 1.0.0
+#   bun run version:set 2.0.0
 #
 set -euo pipefail
 
