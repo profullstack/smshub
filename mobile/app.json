@@ -2,7 +2,7 @@
   "expo": {
     "name": "SMSHub",
     "slug": "smshubdev",
-    "version": "0.1.109",
+    "version": "0.1.110",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
