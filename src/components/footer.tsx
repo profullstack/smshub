@@ -80,6 +80,12 @@ export function Footer() {
             </Link>
           </div>
         </div>
+
+        <nav className="webring mt-4 flex justify-center gap-4 text-xs text-gray-500" aria-label="Profullstack webring">
+          <a href="https://rssamplifier.com/ring/profullstack/previous?from=https%3A%2F%2Fsmshub.dev%2F" rel="prev" className="hover:text-gray-300 transition-colors">{"<<"}</a>
+          <a href="https://rssamplifier.com/ring/profullstack" className="hover:text-gray-300 transition-colors">Profullstack</a>
+          <a href="https://rssamplifier.com/ring/profullstack/next?from=https%3A%2F%2Fsmshub.dev%2F" rel="next" className="hover:text-gray-300 transition-colors">{">>"}</a>
+        </nav>
       </div>
     </footer>
   );
