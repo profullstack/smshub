@@ -1,6 +1,7 @@
 import { TwilioProvider } from "./twilio";
 import { TelnyxProvider } from "./telnyx";
 import { PhoneNumbersBotProvider } from "./phonenumbers-bot";
+import { toE164 } from "./phone";
 import type {
   SendSMSParams,
   SendSMSResult,
@@ -25,7 +26,15 @@ export function getProvider(name: string): SMSProvider {
 
 export async function sendSMS(params: SendSMSParams): Promise<SendSMSResult> {
   const provider = getProvider(params.provider);
-  return provider.send(params);
+  const to = toE164(params.to);
+  if (!to) {
+    return {
+      success: false,
+      error: `Invalid recipient "${params.to}": use one phone number per message, e.g. +14155551234`,
+    };
+  }
+  const from = toE164(params.from) ?? params.from;
+  return provider.send({ ...params, to, from });
 }
 
 export function parseWebhook(
@@ -47,4 +56,5 @@ export function validateWebhook(
   return provider.validateWebhook(rawBody, headers, url);
 }
 
+export { toE164 } from "./phone";
 export type { SendSMSParams, SendSMSResult, SMSProvider, InboundMessage, ProviderType };
