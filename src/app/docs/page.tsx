@@ -1,13 +1,17 @@
 import type { Metadata } from "next";
+import { getBrand } from "@/lib/brand-server";
 import Link from "next/link";
 
-export const metadata: Metadata = {
-  title: "Setup guides — SMSHub",
-  description: "Connect Telnyx or Twilio to SMSHub.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const { name } = await getBrand();
+  return {
+    title: `Setup guides — ${name}`,
+    description: `Connect Telnyx or Twilio to ${name}.`,
+  };
+}
 
 const GUIDES = [
-  { href: "/docs/telnyx", name: "Telnyx", desc: "API key only. SMSHub sets up the webhook for you." },
+  { href: "/docs/telnyx", name: "Telnyx", desc: "API key only. We set up the webhook for you." },
   { href: "/docs/twilio", name: "Twilio", desc: "Account SID, Auth Token and one webhook URL." },
   { href: "/phonenumbers", name: "phonenumbers.bot", desc: "Managed numbers, nothing to set up." },
 ];

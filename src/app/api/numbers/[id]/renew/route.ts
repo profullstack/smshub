@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 import { resolveUser } from "@/lib/request-user";
 import { createOrder, OrderError } from "@/lib/managed-numbers/service";
-import { getSiteUrl } from "@/lib/site-url";
+import { getBrandSiteUrl } from "@/lib/brand-server";
 
 /** Extend a rented number: { months?, chain? } -> an order with a CoinPay pay_url. */
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -20,7 +20,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         phoneNumberId: id,
         months: body.months,
         chain: body.chain,
-        siteUrl: getSiteUrl(),
+        siteUrl: await getBrandSiteUrl(request),
       }
     );
     return NextResponse.json({ order }, { status: 201 });

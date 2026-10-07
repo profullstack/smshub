@@ -14,3 +14,98 @@
 .animate-slide-in {
   animation: slide-in 0.2s ease-out;
 }
+
+/*
+ * Number Station brand. Tailwind v4 colours are CSS variables, so remapping
+ * the gray and blue scales re-skins every shared page; the station-only
+ * screens add their own pieces below.
+ */
+[data-brand="numberstation"] {
+  --color-gray-50: #f7f2e8;
+  --color-gray-100: #efe7d6;
+  --color-gray-200: #ddd2bc;
+  --color-gray-300: #c2b69d;
+  --color-gray-400: #9c917c;
+  --color-gray-500: #776e5e;
+  --color-gray-600: #575044;
+  --color-gray-700: #3a352d;
+  --color-gray-800: #24211c;
+  --color-gray-900: #171511;
+  --color-gray-950: #0b0a08;
+
+  --color-blue-50: #fff6e6;
+  --color-blue-100: #ffe9c2;
+  --color-blue-200: #ffd28a;
+  --color-blue-300: #ffb85c;
+  --color-blue-400: #ff9f2e;
+  --color-blue-500: #f58410;
+  --color-blue-600: #d96a06;
+  --color-blue-700: #b35306;
+  --color-blue-800: #8c410a;
+  --color-blue-900: #6b330c;
+  --color-blue-950: #3d1b04;
+
+  --font-sans: var(--font-station-display), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-station-mono), ui-monospace, monospace;
+
+  color-scheme: dark;
+}
+
+[data-brand="numberstation"] body {
+  font-family: var(--font-sans);
+  background-image:
+    radial-gradient(1200px 600px at 80% -10%, rgb(217 106 6 / 0.12), transparent 60%),
+    radial-gradient(900px 500px at -10% 110%, rgb(52 211 153 / 0.06), transparent 60%);
+  background-attachment: fixed;
+}
+
+/* Faint scan lines, the receiver's glass. */
+.station-scanlines {
+  background-image: repeating-linear-gradient(
+    to bottom,
+    rgb(255 255 255 / 0.025) 0,
+    rgb(255 255 255 / 0.025) 1px,
+    transparent 1px,
+    transparent 3px
+  );
+}
+
+@keyframes station-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+
+.station-pulse {
+  animation: station-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes station-sweep {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(100%); }
+}
+
+.station-sweep {
+  animation: station-sweep 3.2s linear infinite;
+}
+
+@keyframes station-rise {
+  from { transform: translateY(6px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+.station-rise {
+  animation: station-rise 0.25s ease-out both;
+}
+
+/* Room for the iOS home indicator under the tab bar. */
+.pb-safe {
+  padding-bottom: max(env(safe-area-inset-bottom), 0px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .station-pulse,
+  .station-sweep,
+  .station-rise {
+    animation: none;
+  }
+}

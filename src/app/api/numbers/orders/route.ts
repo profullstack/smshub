@@ -3,7 +3,7 @@ import { createServiceClient } from "@/lib/supabase/server";
 import { resolveUser } from "@/lib/request-user";
 import { listOrders } from "@/lib/managed-numbers/api";
 import { createOrder, OrderError } from "@/lib/managed-numbers/service";
-import { getSiteUrl } from "@/lib/site-url";
+import { getBrandSiteUrl } from "@/lib/brand-server";
 import { checkRateLimit } from "@/lib/rate-limit";
 
 export async function GET(request: Request) {
@@ -33,7 +33,7 @@ export async function POST(request: Request) {
         areaCode: body.area_code,
         months: body.months,
         chain: body.chain,
-        siteUrl: getSiteUrl(),
+        siteUrl: await getBrandSiteUrl(request),
       }
     );
     return NextResponse.json({ order }, { status: 201 });

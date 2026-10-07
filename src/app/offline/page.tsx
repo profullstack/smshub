@@ -1,12 +1,15 @@
 "use client";
 
+import { useBrand } from "@/contexts/brand-context";
+
 export default function OfflinePage() {
+  const { name } = useBrand();
   return (
     <div className="min-h-screen flex items-center justify-center px-4">
       <div className="text-center space-y-4">
         <h1 className="text-3xl font-bold">You&apos;re Offline</h1>
         <p className="text-gray-400">
-          SMSHub requires an internet connection to send and receive messages.
+          {name} requires an internet connection to send and receive messages.
         </p>
         <p className="text-gray-500 text-sm">
           Check your connection and try again.

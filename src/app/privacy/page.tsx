@@ -1,18 +1,23 @@
 import type { Metadata } from "next";
+import { getBrand } from "@/lib/brand-server";
 
-export const metadata: Metadata = {
-  title: "Privacy Policy — SMSHub",
-  description: "SMSHub privacy policy. How we collect, use, and protect your data.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const { name } = await getBrand();
+  return {
+    title: `Privacy Policy — ${name}`,
+    description: `${name} privacy policy. How we collect, use, and protect your data.`,
+  };
+}
 
-export default function PrivacyPage() {
+export default async function PrivacyPage() {
+  const { name } = await getBrand();
   return (
     <div className="max-w-3xl mx-auto px-4 py-16 space-y-8">
       <h1 className="text-4xl font-bold">Privacy Policy</h1>
       <p className="text-gray-400">Last updated: March 19, 2026</p>
 
       <Section title="1. Information We Collect">
-        <p>When you use SMSHub, we collect the following information:</p>
+        <p>When you use {name}, we collect the following information:</p>
         <ul className="list-disc list-inside space-y-1 text-gray-300">
           <li><strong>Account data:</strong> Email address and password when you register</li>
           <li><strong>SMS data:</strong> Messages sent and received through your connected providers (Twilio, Telnyx, phonenumbers.bot)</li>
@@ -52,7 +57,7 @@ export default function PrivacyPage() {
       </Section>
 
       <Section title="4. Third-Party Services">
-        <p>SMSHub integrates with the following third-party services:</p>
+        <p>{name} integrates with the following third-party services:</p>
         <ul className="list-disc list-inside space-y-1 text-gray-300">
           <li><strong>Twilio / Telnyx / phonenumbers.bot:</strong> SMS sending and receiving</li>
           <li><strong>OpenAI:</strong> AI reply suggestions (opt-in, per conversation)</li>

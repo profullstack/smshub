@@ -1,9 +1,13 @@
 import Link from "next/link";
 import { PLANS, priceUsdPerMonth } from "@/lib/plans";
+import { getBrand } from "@/lib/brand-server";
+import { StationHome } from "@/components/station/station-home";
 
 export const dynamic = "force-dynamic";
 
-export default function LandingPage() {
+export default async function LandingPage() {
+  if ((await getBrand()).id === "numberstation") return <StationHome />;
+
   return (
     <div className="min-h-screen flex flex-col">
       {/* Hero */}

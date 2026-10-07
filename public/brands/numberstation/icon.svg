@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="512" height="512">
+  <defs>
+    <linearGradient id="ns-signal" x1="0" y1="1" x2="1" y2="0">
+      <stop offset="0" stop-color="#ffb85c"/>
+      <stop offset="1" stop-color="#d96a06"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="14" fill="#0b0a08"/>
+  <g fill="none" stroke="url(#ns-signal)" stroke-linecap="round" stroke-width="4.5">
+    <path d="M38.36 25.64 A9 9 0 0 1 38.36 38.36"/>
+    <path d="M25.64 25.64 A9 9 0 0 0 25.64 38.36"/>
+    <path d="M43.31 20.69 A16 16 0 0 1 43.31 43.31" opacity="0.75"/>
+    <path d="M20.69 20.69 A16 16 0 0 0 20.69 43.31" opacity="0.75"/>
+    <path d="M48.26 15.74 A23 23 0 0 1 48.26 48.26" opacity="0.45"/>
+    <path d="M15.74 15.74 A23 23 0 0 0 15.74 48.26" opacity="0.45"/>
+  </g>
+  <circle cx="32" cy="32" r="4.5" fill="#ffb85c"/>
+</svg>

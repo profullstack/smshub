@@ -2,6 +2,8 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { useBrand } from "@/contexts/brand-context";
+import { StationLogo } from "@/components/station/station-logo";
 
 type LogoProps = {
   href?: string;
@@ -16,11 +18,14 @@ export function Logo({
   className = "flex items-center gap-3",
   priority = false,
 }: LogoProps) {
+  const brand = useBrand();
+  if (brand.id === "numberstation") return <StationLogo href={href} />;
+
   return (
-    <Link href={href} className={className} aria-label="SMSHub home">
+    <Link href={href} className={className} aria-label={`${brand.name} home`}>
       <Image
-        src="/logo.svg"
-        alt="SMSHub"
+        src={brand.logo}
+        alt={brand.name}
         width={280}
         height={80}
         priority={priority}

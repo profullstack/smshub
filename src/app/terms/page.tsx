@@ -1,11 +1,16 @@
 import type { Metadata } from "next";
+import { getBrand } from "@/lib/brand-server";
 
-export const metadata: Metadata = {
-  title: "Terms of Service — SMSHub",
-  description: "SMSHub terms of service. Rules and conditions for using our platform.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const { name } = await getBrand();
+  return {
+    title: `Terms of Service — ${name}`,
+    description: `${name} terms of service. Rules and conditions for using our platform.`,
+  };
+}
 
-export default function TermsPage() {
+export default async function TermsPage() {
+  const { name } = await getBrand();
   return (
     <div className="max-w-3xl mx-auto px-4 py-16 space-y-8">
       <h1 className="text-4xl font-bold">Terms of Service</h1>
@@ -13,14 +18,14 @@ export default function TermsPage() {
 
       <Section title="1. Acceptance of Terms">
         <p>
-          By accessing or using SMSHub (&quot;the Service&quot;), you agree to be bound by these
+          By accessing or using {name} (&quot;the Service&quot;), you agree to be bound by these
           Terms of Service. If you do not agree, do not use the Service.
         </p>
       </Section>
 
       <Section title="2. Description of Service">
         <p>
-          SMSHub is a multi-platform SMS messaging platform that allows you to send and receive
+          {name} is a multi-platform SMS messaging platform that allows you to send and receive
           text messages through third-party SMS providers (Twilio, Telnyx, phonenumbers.bot).
           The Service is available via web, mobile (iOS/Android), desktop, and API.
         </p>
@@ -36,7 +41,7 @@ export default function TermsPage() {
       </Section>
 
       <Section title="4. Acceptable Use">
-        <p>You agree NOT to use SMSHub to:</p>
+        <p>You agree NOT to use {name} to:</p>
         <ul className="list-disc list-inside space-y-1 text-gray-300">
           <li>Send spam, unsolicited messages, or bulk promotional content without recipient consent</li>
           <li>Harass, threaten, or abuse any person</li>
@@ -51,7 +56,7 @@ export default function TermsPage() {
 
       <Section title="5. SMS Provider Terms">
         <p>
-          SMSHub connects to third-party SMS providers. You are responsible for complying with
+          {name} connects to third-party SMS providers. You are responsible for complying with
           each provider&apos;s terms of service, acceptable use policies, and messaging regulations.
           This includes but is not limited to:
         </p>
@@ -82,7 +87,7 @@ export default function TermsPage() {
 
       <Section title="8. Data & Privacy">
         <p>
-          Your use of SMSHub is also governed by our{" "}
+          Your use of {name} is also governed by our{" "}
           <a href="/privacy" className="text-blue-400 hover:text-blue-300">
             Privacy Policy
           </a>
@@ -101,7 +106,7 @@ export default function TermsPage() {
 
       <Section title="10. Intellectual Property">
         <p>
-          SMSHub and its original content, features, and functionality are owned by SMSHub and
+          {name} and its original content, features, and functionality are owned by {name} and
           are protected by copyright and other intellectual property laws. Your content (messages,
           contacts) remains yours.
         </p>
@@ -117,7 +122,7 @@ export default function TermsPage() {
 
       <Section title="12. Limitation of Liability">
         <p>
-          SMSHub is provided &quot;as is&quot; without warranties of any kind. We are not liable for
+          {name} is provided &quot;as is&quot; without warranties of any kind. We are not liable for
           any indirect, incidental, or consequential damages arising from your use of the Service.
           Our total liability is limited to the amount you paid for the Service in the 12 months
           preceding the claim.
