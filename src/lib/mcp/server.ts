@@ -163,7 +163,7 @@ export async function handleRpc(ctx: Ctx, msg: RpcRequest): Promise<unknown | nu
         });
       } catch (e) {
         const message = e instanceof OrderError ? e.message : "Tool failed";
-        if (!(e instanceof OrderError)) console.error(`mcp tool ${name} error:`, e);
+        if (!(e instanceof OrderError)) console.error("mcp tool error:", { tool: name.replace(/[^\w-]/g, "").slice(0, 64) }, e);
         return ok(msg.id, { content: [{ type: "text", text: message }], isError: true });
       }
     }

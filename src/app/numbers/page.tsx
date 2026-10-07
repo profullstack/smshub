@@ -63,6 +63,18 @@ const STATUS_TEXT: Record<OrderRow["status"], string> = {
   expired: "Checkout expired",
 };
 
+/** Only ever send the browser to CoinPay's own payment page. */
+function safePayUrl(raw: unknown): string | null {
+  try {
+    const u = new URL(String(raw));
+    return u.protocol === "https:" && u.hostname === "coinpayportal.com" && u.pathname.startsWith("/pay/")
+      ? u.toString()
+      : null;
+  } catch {
+    return null;
+  }
+}
+
 function fmtDate(iso: string | null) {
   return iso ? new Date(iso).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" }) : "";
 }
@@ -135,7 +147,8 @@ export default function NumbersPage() {
       });
       const j = await res.json();
       if (!res.ok) throw new Error(j.error || "Checkout failed");
-      if (j.order?.pay_url) window.location.href = j.order.pay_url;
+      const pay = safePayUrl(j.order?.pay_url);
+      if (pay) window.location.href = pay;
       else await load();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Checkout failed");
@@ -164,10 +177,10 @@ export default function NumbersPage() {
         <div className="rounded-xl border border-blue-500/30 bg-blue-500/10 p-4 text-sm text-blue-200">
           Order for {watched.number || (watched.area_code ? `a ${watched.area_code} number` : "a number")}:{" "}
           <strong>{STATUS_TEXT[watched.status]}</strong>
-          {watched.status === "pending" && watched.pay_url && (
+          {watched.status === "pending" && safePayUrl(watched.pay_url) && (
             <>
               {" "}
-              <a href={watched.pay_url} className="underline">
+              <a href={safePayUrl(watched.pay_url)!} className="underline">
                 Open the payment page
               </a>
             </>
@@ -300,8 +313,8 @@ export default function NumbersPage() {
                   <span className={o.status === "active" ? "text-green-400" : o.status === "failed" ? "text-red-400" : "text-gray-300"}>
                     {STATUS_TEXT[o.status]}
                   </span>
-                  {o.status === "pending" && o.pay_url && (
-                    <a href={o.pay_url} className="ml-2 underline">
+                  {o.status === "pending" && safePayUrl(o.pay_url) && (
+                    <a href={safePayUrl(o.pay_url)!} className="ml-2 underline">
                       Pay
                     </a>
                   )}

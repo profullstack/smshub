@@ -82,7 +82,7 @@ export async function POST(request: Request) {
 
     const target = await owner();
     if (!target) {
-      console.error("No phone number found for:", ourNumber);
+      console.error("No phone number found for:", ourNumber.replace(/[^\d+]/g, "").slice(0, 16));
       return NextResponse.json({ ok: true });
     }
 

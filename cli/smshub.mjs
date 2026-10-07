@@ -54,6 +54,11 @@ function saveConfig(cfg) {
 const cfg = loadConfig();
 const BASE = (process.env.SMSHUB_URL || cfg.url || "https://smshub.dev").replace(/\/+$/, "");
 const KEY = process.env.SMSHUB_API_KEY || cfg.apiKey || "";
+// The API key travels in a header, so never over plain http except to this machine.
+if (!/^https:\/\/|^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(BASE)) {
+  console.error(`Refusing to send the API key to ${BASE}: use an https:// URL`);
+  process.exit(1);
+}
 
 class ApiError extends Error {}
 

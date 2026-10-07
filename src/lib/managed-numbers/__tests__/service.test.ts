@@ -129,7 +129,7 @@ describe("managed numbers", () => {
     await createOrder(deps, { userId: USER, email: EMAIL, siteUrl: "https://smshub.dev" });
     const r = await settlePayment(deps, settledEvent("pay-1"));
     expect(r).toMatchObject({ status: "active", number: "+14085550001" });
-    expect(f.calls.some((c) => c.url.includes("api.telnyx.com"))).toBe(false);
+    expect(f.calls.some((c) => new URL(c.url).host === "api.telnyx.com")).toBe(false);
 
     // The only pool number is lent, so a second order waits (paid, with an error) instead of double-lending.
     await createOrder(deps, { userId: "user-2", email: EMAIL, siteUrl: "https://smshub.dev" });
