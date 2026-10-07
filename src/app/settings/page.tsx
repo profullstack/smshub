@@ -20,43 +20,11 @@ interface PhoneNumberRow {
   provider_id: string;
 }
 
-interface Entitlements {
-  features: {
-    managedNumbers: {
-      available: boolean;
-      marginPercent: number;
-      plan: string;
-      providers: string[];
-    };
-  };
-  integrations: {
-    coinpay: {
-      oauth: {
-        configured: boolean;
-        connected: boolean;
-        connectUrl: string;
-        connection: {
-          email: string | null;
-          name: string | null;
-          updated_at: string;
-        } | null;
-      };
-      paymentsJs: {
-        live: boolean;
-        configured: boolean;
-        scriptSrc: string;
-        merchantId: string | null;
-        snippet: string | null;
-      };
-    };
-  };
-}
 
 export default function SettingsPage() {
   const [providers, setProviders] = useState<ProviderRow[]>([]);
   const [phoneNumbers, setPhoneNumbers] = useState<PhoneNumberRow[]>([]);
   const [contacts, setContacts] = useState<{ id: string; phone: string; name: string | null }[]>([]);
-  const [entitlements, setEntitlements] = useState<Entitlements | null>(null);
   const [editingContact, setEditingContact] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
 
@@ -83,17 +51,7 @@ export default function SettingsPage() {
   useEffect(() => {
     loadData();
     loadContacts();
-    loadEntitlements();
   }, []);
-
-  const loadEntitlements = async () => {
-    try {
-      const res = await fetch("/api/entitlements");
-      if (res.ok) {
-        setEntitlements(await res.json());
-      }
-    } catch {}
-  };
 
   const loadData = async () => {
     try {
@@ -226,85 +184,22 @@ export default function SettingsPage() {
           </Link>
         </div>
 
-        {/* Managed Numbers */}
+        {/* Rented numbers */}
         <section className="space-y-4">
-          <div>
-            <h2 className="text-lg font-semibold">Managed Numbers</h2>
-            <p className="text-sm text-gray-400">
-              Connect CoinPay once, then buy numbers from Twilio, Telnyx, or
-              phonenumbers.bot without managing provider credentials.
-            </p>
-          </div>
-
-          <div className="bg-gray-900 rounded-lg p-4 border border-gray-800 space-y-4">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <div className="font-medium">CoinPay account</div>
-                <div className="text-sm text-gray-400">
-                  {entitlements?.integrations.coinpay.oauth.connected
-                    ? entitlements.integrations.coinpay.oauth.connection?.email ||
-                      entitlements.integrations.coinpay.oauth.connection?.name ||
-                      "Connected"
-                    : "Required for managed number purchases"}
-                </div>
-              </div>
-              <a
-                href={entitlements?.integrations.coinpay.oauth.connectUrl || "/api/coinpay/connect"}
-                className="inline-flex items-center justify-center rounded-lg bg-green-600 px-4 py-2 text-sm font-medium hover:bg-green-700"
-              >
-                {entitlements?.integrations.coinpay.oauth.connected
-                  ? "Reconnect CoinPay"
-                  : "Connect CoinPay"}
-              </a>
+          <div className="bg-gray-900 rounded-lg p-4 border border-gray-800 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h2 className="text-lg font-semibold">Rented numbers</h2>
+              <p className="text-sm text-gray-400">
+                Rent a US number for SMS and verification codes, paid in crypto through CoinPay.
+                No provider account needed.
+              </p>
             </div>
-
-            {!entitlements?.integrations.coinpay.oauth.configured && (
-              <div className="rounded-lg border border-yellow-500/20 bg-yellow-500/10 p-3 text-sm text-yellow-300">
-                CoinPay OAuth needs COINPAY_CLIENT_ID and COINPAY_CLIENT_SECRET
-                before live account linking can complete.
-              </div>
-            )}
-
-            <div className="rounded-lg border border-gray-800 bg-gray-950 p-3">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <div className="font-medium">CoinPay payments.js</div>
-                  <div className="mt-1 text-xs text-gray-500">
-                    Drop-in checkout modal resolved from a merchant id.
-                  </div>
-                </div>
-                <span className="text-xs font-medium text-green-400">
-                  {entitlements?.integrations.coinpay.paymentsJs.live ? "Live!" : "Ready"}
-                </span>
-              </div>
-              {entitlements?.integrations.coinpay.paymentsJs.snippet && (
-                <code className="mt-3 block overflow-x-auto rounded bg-gray-900 p-2 text-xs text-gray-300">
-                  {entitlements.integrations.coinpay.paymentsJs.snippet}
-                </code>
-              )}
-              {entitlements &&
-                !entitlements.integrations.coinpay.paymentsJs.configured && (
-                  <div className="mt-3 text-xs text-gray-500">
-                    Set COINPAY_MERCHANT_ID to show the site-specific script tag.
-                  </div>
-                )}
-            </div>
-
-            <div className="grid gap-3 sm:grid-cols-3">
-              {[
-                ["Twilio", "VoIP inventory"],
-                ["Telnyx", "Local and toll-free"],
-                ["phonenumbers.bot", "Real SIM numbers"],
-              ].map(([name, desc]) => (
-                <div key={name} className="rounded-lg border border-gray-800 bg-gray-950 p-3">
-                  <div className="font-medium">{name}</div>
-                  <div className="mt-1 text-xs text-gray-500">{desc}</div>
-                  <div className="mt-3 text-xs font-medium text-green-400">
-                    200% markup pricing
-                  </div>
-                </div>
-              ))}
-            </div>
+            <Link
+              href="/numbers"
+              className="inline-flex items-center justify-center rounded-lg bg-green-600 px-4 py-2 text-sm font-medium hover:bg-green-700"
+            >
+              Rent a number
+            </Link>
           </div>
         </section>
 
@@ -359,7 +254,13 @@ export default function SettingsPage() {
             />
             <input
               type="password"
-              placeholder={newProvider.type === "twilio" ? "Auth Token" : "API Secret (optional)"}
+              placeholder={
+                newProvider.type === "twilio"
+                  ? "Auth Token"
+                  : newProvider.type === "telnyx"
+                    ? "Public key (Portal > Keys), verifies inbound texts"
+                    : "API Secret (optional)"
+              }
               value={newProvider.apiSecret}
               onChange={(e) => setNewProvider({ ...newProvider, apiSecret: e.target.value })}
               className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg"

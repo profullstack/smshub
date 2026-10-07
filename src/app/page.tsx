@@ -1,4 +1,7 @@
 import Link from "next/link";
+import { PLANS, priceUsdPerMonth } from "@/lib/plans";
+
+export const dynamic = "force-dynamic";
 
 export default function LandingPage() {
   return (
@@ -125,90 +128,33 @@ export default function LandingPage() {
             </p>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-6">
-            <AppCard
-              emoji="📱"
-              title="iOS App"
-              desc="Native iPhone and iPad app with push notifications, offline support, and deep linking."
-              badge="Coming Soon"
-            />
-            <AppCard
-              emoji="🤖"
-              title="Android App"
-              desc="Material Design Android app with background sync, push notifications, and widget support."
-              badge="Coming Soon"
-            />
-            <AppCard
-              emoji="🖥"
-              title="Desktop App"
-              desc="Native desktop app for macOS, Windows, and Linux with system tray, notifications, and auto-updates."
-              badge="Available"
-              badgeColor="green"
-              href="/install"
-            />
-          </div>
-
-          <div className="mt-8 text-center">
-            <p className="text-gray-500 text-sm">
-              Desktop app available on{" "}
-              <a href="/install" className="text-blue-400 hover:text-blue-300">
-                GitHub Releases
-              </a>
-              . iOS and Android coming soon.
-            </p>
-          </div>
-        </div>
-      </section>
-
-      {/* Pricing */}
-      <section id="pricing" className="py-20 px-4 border-t border-gray-800">
-        <div className="max-w-4xl mx-auto text-center">
-          <h2 className="text-3xl sm:text-4xl font-bold mb-4">Simple pricing</h2>
-          <p className="text-gray-400 text-lg mb-12">Start free, scale as you grow.</p>
-
-          <div className="grid md:grid-cols-3 gap-6">
+          <div className="grid md:grid-cols-2 gap-6 max-w-3xl mx-auto">
             <PricingCard
               name="Free"
               price="$0"
               period="/mo"
               features={[
-                "1 phone number",
-                "100 messages/mo",
-                "1 user",
-                "Web + PWA access",
+                "Bring your own Twilio or Telnyx",
+                `${PLANS.free.byoNumbers} phone numbers`,
+                `${PLANS.free.apiKeys} API keys, ${PLANS.free.webhooks} webhook`,
+                "Web, PWA, desktop, API, CLI, MCP",
               ]}
               cta="Get Started"
               href="/register"
             />
             <PricingCard
-              name="Pro"
-              price="$15"
-              period="/mo"
+              name="Rented number"
+              price={`$${priceUsdPerMonth()}`}
+              period="/mo per number"
               features={[
-                "5 phone numbers",
-                "5,000 messages/mo",
-                "AI auto-replies",
-                "All platforms",
-                "Webhooks & API",
+                "A US number for SMS and verification codes",
+                "Codes in your inbox, API, CLI and MCP",
+                "Pay with crypto through CoinPay",
+                `Unlocks Pro: ${PLANS.pro.byoNumbers} numbers, ${PLANS.pro.apiKeys} API keys, AI replies`,
               ]}
-              cta="Start Free Trial"
-              href="/register"
+              cta="Rent a number"
+              href="/phonenumbers"
               featured
-            />
-            <PricingCard
-              name="Business"
-              price="$49"
-              period="/mo"
-              features={[
-                "Unlimited numbers",
-                "Unlimited messages",
-                "Team inbox",
-                "Campaigns",
-                "White-label API",
-                "Priority support",
-              ]}
-              cta="Contact Sales"
-              href="mailto:sales@smshub.dev"
             />
           </div>
         </div>

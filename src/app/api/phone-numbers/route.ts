@@ -1,5 +1,8 @@
 import { NextResponse } from "next/server";
 import { createServerSupabaseClient, createServiceClient } from "@/lib/supabase/server";
+import { isManagedProvider } from "@/lib/managed-numbers/service";
+import { getPlanUsage, limitReached } from "@/lib/plans";
+import { normalizeE164 } from "@/lib/phone";
 
 export async function GET() {
   try {
@@ -15,6 +18,7 @@ export async function GET() {
       .from("phone_numbers")
       .select("*")
       .eq("user_id", user.id)
+      .eq("status", "active")
       .order("created_at", { ascending: false });
 
     if (error) throw error;
@@ -36,23 +40,47 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const { number, provider_id, friendly_name } = body;
+    const { provider_id, friendly_name } = body;
+    const number = normalizeE164(body.number);
 
-    if (!number || !provider_id) {
+    if (!body.number || !provider_id) {
       return NextResponse.json({ error: "number and provider_id are required" }, { status: 400 });
+    }
+    if (!number) {
+      return NextResponse.json(
+        { error: "Enter the number in international format, e.g. +14155550123" },
+        { status: 400 }
+      );
     }
 
     // Verify the provider belongs to the user
     const serviceClient = createServiceClient();
     const { data: provider } = await serviceClient
       .from("providers")
-      .select("id")
+      .select("id, api_key, metadata")
       .eq("id", provider_id)
       .eq("user_id", user.id)
       .single();
 
-    if (!provider) {
+    if (!provider || isManagedProvider(provider)) {
       return NextResponse.json({ error: "Provider not found" }, { status: 404 });
+    }
+
+    const plan = await getPlanUsage(serviceClient, user.id);
+    const limit = limitReached(plan, "byoNumbers");
+    if (limit) {
+      return NextResponse.json({ error: limit }, { status: 403 });
+    }
+
+    // Inbound texts are routed by number, so a number has one owner at a time.
+    const { data: taken } = await serviceClient
+      .from("phone_numbers")
+      .select("id")
+      .eq("number", number)
+      .eq("status", "active")
+      .limit(1);
+    if (taken?.length) {
+      return NextResponse.json({ error: "That number is already connected to an account" }, { status: 409 });
     }
 
     const { data, error } = await serviceClient

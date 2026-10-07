@@ -1,5 +1,7 @@
+import { getPlanUsage, limitReached } from "@/lib/plans";
+import { isPublicHttpsUrl } from "@/lib/webhooks/url-guard";
 import { NextResponse } from "next/server";
-import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { createServerSupabaseClient, createServiceClient } from "@/lib/supabase/server";
 import { generateWebhookSecret } from "@/lib/webhooks/outbound";
 
 export async function GET() {
@@ -65,6 +67,18 @@ export async function POST(request: Request) {
         { error: `Invalid events: ${invalidEvents.join(", ")}` },
         { status: 400 }
       );
+    }
+
+    if (!(await isPublicHttpsUrl(url))) {
+      return NextResponse.json(
+        { error: "Webhook URL must be a public https:// address" },
+        { status: 400 }
+      );
+    }
+
+    const limit = limitReached(await getPlanUsage(createServiceClient(), user.id), "webhooks");
+    if (limit) {
+      return NextResponse.json({ error: limit }, { status: 403 });
     }
 
     const secret = generateWebhookSecret();

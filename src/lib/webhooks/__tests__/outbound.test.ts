@@ -6,6 +6,9 @@ import {
   type UserWebhook,
 } from "../outbound";
 
+// Delivery re-checks the target with a DNS lookup; keep these tests offline.
+vi.mock("../url-guard", () => ({ isPublicHttpsUrl: async () => true }));
+
 describe("signPayload", () => {
   it("generates consistent HMAC-SHA256 signatures", () => {
     const payload = '{"event":"message.sent"}';

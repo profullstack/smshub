@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { createServerSupabaseClient, createServiceClient } from "@/lib/supabase/server";
+import { getPlanUsage } from "@/lib/plans";
 import { suggestReply } from "@/lib/ai/auto-reply";
 
 export async function POST(request: Request) {
@@ -11,6 +12,14 @@ export async function POST(request: Request) {
 
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const plan = await getPlanUsage(createServiceClient(), user.id);
+    if (!plan.limits.aiReplies) {
+      return NextResponse.json(
+        { error: "AI replies are a Pro feature. Rent a number to unlock Pro." },
+        { status: 403 }
+      );
     }
 
     const { conversation_id } = await request.json();

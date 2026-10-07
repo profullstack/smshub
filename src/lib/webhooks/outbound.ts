@@ -4,6 +4,7 @@
  */
 
 import { createHash, createHmac } from "crypto";
+import { isPublicHttpsUrl } from "./url-guard";
 
 export type WebhookEvent =
   | "message.sent"
@@ -64,9 +65,15 @@ export async function fireWebhooks(
     .filter((wh) => wh.active && wh.events.includes(event))
     .map(async (wh) => {
       try {
+        // Checked again at delivery: DNS can change after the webhook was saved.
+        if (!(await isPublicHttpsUrl(wh.url))) {
+          console.error(`Webhook ${wh.id} skipped: not a public https URL`);
+          return;
+        }
         const signature = signPayload(body, wh.secret);
         await fetch(wh.url, {
           method: "POST",
+          redirect: "manual",
           headers: {
             "Content-Type": "application/json",
             "X-Webhook-Signature": signature,

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -10,8 +10,20 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const router = useRouter();
+
+  // /auth/callback lands here with ?error=link when the email link could not
+  // sign the user in: usually it was opened in another browser or the mail
+  // app, where the signup confirmation still went through.
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("error") === "link") {
+      setNotice(
+        "If you just confirmed your email, it is confirmed: sign in below. If the link was for a password reset, it expired or was opened in another browser, so request a new one."
+      );
+    }
+  }, []);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -48,6 +60,11 @@ export default function LoginPage() {
         </div>
 
         <form onSubmit={handleLogin} className="space-y-4">
+          {notice && !error && (
+            <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-3 text-blue-300 text-sm">
+              {notice}
+            </div>
+          )}
           {error && (
             <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-3 text-red-400 text-sm">
               {error}
