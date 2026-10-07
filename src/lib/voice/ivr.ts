@@ -13,7 +13,7 @@
  */
 
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { LineContact } from "@/lib/lines/contacts";
+import { bookLineId, type LineContact } from "@/lib/lines/contacts";
 import { findOrCreateThread } from "@/lib/inbound";
 import { encodeState, type CallCommand } from "./telnyx-voice";
 
@@ -73,7 +73,7 @@ async function menuContacts(db: SupabaseClient, lineId: string): Promise<MenuCon
   const { data } = await db
     .from("line_contacts")
     .select("name, forward_to, keypad_digit")
-    .eq("phone_number_id", lineId);
+    .eq("phone_number_id", await bookLineId(db, lineId));
   return ((data ?? []) as MenuContact[]).filter((c) => c.keypad_digit !== null && c.keypad_digit !== undefined);
 }
 

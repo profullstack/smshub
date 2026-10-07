@@ -33,6 +33,8 @@ export interface Line {
   provider_id: string;
   provider_type: string;
   managed: boolean;
+  /** Another line whose contacts book this one uses, if any. */
+  contacts_line_id: string | null;
 }
 
 export const LINE_CONTACT_COLUMNS =
@@ -115,7 +117,7 @@ export async function loadLine(db: SupabaseClient, userId: string, lineId: strin
   if (!isUuid(lineId)) return null;
   const { data } = await db
     .from("phone_numbers")
-    .select("id, user_id, number, friendly_name, provider_id, managed, providers(type, api_key, metadata)")
+    .select("id, user_id, number, friendly_name, provider_id, managed, contacts_line_id, providers(type, api_key, metadata)")
     .eq("id", lineId)
     .eq("user_id", userId)
     .eq("status", "active")
@@ -131,6 +133,7 @@ type LineRow = {
   friendly_name: string | null;
   provider_id: string;
   managed: boolean | null;
+  contacts_line_id?: string | null;
   providers: { type: string; api_key: string | null; metadata: unknown } | null;
 };
 
@@ -143,6 +146,7 @@ function toLine(row: LineRow): Line {
     provider_id: row.provider_id,
     provider_type: row.providers?.type ?? "unknown",
     managed: Boolean(row.managed) || isManagedProvider(row.providers),
+    contacts_line_id: row.contacts_line_id ?? null,
   };
 }
 
@@ -150,7 +154,7 @@ function toLine(row: LineRow): Line {
 export async function listLines(db: SupabaseClient, userId: string) {
   const { data: numbers, error } = await db
     .from("phone_numbers")
-    .select("id, user_id, number, friendly_name, provider_id, managed, providers(type, api_key, metadata)")
+    .select("id, user_id, number, friendly_name, provider_id, managed, contacts_line_id, providers(type, api_key, metadata)")
     .eq("user_id", userId)
     .eq("status", "active")
     .order("created_at", { ascending: true });
@@ -159,7 +163,8 @@ export async function listLines(db: SupabaseClient, userId: string) {
   const contacts = await listLineContacts(db, userId);
   return lines.map(({ user_id: _u, provider_id: _p, ...line }) => ({
     ...line,
-    contacts: contacts.filter((c) => c.phone_number_id === line.id),
+    // A line sharing another's book shows (and is answered from) that book.
+    contacts: contacts.filter((c) => c.phone_number_id === (line.contacts_line_id ?? line.id)),
   }));
 }
 
@@ -194,6 +199,7 @@ export async function linkContact(db: SupabaseClient, userId: string, phone: str
 export type SaveResult = { ok: true; contact: LineContact } | { ok: false; status: number; error: string };
 
 export async function createLineContact(db: SupabaseClient, line: Line, input: ContactInput): Promise<SaveResult> {
+  if (line.contacts_line_id) return { ok: false, status: 409, error: "This number uses another line's contacts; edit them on that line" };
   const clean = cleanContactInput(input, false);
   if (!clean.ok) return { ok: false, status: 400, error: clean.error };
   const { count } = await db
@@ -217,6 +223,7 @@ export async function createLineContact(db: SupabaseClient, line: Line, input: C
 }
 
 export async function updateLineContact(db: SupabaseClient, line: Line, id: string, input: ContactInput): Promise<SaveResult> {
+  if (line.contacts_line_id) return { ok: false, status: 409, error: "This number uses another line's contacts; edit them on that line" };
   if (!isUuid(id)) return { ok: false, status: 404, error: "Contact not found" };
   const clean = cleanContactInput(input, true);
   if (!clean.ok) return { ok: false, status: 400, error: clean.error };
@@ -272,4 +279,37 @@ export function matchPrefix<T extends Pick<LineContact, "sms_prefix">>(
   const contact = contacts.find((c) => c.sms_prefix && c.sms_prefix.toUpperCase() === prefix);
   if (!contact) return null;
   return { contact, text: m[2].trim() || body.trim() };
+}
+
+/** The line whose contacts book answers calls and texts to `lineId`: its shared source, else itself. */
+export async function bookLineId(db: SupabaseClient, lineId: string): Promise<string> {
+  const { data } = await db.from("phone_numbers").select("contacts_line_id").eq("id", lineId).maybeSingle();
+  return (data as { contacts_line_id?: string | null } | null)?.contacts_line_id || lineId;
+}
+
+/**
+ * Makes `line` use another of the same user's lines' contacts book (null: its
+ * own again). One hop only: the source must keep its own book.
+ */
+export async function shareContactsBook(
+  db: SupabaseClient,
+  line: Line,
+  fromLineId: string | null
+): Promise<{ ok: true } | { ok: false; status: number; error: string }> {
+  if (fromLineId !== null) {
+    if (fromLineId === line.id) return { ok: false, status: 400, error: "A line cannot share its own contacts book" };
+    const source = await loadLine(db, line.user_id, fromLineId);
+    if (!source) return { ok: false, status: 404, error: "That line is not one of your numbers" };
+    if (source.contacts_line_id) {
+      return { ok: false, status: 400, error: "That line already uses another line's contacts; pick the line that owns them" };
+    }
+    const { count } = await db
+      .from("phone_numbers")
+      .select("id", { count: "exact", head: true })
+      .eq("contacts_line_id", line.id);
+    if ((count ?? 0) > 0) return { ok: false, status: 400, error: "Other lines use this line's contacts; it has to keep its own" };
+  }
+  const { error } = await db.from("phone_numbers").update({ contacts_line_id: fromLineId }).eq("id", line.id).eq("user_id", line.user_id);
+  if (error) throw error;
+  return { ok: true };
 }
