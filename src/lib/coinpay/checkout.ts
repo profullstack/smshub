@@ -39,7 +39,9 @@ export interface CoinPayConfig {
 }
 
 export function coinpayConfig(env: NodeJS.ProcessEnv = process.env): CoinPayConfig | null {
-  const apiKey = env.COINPAY_API_KEY || env.COINPAY_X402_KEY || "";
+  // Not COINPAY_X402_KEY: on prod that key belongs to a different CoinPay business, so a
+  // checkout opened with it would never reach our webhook.
+  const apiKey = env.COINPAY_API_KEY || "";
   const businessId = env.COINPAY_BUSINESS_ID || "";
   const webhookSecret = env.COINPAY_WEBHOOK_SECRET || "";
   // A merchant key, not an OAuth client id (cp_ + 24 hex), or checkout fails at Buy time.
