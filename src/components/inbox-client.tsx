@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/contexts/toast-context";
+import { failureReason } from "@/lib/message-status";
 import { NewMessageModal } from "./new-message-modal";
 import { ContactNameEditor } from "./contact-name-editor";
 import { Logo } from "./logo";
@@ -32,6 +33,8 @@ interface Message {
   status: string;
   retry_count?: number;
   media_url?: string | null;
+  error_code?: string | null;
+  error_detail?: string | null;
   created_at: string;
 }
 
@@ -47,7 +50,7 @@ function MessageStatusIcon({ status, retryCount }: { status: string; retryCount?
     case "queued":
       return <span className="text-gray-400 ml-1" title="Queued">◷</span>;
     case "failed":
-      return <span className="text-red-400 ml-1" title="Failed">✗</span>;
+      return <span className="text-red-300 ml-1" title="Failed">✗ Failed</span>;
     default:
       return null;
   }
@@ -542,6 +545,11 @@ export function InboxClient({
                         <MessageStatusIcon status={msg.status} retryCount={msg.retry_count} />
                       )}
                     </p>
+                    {msg.direction === "outbound" && msg.status === "failed" && (
+                      <p className="text-xs mt-1 text-red-200" role="status">
+                        Not delivered{failureReason(msg) ? `: ${failureReason(msg)}` : ""}
+                      </p>
+                    )}
                   </div>
                 </div>
               ))}

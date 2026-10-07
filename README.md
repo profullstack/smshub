@@ -178,9 +178,17 @@ supabase/
 | `DELETE` | `/api/providers/[id]` | Delete a provider |
 | `DELETE` | `/api/phone-numbers/[id]` | Delete a phone number |
 | `POST` | `/api/webhooks/twilio` | Twilio inbound webhook |
-| `POST` | `/api/webhooks/telnyx` | Telnyx inbound webhook |
+| `POST` | `/api/webhooks/telnyx` | Telnyx messaging-profile webhook: inbound messages and delivery outcomes |
 | `POST` | `/api/webhooks/twilio/status` | Twilio delivery status callback |
 | `POST` | `/api/webhooks/telnyx/status` | Telnyx delivery status callback |
+
+Outbound messages are stored as `sent` once the provider accepts them. Telnyx
+reports the carrier outcome later in `message.finalized`; smshub records it as
+`delivered` or `failed` with `error_code` / `error_detail` (for example 40010,
+"Not 10DLC registered") and the inbox shows the reason. Each Telnyx send sets
+`webhook_url` to `/api/webhooks/telnyx`, so this works even when the messaging
+profile has no webhook configured. Rows sent before that can be re-checked with
+`bun scripts/telnyx-backfill-status.ts --dry-run` (see the script header).
 
 ## Scripts
 

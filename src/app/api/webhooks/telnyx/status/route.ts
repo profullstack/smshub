@@ -1,40 +1,38 @@
 import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
+import { getProvider } from "@/lib/providers";
+import { applyTelnyxStatus, parseTelnyxStatusEvent } from "@/lib/providers/telnyx-status";
 
-// Telnyx delivery status events
-const STATUS_MAP: Record<string, string> = {
-  "message.sent": "sent",
-  "message.delivered": "delivered",
-  "message.finalized": "delivered",
-  "message.failed": "failed",
-};
-
+// Telnyx delivery status events (message.sent / message.finalized). The
+// messaging profile's webhook_url normally points at /api/webhooks/telnyx,
+// which handles these too; this route stays for per-message webhook_url.
 export async function POST(request: Request) {
   try {
-    const body = await request.json();
+    const rawBody = await request.text();
 
+    if (process.env.TELNYX_PUBLIC_KEY) {
+      const valid = getProvider("telnyx").validateWebhook(rawBody, request.headers, "");
+      if (!valid) {
+        return NextResponse.json({ error: "Invalid signature" }, { status: 403 });
+      }
+    }
+
+    const body = JSON.parse(rawBody);
     const eventType: string = body.data?.event_type || "";
-    const mappedStatus = STATUS_MAP[eventType];
-
-    if (!mappedStatus) {
-      // Not a delivery status event, acknowledge
+    if (!eventType.startsWith("message.") || eventType === "message.received") {
       return NextResponse.json({ ok: true });
     }
 
-    const messageId: string = body.data?.payload?.id || body.data?.id || "";
-
-    if (!messageId) {
+    if (!body.data?.payload?.id) {
       return NextResponse.json({ error: "Missing message ID" }, { status: 400 });
     }
 
-    const supabase = createServiceClient();
+    const update = parseTelnyxStatusEvent(body);
+    if (!update) {
+      return NextResponse.json({ ok: true });
+    }
 
-    const { error } = await supabase
-      .from("messages")
-      .update({ status: mappedStatus })
-      .eq("provider_message_id", messageId)
-      .eq("provider", "telnyx");
-
+    const { error } = await applyTelnyxStatus(createServiceClient(), update);
     if (error) {
       console.error("Telnyx status update error:", error);
     }

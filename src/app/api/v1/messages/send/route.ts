@@ -116,6 +116,7 @@ export async function POST(request: Request) {
         body: message,
         status: "failed",
         provider: provider.type,
+        error_detail: result.error || null,
       });
       return NextResponse.json(
         { error: result.error || "Send failed" },

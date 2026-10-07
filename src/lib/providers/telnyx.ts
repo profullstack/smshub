@@ -6,6 +6,17 @@ import type {
   SendMMSParams,
   InboundMessage,
 } from "./types";
+import { getSiteUrl } from "@/lib/site-url";
+
+// DER header of an Ed25519 SubjectPublicKeyInfo; Telnyx's portal and
+// GET /v2/public_key hand out the bare 32-byte key, which needs it prepended.
+const ED25519_SPKI_PREFIX = Buffer.from("302a300506032b6570032100", "hex");
+
+function telnyxPublicKey(base64Key: string): crypto.KeyObject {
+  const raw = Buffer.from(base64Key, "base64");
+  const der = raw.length === 32 ? Buffer.concat([ED25519_SPKI_PREFIX, raw]) : raw;
+  return crypto.createPublicKey({ key: der, format: "der", type: "spki" });
+}
 
 export class TelnyxProvider implements SMSProvider {
   async send(params: Omit<SendSMSParams, "provider">): Promise<SendSMSResult> {
@@ -16,6 +27,9 @@ export class TelnyxProvider implements SMSProvider {
       to,
       text: body,
       type: mediaUrl ? "MMS" : "SMS",
+      // Delivery reports (message.sent / message.finalized) come back here even
+      // when the sender's messaging profile has no webhook_url of its own.
+      webhook_url: `${getSiteUrl()}/api/webhooks/telnyx`,
     };
 
     if (mediaUrl) {
@@ -91,11 +105,7 @@ export class TelnyxProvider implements SMSProvider {
       return crypto.verify(
         null,
         Buffer.from(signedPayload),
-        {
-          key: Buffer.from(publicKey, "base64"),
-          format: "der",
-          type: "spki",
-        },
+        telnyxPublicKey(publicKey),
         Buffer.from(signature, "base64")
       );
     } catch {

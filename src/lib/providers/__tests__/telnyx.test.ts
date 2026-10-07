@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import crypto from "crypto";
 import { TelnyxProvider } from "../telnyx";
 
 describe("TelnyxProvider", () => {
@@ -49,6 +50,7 @@ describe("TelnyxProvider", () => {
         to: "+1234567890",
         text: "Test message",
         type: "SMS",
+        webhook_url: expect.stringMatching(/\/api\/webhooks\/telnyx$/),
       });
     });
 
@@ -171,6 +173,41 @@ describe("TelnyxProvider", () => {
       });
       const result = provider.validateWebhook("{}", headers, "");
       expect(result).toBe(false);
+    });
+
+    // Telnyx hands out the bare 32-byte Ed25519 key, not a DER SPKI blob.
+    function signedFixture() {
+      const { publicKey, privateKey } = crypto.generateKeyPairSync("ed25519");
+      const spki = publicKey.export({ format: "der", type: "spki" });
+      const rawKey = spki.subarray(spki.length - 32).toString("base64");
+      const timestamp = "1760000000";
+      const rawBody = JSON.stringify({ data: { event_type: "message.finalized" } });
+      const signature = crypto.sign(null, Buffer.from(`${timestamp}|${rawBody}`), privateKey).toString("base64");
+      return { rawKey, spki: spki.toString("base64"), timestamp, rawBody, signature };
+    }
+
+    it("accepts a valid signature with a raw 32-byte public key", () => {
+      const f = signedFixture();
+      process.env.TELNYX_PUBLIC_KEY = f.rawKey;
+      const headers = new Headers({ "telnyx-signature-ed25519": f.signature, "telnyx-timestamp": f.timestamp });
+      expect(provider.validateWebhook(f.rawBody, headers, "")).toBe(true);
+      delete process.env.TELNYX_PUBLIC_KEY;
+    });
+
+    it("still accepts a DER SPKI public key", () => {
+      const f = signedFixture();
+      process.env.TELNYX_PUBLIC_KEY = f.spki;
+      const headers = new Headers({ "telnyx-signature-ed25519": f.signature, "telnyx-timestamp": f.timestamp });
+      expect(provider.validateWebhook(f.rawBody, headers, "")).toBe(true);
+      delete process.env.TELNYX_PUBLIC_KEY;
+    });
+
+    it("rejects a tampered body", () => {
+      const f = signedFixture();
+      process.env.TELNYX_PUBLIC_KEY = f.rawKey;
+      const headers = new Headers({ "telnyx-signature-ed25519": f.signature, "telnyx-timestamp": f.timestamp });
+      expect(provider.validateWebhook(f.rawBody + " ", headers, "")).toBe(false);
+      delete process.env.TELNYX_PUBLIC_KEY;
     });
   });
 });
