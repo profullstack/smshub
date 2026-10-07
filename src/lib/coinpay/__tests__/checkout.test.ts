@@ -11,13 +11,13 @@ import {
 describe("coinpay checkout", () => {
   it("only accepts a merchant key, never an OAuth client id", () => {
     const base = { COINPAY_BUSINESS_ID: "b", COINPAY_WEBHOOK_SECRET: "s" };
-    expect(coinpayConfig({ ...base, COINPAY_API_KEY: "cp_8aeb7a7a489f95600e4394df" } as unknown as NodeJS.ProcessEnv)).toBeNull();
-    const cfg = coinpayConfig({ ...base, COINPAY_X402_KEY: "cp_live_0123456789abcdef0123" } as unknown as NodeJS.ProcessEnv);
+    expect(coinpayConfig({ ...base, COINPAY_API_KEY: "cp_" + "a".repeat(24) } as unknown as NodeJS.ProcessEnv)).toBeNull();
+    const cfg = coinpayConfig({ ...base, COINPAY_X402_KEY: "cp_live_" + "0".repeat(20) } as unknown as NodeJS.ProcessEnv);
     expect(cfg?.apiUrl).toBe("https://coinpayportal.com/api");
   });
 
   it("adds /api to a site-origin COINPAY_API_URL exactly once", () => {
-    const env = { COINPAY_API_KEY: "cp_live_0123456789abcdef", COINPAY_BUSINESS_ID: "b", COINPAY_WEBHOOK_SECRET: "s" };
+    const env = { COINPAY_API_KEY: "cp_live_" + "0".repeat(16), COINPAY_BUSINESS_ID: "b", COINPAY_WEBHOOK_SECRET: "s" };
     expect(coinpayConfig({ ...env, COINPAY_API_URL: "https://coinpayportal.com/" } as unknown as NodeJS.ProcessEnv)?.apiUrl).toBe(
       "https://coinpayportal.com/api"
     );

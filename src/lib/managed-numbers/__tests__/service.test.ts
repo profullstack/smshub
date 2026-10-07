@@ -15,7 +15,7 @@ function baseEnv(mode: "off" | "test" | "live"): NodeJS.ProcessEnv {
     TELNYX_TEST_NUMBERS: "+14085550001",
     TELNYX_API_KEY: "KEYtest",
     TELNYX_MESSAGING_PROFILE_ID: "profile-1",
-    COINPAY_API_KEY: "cp_live_0123456789abcdef0123456789abcdef",
+    COINPAY_API_KEY: "cp_live_" + "0".repeat(32),
     COINPAY_BUSINESS_ID: "biz-1",
     COINPAY_WEBHOOK_SECRET: "whsec",
     MANAGED_NUMBER_PRICE_USD: "5",
