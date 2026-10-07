@@ -18,13 +18,21 @@ export async function DELETE(
 
     const { data: phoneNumber } = await serviceClient
       .from("phone_numbers")
-      .select("id")
+      .select("id, managed")
       .eq("id", id)
       .eq("user_id", user.id)
       .single();
 
     if (!phoneNumber) {
       return NextResponse.json({ error: "Phone number not found" }, { status: 404 });
+    }
+
+    // A rented number is paid for until it expires; it is released by the sweep.
+    if (phoneNumber.managed) {
+      return NextResponse.json(
+        { error: "Rented numbers stay yours until they expire" },
+        { status: 400 }
+      );
     }
 
     const { error } = await serviceClient

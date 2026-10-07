@@ -18,6 +18,8 @@ function telnyxPublicKey(base64Key: string): crypto.KeyObject {
   return crypto.createPublicKey({ key: der, format: "der", type: "spki" });
 }
 
+const WEBHOOK_TOLERANCE_SECONDS = 300;
+
 export class TelnyxProvider implements SMSProvider {
   async send(params: Omit<SendSMSParams, "provider">): Promise<SendSMSResult> {
     const { to, from, body, credentials, mediaUrl } = params;
@@ -93,12 +95,18 @@ export class TelnyxProvider implements SMSProvider {
     };
   }
 
-  validateWebhook(rawBody: string, headers: Headers, _url: string): boolean {
+  validateWebhook(rawBody: string, headers: Headers, _url: string, publicKeyOverride?: string | null): boolean {
     const signature = headers.get("telnyx-signature-ed25519");
     const timestamp = headers.get("telnyx-timestamp");
-    const publicKey = process.env.TELNYX_PUBLIC_KEY;
+    // Every Telnyx account signs with its own key; a bring-your-own account's
+    // public key is stored on its provider row.
+    const publicKey = publicKeyOverride || process.env.TELNYX_PUBLIC_KEY;
 
     if (!signature || !timestamp || !publicKey) return false;
+
+    // Refuse replays of an old signed body.
+    const ts = Number(timestamp);
+    if (!Number.isFinite(ts) || Math.abs(Date.now() / 1000 - ts) > WEBHOOK_TOLERANCE_SECONDS) return false;
 
     try {
       const signedPayload = `${timestamp}|${rawBody}`;

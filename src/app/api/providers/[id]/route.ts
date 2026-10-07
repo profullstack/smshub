@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createServerSupabaseClient, createServiceClient } from "@/lib/supabase/server";
+import { isManagedProvider } from "@/lib/managed-numbers/service";
 
 export async function DELETE(
   _request: Request,
@@ -19,13 +20,18 @@ export async function DELETE(
     // Check ownership
     const { data: provider } = await serviceClient
       .from("providers")
-      .select("id")
+      .select("id, api_key, metadata")
       .eq("id", id)
       .eq("user_id", user.id)
       .single();
 
     if (!provider) {
       return NextResponse.json({ error: "Provider not found" }, { status: 404 });
+    }
+
+    // Deleting it would cascade away the user's rented numbers.
+    if (isManagedProvider(provider)) {
+      return NextResponse.json({ error: "Rented numbers are managed on the Numbers page" }, { status: 400 });
     }
 
     // Delete cascades to phone_numbers via FK

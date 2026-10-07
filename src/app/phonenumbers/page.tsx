@@ -1,140 +1,55 @@
-"use client";
-
 import Link from "next/link";
-import { useState } from "react";
+import { WaitlistForm } from "@/components/waitlist-form";
+import { priceUsdPerMonth } from "@/lib/plans";
+import { managedMode } from "@/lib/telnyx/numbers";
 
-export default function PhoneNumbersBotPage() {
-  const [email, setEmail] = useState("");
-  const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
-  const [message, setMessage] = useState("");
+export const dynamic = "force-dynamic";
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!email || !email.includes("@")) {
-      setStatus("error");
-      setMessage("Please enter a valid email address");
-      return;
-    }
+export const metadata = {
+  title: "Rent a phone number for SMS and verification codes | SMSHub",
+  description:
+    "Rent a US phone number, receive SMS and one-time codes in your inbox, by API, CLI or MCP. Pay with crypto through CoinPay.",
+};
 
-    setStatus("loading");
-    try {
-      const res = await fetch("/api/waitlist", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, product: "phonenumbers-bot" }),
-      });
-
-      if (res.ok) {
-        setStatus("success");
-        setMessage("You're on the list! We'll notify you when we launch.");
-        setEmail("");
-      } else {
-        const data = await res.json();
-        setStatus("error");
-        setMessage(data.error || "Something went wrong. Please try again.");
-      }
-    } catch {
-      setStatus("error");
-      setMessage("Network error. Please try again.");
-    }
-  };
+export default function PhoneNumbersPage() {
+  const price = priceUsdPerMonth();
+  const open = managedMode() === "live";
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4">
+    <div className="min-h-screen flex items-center justify-center px-4 py-16">
       <div className="max-w-lg w-full text-center space-y-8">
         <div className="space-y-4">
           <div className="text-6xl">📱</div>
-          <h1 className="text-4xl font-bold text-white">
-            phonenumbers.bot
-          </h1>
+          <h1 className="text-4xl font-bold text-white">Rent a number</h1>
           <p className="text-xl text-gray-400">
-            Buy managed phone numbers with CoinPay
+            A US number that receives texts and verification codes, ${price}/month.
           </p>
         </div>
 
-        <div className="bg-gray-900 border border-gray-800 rounded-2xl p-8 space-y-6">
-          <div className="inline-block bg-green-600/20 text-green-400 text-sm font-semibold px-4 py-1.5 rounded-full">
-            Managed Numbers Live!
-          </div>
-
-          <div className="space-y-4 text-left">
-            <Feature
-              emoji="🪙"
-              title="CoinPay Checkout"
-              badge="Live!"
-              desc="Connect CoinPay once and buy numbers without provider setup"
-            />
-            <Feature
-              emoji="🛒"
-              title="Managed Inventory"
-              badge="Live!"
-              desc="Buy from Twilio, Telnyx, or phonenumbers.bot inside SMSHub"
-            />
-            <Feature
-              emoji="💵"
-              title="Simple Pricing"
-              desc="Numbers are sold at provider cost plus a 200% markup"
-            />
-            <Feature
-              emoji="⚡"
-              title="Instant Setup"
-              desc="No Twilio or Telnyx credentials required"
-            />
-            <Feature
-              emoji="🔒"
-              title="Real SIM, Not VoIP"
-              desc="Use phonenumbers.bot when a real SIM source is required"
-            />
-            <Feature
-              emoji="🔗"
-              title="SMSHub Integration"
-              badge="Live!"
-              desc="Purchased numbers land in your SMSHub inbox"
-            />
-          </div>
+        <div className="bg-gray-900 border border-gray-800 rounded-2xl p-8 space-y-4 text-left">
+          <Feature emoji="📥" title="Codes land in your inbox" desc="Texts appear the moment they arrive, with the one-time code pulled out." />
+          <Feature emoji="🪙" title="Pay with crypto" desc="USDC, USDT, BTC, ETH, SOL or POL through CoinPay. No card, no account at a carrier." />
+          <Feature emoji="⚡" title="Ready on payment" desc="The number is set up as soon as the payment confirms. Renew any time before it expires." />
+          <Feature emoji="🤖" title="API, CLI and MCP" desc="Wait for a code from a script, a terminal or an AI agent with one call." />
+          <Feature emoji="ℹ️" title="Receive only" desc="Rented numbers receive texts. Some services refuse virtual numbers for sign-up codes." />
         </div>
 
         <div className="space-y-4">
-          <a
-            href="/api/coinpay/connect"
+          <Link
+            href="/numbers"
             className="inline-flex items-center justify-center rounded-xl bg-green-600 px-6 py-3 font-semibold text-white transition-colors hover:bg-green-700"
           >
-            Connect CoinPay
-          </a>
+            {open ? "Rent a number" : "See plans"}
+          </Link>
+          {!open && (
+            <>
+              <p className="text-sm text-gray-500">Opening soon. Get an email when it does:</p>
+              <WaitlistForm product="managed-numbers" />
+            </>
+          )}
           <p className="text-sm text-gray-500">
-            Available on the $15/mo plan for managed number purchases.
+            Already have Twilio or Telnyx? <Link href="/settings" className="underline">Bring your own number</Link>.
           </p>
-
-          {status === "success" ? (
-            <div className="bg-green-500/10 border border-green-500/20 rounded-xl p-4">
-              <p className="text-green-400 font-medium">✅ {message}</p>
-            </div>
-          ) : (
-            <form onSubmit={handleSubmit} className="flex gap-2 max-w-sm mx-auto">
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => {
-                  setEmail(e.target.value);
-                  if (status === "error") setStatus("idle");
-                }}
-                placeholder="you@example.com"
-                disabled={status === "loading"}
-                className="flex-1 px-4 py-3 bg-gray-900 border border-gray-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-white placeholder-gray-500 disabled:opacity-50"
-              />
-              <button
-                type="submit"
-                disabled={status === "loading"}
-                className="px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 rounded-xl font-semibold transition-colors whitespace-nowrap"
-              >
-                {status === "loading" ? "Joining..." : "Notify Me"}
-              </button>
-            </form>
-          )}
-          {status === "error" && (
-            <p className="text-sm text-red-400">{message}</p>
-          )}
-          {status !== "success" && <p className="text-sm text-gray-500">Join the rollout list for bulk inventory access.</p>}
         </div>
 
         <div className="pt-4 border-t border-gray-800">
@@ -147,29 +62,12 @@ export default function PhoneNumbersBotPage() {
   );
 }
 
-function Feature({
-  emoji,
-  title,
-  desc,
-  badge,
-}: {
-  emoji: string;
-  title: string;
-  desc: string;
-  badge?: string;
-}) {
+function Feature({ emoji, title, desc }: { emoji: string; title: string; desc: string }) {
   return (
     <div className="flex gap-3 items-start">
       <span className="text-xl mt-0.5">{emoji}</span>
       <div>
-        <div className="flex items-center gap-2">
-          <span className="font-medium text-white">{title}</span>
-          {badge && (
-            <span className="rounded-full bg-green-600/20 px-2 py-0.5 text-xs font-semibold text-green-400">
-              {badge}
-            </span>
-          )}
-        </div>
+        <div className="font-medium text-white">{title}</div>
         <div className="text-sm text-gray-400">{desc}</div>
       </div>
     </div>

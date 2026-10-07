@@ -121,47 +121,50 @@ export function InboxClient({
     });
   }, [selectedConvo]);
 
-  // Realtime subscription for new messages
+  // Live updates from /api/stream (server-sent events). A text from a sender
+  // we have no conversation with yet (the usual one-time-code case) reloads the
+  // conversation list so it appears without a refresh.
+  const selectedRef = useRef<Conversation | null>(null);
+  selectedRef.current = selectedConvo;
+  const conversationsRef = useRef<Conversation[]>(conversations);
+  conversationsRef.current = conversations;
+
   useEffect(() => {
-    const channel = supabase
-      .channel("messages-realtime")
-      .on(
-        "postgres_changes",
-        { event: "INSERT", schema: "public", table: "messages" },
-        (payload) => {
-          const newMsg = payload.new as Message;
-          if (selectedConvo && newMsg.conversation_id === selectedConvo.id) {
-            setMessages((prev) => [...prev, newMsg]);
-            // Auto mark-read since we're viewing
-            fetch(`/api/conversations/${selectedConvo.id}/read`, { method: "POST" });
-          } else {
-            // Increment unread count for other conversations
-            setConversations((prev) =>
-              prev.map((c) =>
-                c.id === newMsg.conversation_id
-                  ? { ...c, unread_count: (c.unread_count || 0) + 1 }
-                  : c
-              )
-            );
-          }
-        }
-      )
-      .on(
-        "postgres_changes",
-        { event: "UPDATE", schema: "public", table: "messages" },
-        (payload) => {
-          const updated = payload.new as Message;
+    const es = new EventSource("/api/stream");
+    es.addEventListener("messages", (ev) => {
+      const incoming = JSON.parse((ev as MessageEvent).data) as Message[];
+      const current = selectedRef.current;
+      let unknownConversation = false;
+      for (const msg of incoming) {
+        const known = conversationsRef.current.some((c) => c.id === msg.conversation_id);
+        if (!known) unknownConversation = true;
+        if (current && msg.conversation_id === current.id) {
           setMessages((prev) =>
-            prev.map((m) => (m.id === updated.id ? updated : m))
+            prev.some((m) => m.id === msg.id)
+              ? prev.map((m) => (m.id === msg.id ? { ...m, ...msg } : m))
+              : [...prev, msg]
+          );
+          if (msg.direction === "inbound") {
+            fetch(`/api/conversations/${current.id}/read`, { method: "POST" });
+          }
+        } else if (known && msg.direction === "inbound") {
+          setConversations((prev) =>
+            prev.map((c) =>
+              c.id === msg.conversation_id
+                ? { ...c, unread_count: (c.unread_count || 0) + 1, last_message_at: msg.created_at }
+                : c
+            )
           );
         }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [selectedConvo, supabase]);
+      }
+      if (unknownConversation) {
+        fetch("/api/conversations")
+          .then((r) => (r.ok ? r.json() : null))
+          .then((d) => d?.conversations && setConversations(d.conversations));
+      }
+    });
+    return () => es.close();
+  }, []);
 
   // Auto-scroll to bottom
   useEffect(() => {
@@ -373,11 +376,11 @@ export function InboxClient({
             />
             <div className="flex items-center gap-2">
               <a
-                href="/phonenumbers"
+                href="/numbers"
                 className="text-xs text-blue-400 hover:text-blue-300 font-medium"
-                title="phonenumbers.bot — Real SIM API"
+                title="Rent a number for SMS and verification codes"
               >
-                📱 API
+                📱 Numbers
               </a>
               <a
                 href="/settings"

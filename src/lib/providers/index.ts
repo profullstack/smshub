@@ -24,7 +24,18 @@ export function getProvider(name: string): SMSProvider {
   return provider;
 }
 
+/** Credentials on the per-user provider row that holds rented (managed) numbers. */
+export const MANAGED_API_KEY = "__managed__";
+
 export async function sendSMS(params: SendSMSParams): Promise<SendSMSResult> {
+  // Rented numbers are receive-only: plain SMS from our unregistered (non-10DLC)
+  // numbers is refused by US carriers anyway.
+  if (params.credentials.apiKey === MANAGED_API_KEY) {
+    return {
+      success: false,
+      error: "Rented numbers receive texts only. Sending needs your own Twilio or Telnyx number.",
+    };
+  }
   const provider = getProvider(params.provider);
   const to = toE164(params.to);
   if (!to) {
