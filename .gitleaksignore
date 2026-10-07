@@ -1,3 +1,13 @@
 # Supabase publishable (anon) key: public by design, it ships in every page's JavaScript.
 # Baked into the dev2 build because Next.js inlines NEXT_PUBLIC_* at build time.
 e0a62880cb4eb3ff18f1aa9009aa758db5af5278:.nixpacks/Dockerfile:generic-api-key:19
+a4676e4cb45fa265a2ba8322b26c8c9e894280a3:.nixpacks/Dockerfile:generic-api-key:19
+
+# Fake keys in test fixtures (cp_live_0123456789abcdef..., an OAuth-client-id lookalike).
+4c3c1d1b53db9b80d6d629b23a8d24462cf86e46:src/lib/coinpay/__tests__/checkout.test.ts:generic-api-key:14
+4c3c1d1b53db9b80d6d629b23a8d24462cf86e46:src/lib/coinpay/__tests__/checkout.test.ts:generic-api-key:15
+4c3c1d1b53db9b80d6d629b23a8d24462cf86e46:src/lib/coinpay/__tests__/checkout.test.ts:generic-api-key:20
+4c3c1d1b53db9b80d6d629b23a8d24462cf86e46:src/lib/managed-numbers/__tests__/service.test.ts:generic-api-key:18
+
+# The landing page's curl example: X-API-Key: your_api_key.
+6f7cf1b8a8207671048bf07c9fab4697d03abd70:src/app/page.tsx:curl-auth-header:183

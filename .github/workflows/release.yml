@@ -16,6 +16,11 @@ on:
 permissions:
   contents: write
 
+# Inputs reach shell scripts through the environment, never interpolated into
+# them, so a crafted version string cannot run as code.
+env:
+  RELEASE_VERSION: ${{ inputs.version }}
+
 jobs:
   # 1. Run CI checks first
   ci:
@@ -47,17 +52,17 @@ jobs:
 
       - name: Bump version in package.json
         run: |
-          npm version ${{ inputs.version }} --no-git-tag-version
+          npm version "$RELEASE_VERSION" --no-git-tag-version
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
           git add package.json
-          git commit -m "release: v${{ inputs.version }}"
+          git commit -m "release: v$RELEASE_VERSION"
           git push
 
       - name: Create Git tag
         run: |
-          git tag v${{ inputs.version }}
-          git push origin v${{ inputs.version }}
+          git tag "v$RELEASE_VERSION"
+          git push origin "v$RELEASE_VERSION"
 
       - name: Generate changelog
         id: changelog
@@ -116,7 +121,10 @@ jobs:
     name: Build Desktop Apps
     needs: create-release
     uses: ./.github/workflows/electron.yml
-    secrets: inherit
+    # Only what the build signs with, not every secret in the repository.
+    secrets:
+      MAC_CERTS: ${{ secrets.MAC_CERTS }}
+      MAC_CERTS_PASSWORD: ${{ secrets.MAC_CERTS_PASSWORD }}
 
   # 5. Build mobile apps via EAS
   build-mobile:
@@ -194,5 +202,5 @@ jobs:
           token: ${{ secrets.EXPO_TOKEN }}
 
       - name: Push OTA Update
-        run: eas update --branch production --message "v${{ inputs.version }}" --non-interactive
+        run: eas update --branch production --message "v$RELEASE_VERSION" --non-interactive
         continue-on-error: true
