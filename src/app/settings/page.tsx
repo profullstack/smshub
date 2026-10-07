@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useToast } from "@/contexts/toast-context";
 import {
   ProviderTestPanel,
+  SETUP_GUIDES,
   SetupGuideLink,
   WebhookSetupSummary,
   type WebhookSetupResult,
@@ -288,7 +289,7 @@ export default function SettingsPage() {
             {newProvider.type !== "phonenumbers-bot" && (
               <p className="text-sm text-gray-400">
                 New to {newProvider.type === "telnyx" ? "Telnyx" : "Twilio"}? Follow the{" "}
-                <Link href={`/docs/${newProvider.type}`} target="_blank" className="text-blue-400 hover:text-blue-300">
+                <Link href={SETUP_GUIDES[newProvider.type] ?? "/docs"} target="_blank" className="text-blue-400 hover:text-blue-300">
                   step-by-step setup guide
                 </Link>{" "}
                 first: account, number, {newProvider.type === "telnyx" ? "messaging profile and API key" : "webhook, SID and token"}.
