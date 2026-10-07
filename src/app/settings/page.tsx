@@ -4,6 +4,12 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useToast } from "@/contexts/toast-context";
+import {
+  ProviderTestPanel,
+  SetupGuideLink,
+  WebhookSetupSummary,
+  type WebhookSetupResult,
+} from "@/components/provider-setup";
 
 interface ProviderRow {
   id: string;
@@ -76,6 +82,8 @@ export default function SettingsPage() {
     apiSecret: "",
   });
   const [newNumber, setNewNumber] = useState({ number: "", providerId: "", friendlyName: "" });
+  const [testingProvider, setTestingProvider] = useState<string | null>(null);
+  const [setupResult, setSetupResult] = useState<{ title: string; result: WebhookSetupResult; note?: string } | null>(null);
   const [loading, setLoading] = useState(false);
   const router = useRouter();
   const { addToast } = useToast();
@@ -131,12 +139,25 @@ export default function SettingsPage() {
         body: JSON.stringify({
           type: newProvider.type,
           api_key: newProvider.apiKey,
-          api_secret: newProvider.apiSecret || null,
+          ...(newProvider.type === "telnyx"
+            ? { public_key: newProvider.apiSecret || null }
+            : { api_secret: newProvider.apiSecret || null }),
         }),
       });
 
       if (res.ok) {
+        const data = await res.json();
         addToast("Provider added!", "success");
+        if (data.setup?.webhooks) {
+          setSetupResult({
+            title: "Telnyx connected",
+            result: data.setup.webhooks,
+            note:
+              data.setup.publicKey === "missing"
+                ? `Could not fetch your Telnyx public key (${data.setup.publicKeyError}). Paste it from Telnyx > Keys & Credentials > Public Key, or incoming texts will be rejected.`
+                : undefined,
+          });
+        }
         setNewProvider({ type: "twilio", apiKey: "", apiSecret: "" });
         loadData();
       } else {
@@ -182,7 +203,9 @@ export default function SettingsPage() {
       });
 
       if (res.ok) {
+        const data = await res.json();
         addToast("Phone number added!", "success");
+        if (data.webhook) setSetupResult({ title: `Webhook for ${data.phone_number?.number}`, result: data.webhook });
         setNewNumber({ number: "", providerId: "", friendlyName: "" });
         loadData();
       } else {
@@ -318,6 +341,20 @@ export default function SettingsPage() {
             </p>
           </div>
 
+          {setupResult && (
+            <div className="bg-gray-900 rounded-lg p-4 border border-blue-800 space-y-2">
+              <div className="flex justify-between items-center">
+                <h3 className="font-medium">{setupResult.title}</h3>
+                <button onClick={() => setSetupResult(null)} className="text-gray-500 hover:text-gray-300 text-sm">
+                  Dismiss
+                </button>
+              </div>
+              <WebhookSetupSummary result={setupResult.result} />
+              {setupResult.note && <p className="text-sm text-yellow-400">{setupResult.note}</p>}
+              <p className="text-xs text-gray-500">Use the Test button on the provider to check everything end to end.</p>
+            </div>
+          )}
+
           {providers.map((p) => (
             <div key={p.id} className="bg-gray-900 rounded-lg p-4 border border-gray-800">
               <div className="flex justify-between items-center">
@@ -325,21 +362,46 @@ export default function SettingsPage() {
                   <span className="font-medium capitalize">{p.type}</span>
                   <span className="text-xs text-gray-500 ml-2">{p.id.slice(0, 8)}...</span>
                 </div>
-                <button
-                  onClick={() => deleteProvider(p.id)}
-                  className="text-red-400 hover:text-red-300 text-sm"
-                >
-                  Delete
-                </button>
+                <div className="flex items-center gap-4">
+                  <SetupGuideLink type={p.type} />
+                  {(p.type === "telnyx" || p.type === "twilio") && (
+                    <button
+                      onClick={() => setTestingProvider(testingProvider === p.id ? null : p.id)}
+                      className="text-blue-400 hover:text-blue-300 text-sm"
+                    >
+                      {testingProvider === p.id ? "Close test" : "Test"}
+                    </button>
+                  )}
+                  <button
+                    onClick={() => deleteProvider(p.id)}
+                    className="text-red-400 hover:text-red-300 text-sm"
+                  >
+                    Delete
+                  </button>
+                </div>
               </div>
               <div className="text-sm text-gray-400 mt-1">
                 API Key: {p.api_key.slice(0, 8)}...
               </div>
+              {testingProvider === p.id && <ProviderTestPanel providerId={p.id} type={p.type} />}
             </div>
           ))}
 
           <form onSubmit={addProvider} className="bg-gray-900 rounded-lg p-4 border border-gray-800 space-y-3">
-            <h3 className="font-medium">Add Provider</h3>
+            <div className="flex justify-between items-center">
+              <h3 className="font-medium">Add Provider</h3>
+              <SetupGuideLink type={newProvider.type} />
+            </div>
+            {newProvider.type !== "phonenumbers-bot" && (
+              <p className="text-sm text-gray-400">
+                New to {newProvider.type === "telnyx" ? "Telnyx" : "Twilio"}? Follow the{" "}
+                <Link href={`/docs/${newProvider.type}`} target="_blank" className="text-blue-400 hover:text-blue-300">
+                  step-by-step setup guide
+                </Link>{" "}
+                first: account, number, {newProvider.type === "telnyx" ? "messaging profile and API key" : "webhook, SID and token"}.
+                {newProvider.type === "telnyx" && " Paste the API key and we configure the webhook for you."}
+              </p>
+            )}
             <select
               value={newProvider.type}
               onChange={(e) => setNewProvider({ ...newProvider, type: e.target.value as "twilio" | "telnyx" | "phonenumbers-bot" })}
@@ -359,7 +421,13 @@ export default function SettingsPage() {
             />
             <input
               type="password"
-              placeholder={newProvider.type === "twilio" ? "Auth Token" : "API Secret (optional)"}
+              placeholder={
+                newProvider.type === "twilio"
+                  ? "Auth Token"
+                  : newProvider.type === "telnyx"
+                    ? "Public key (optional, we fetch it with your API key)"
+                    : "API Secret (optional)"
+              }
               value={newProvider.apiSecret}
               onChange={(e) => setNewProvider({ ...newProvider, apiSecret: e.target.value })}
               className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg"

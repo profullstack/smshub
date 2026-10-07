@@ -3,6 +3,7 @@ import { createServiceClient } from "@/lib/supabase/server";
 import { getProvider } from "@/lib/providers";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { applyTelnyxStatus, isTelnyxStatusEvent, parseTelnyxStatusEvent } from "@/lib/providers/telnyx-status";
+import { authenticateTelnyxWebhook, numberVariants } from "@/lib/providers/telnyx-webhook-auth";
 
 const WEBHOOK_RATE_LIMIT = { limit: 100, windowMs: 60 * 1000 };
 
@@ -26,13 +27,13 @@ export async function POST(request: Request) {
     const body = JSON.parse(rawBody);
 
     const provider = getProvider("telnyx");
+    const supabase = createServiceClient();
 
-    // Validate webhook signature (skip in dev if no public key)
-    if (process.env.TELNYX_PUBLIC_KEY) {
-      const valid = provider.validateWebhook(rawBody, headers, "");
-      if (!valid) {
-        return NextResponse.json({ error: "Invalid signature" }, { status: 403 });
-      }
+    // Each Telnyx account signs with its own key: try the keys of the
+    // providers owning the numbers in this event, then the global one.
+    const auth = await authenticateTelnyxWebhook(supabase, rawBody, body, headers);
+    if (!auth.ok) {
+      return NextResponse.json({ error: "Invalid signature" }, { status: 403 });
     }
 
     // The messaging profile sends every event here: delivery outcomes for
@@ -41,7 +42,7 @@ export async function POST(request: Request) {
     if (isTelnyxStatusEvent(eventType)) {
       const update = parseTelnyxStatusEvent(body);
       if (update) {
-        const { error } = await applyTelnyxStatus(createServiceClient(), update);
+        const { error } = await applyTelnyxStatus(supabase, update);
         if (error) console.error("Telnyx status update error:", error);
       }
       return NextResponse.json({ ok: true });
@@ -51,14 +52,16 @@ export async function POST(request: Request) {
     }
 
     const inbound = provider.parseWebhook(body, headers);
-    const supabase = createServiceClient();
 
-    // Find the phone number this was sent to
-    const { data: phoneNumber } = await supabase
+    // Find the phone number this was sent to. When a customer's key signed
+    // the event, only that provider's numbers qualify.
+    let numberQuery = supabase
       .from("phone_numbers")
       .select("*")
-      .eq("number", inbound.to)
-      .single();
+      .in("number", numberVariants([inbound.to]));
+    if (auth.providerId) numberQuery = numberQuery.eq("provider_id", auth.providerId);
+    const { data: phoneNumbers } = await numberQuery.limit(1);
+    const phoneNumber = phoneNumbers?.[0];
 
     if (!phoneNumber) {
       console.error("No phone number found for:", inbound.to);

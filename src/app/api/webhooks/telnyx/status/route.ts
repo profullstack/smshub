@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
-import { getProvider } from "@/lib/providers";
 import { applyTelnyxStatus, parseTelnyxStatusEvent } from "@/lib/providers/telnyx-status";
+import { authenticateTelnyxWebhook } from "@/lib/providers/telnyx-webhook-auth";
 
 // Telnyx delivery status events (message.sent / message.finalized). The
 // messaging profile's webhook_url normally points at /api/webhooks/telnyx,
@@ -10,14 +10,14 @@ export async function POST(request: Request) {
   try {
     const rawBody = await request.text();
 
-    if (process.env.TELNYX_PUBLIC_KEY) {
-      const valid = getProvider("telnyx").validateWebhook(rawBody, request.headers, "");
-      if (!valid) {
-        return NextResponse.json({ error: "Invalid signature" }, { status: 403 });
-      }
+    const body = JSON.parse(rawBody);
+    const supabase = createServiceClient();
+
+    const auth = await authenticateTelnyxWebhook(supabase, rawBody, body, request.headers);
+    if (!auth.ok) {
+      return NextResponse.json({ error: "Invalid signature" }, { status: 403 });
     }
 
-    const body = JSON.parse(rawBody);
     const eventType: string = body.data?.event_type || "";
     if (!eventType.startsWith("message.") || eventType === "message.received") {
       return NextResponse.json({ ok: true });
@@ -32,7 +32,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ ok: true });
     }
 
-    const { error } = await applyTelnyxStatus(createServiceClient(), update);
+    const { error } = await applyTelnyxStatus(supabase, update);
     if (error) {
       console.error("Telnyx status update error:", error);
     }

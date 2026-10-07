@@ -1,5 +1,8 @@
 import { NextResponse } from "next/server";
 import { createServerSupabaseClient, createServiceClient } from "@/lib/supabase/server";
+import { configureTelnyxWebhooks } from "@/lib/providers/telnyx-api";
+import { telnyxWebhookUrl } from "@/lib/providers/provider-check";
+import { toE164 } from "@/lib/providers/phone";
 
 export async function GET() {
   try {
@@ -46,7 +49,7 @@ export async function POST(request: Request) {
     const serviceClient = createServiceClient();
     const { data: provider } = await serviceClient
       .from("providers")
-      .select("id")
+      .select("id, type, api_key")
       .eq("id", provider_id)
       .eq("user_id", user.id)
       .single();
@@ -60,13 +63,21 @@ export async function POST(request: Request) {
       .insert({
         user_id: user.id,
         provider_id,
-        number,
+        number: toE164(String(number)) ?? number,
         friendly_name: friendly_name || null,
       })
       .select()
       .single();
 
     if (error) throw error;
+
+    // Telnyx: make sure this number's messaging profile sends webhooks here.
+    // A profile already pointing elsewhere is reported, not overwritten.
+    if (provider.type === "telnyx") {
+      const e164 = toE164(String(number)) ?? String(number);
+      const webhook = await configureTelnyxWebhooks(provider.api_key, telnyxWebhookUrl(), { onlyNumbers: [e164] });
+      return NextResponse.json({ phone_number: data, webhook }, { status: 201 });
+    }
 
     return NextResponse.json({ phone_number: data }, { status: 201 });
   } catch (error) {
