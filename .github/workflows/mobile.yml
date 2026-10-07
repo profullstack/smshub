@@ -32,6 +32,10 @@ on:
         type: boolean
   workflow_call:
 
+# Through the environment, never interpolated into a script.
+env:
+  PROFILE_INPUT: ${{ inputs.profile }}
+
 jobs:
   build-ios:
     name: Build iOS
@@ -76,7 +80,7 @@ jobs:
       - name: Build iOS
         if: steps.check.outputs.skip != 'true'
         run: |
-          PROFILE="${{ inputs.profile || 'preview' }}"
+          PROFILE="${PROFILE_INPUT:-preview}"
           if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
             PROFILE="production"
           fi
@@ -131,7 +135,7 @@ jobs:
       - name: Build Android
         if: steps.check.outputs.skip != 'true'
         run: |
-          PROFILE="${{ inputs.profile || 'preview' }}"
+          PROFILE="${PROFILE_INPUT:-preview}"
           if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
             PROFILE="production"
           fi

@@ -3,6 +3,11 @@ name: Electron Builds
 on:
   workflow_dispatch:
   workflow_call:
+    secrets:
+      MAC_CERTS:
+        required: false
+      MAC_CERTS_PASSWORD:
+        required: false
   push:
     branches: [master]
     tags:
