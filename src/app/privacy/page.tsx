@@ -44,6 +44,11 @@ export default function PrivacyPage() {
           We do not sell, rent, or share your personal data or message content with third parties,
           except as necessary to provide the service (e.g., sending messages through Twilio/Telnyx).
         </p>
+        <p>
+          No mobile information will be shared with third parties or affiliates for marketing or
+          promotional purposes. Text messaging originator opt-in data and consent will not be shared
+          with any third parties. Reply STOP to any message to opt out, or HELP for help.
+        </p>
       </Section>
 
       <Section title="4. Third-Party Services">
