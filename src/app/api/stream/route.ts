@@ -54,7 +54,7 @@ export async function GET(request: Request) {
         try {
           const { data } = await db
             .from("messages")
-            .select("id, conversation_id, direction, body, status, provider, media_url, created_at, conversations!inner(user_id)")
+            .select("id, conversation_id, direction, body, status, provider, media_url, kind, routed_from, created_at, conversations!inner(user_id)")
             .eq("conversations.user_id", user.id)
             .gt("created_at", new Date(Date.now() - WINDOW_MS).toISOString())
             .order("created_at", { ascending: true })

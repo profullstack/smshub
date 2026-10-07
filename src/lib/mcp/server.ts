@@ -8,6 +8,7 @@ import { getOrder, listNumbers, listOrders, numberMessages, overview } from "@/l
 import { createOrder, OrderError } from "@/lib/managed-numbers/service";
 import { isUuid, listConversations } from "@/lib/conversations";
 import type { RequestUser } from "@/lib/request-user";
+import { LINE_TOOLS, LineToolError } from "./line-tools";
 
 export const PROTOCOL_VERSION = "2025-06-18";
 const MAX_WAIT_SECONDS = 55;
@@ -140,6 +141,8 @@ const TOOLS: Tool[] = [
   },
 ];
 
+const ALL_TOOLS: Tool[] = [...TOOLS, ...LINE_TOOLS];
+
 interface RpcRequest {
   jsonrpc?: string;
   id?: string | number | null;
@@ -168,10 +171,10 @@ export async function handleRpc(ctx: Ctx, msg: RpcRequest): Promise<unknown | nu
     case "ping":
       return ok(msg.id, {});
     case "tools/list":
-      return ok(msg.id, { tools: TOOLS.map(({ name, description, inputSchema }) => ({ name, description, inputSchema })) });
+      return ok(msg.id, { tools: ALL_TOOLS.map(({ name, description, inputSchema }) => ({ name, description, inputSchema })) });
     case "tools/call": {
       const name = String(msg.params?.name ?? "");
-      const tool = TOOLS.find((t) => t.name === name);
+      const tool = ALL_TOOLS.find((t) => t.name === name);
       if (!tool) return err(msg.id, -32602, `Unknown tool: ${name}`);
       try {
         const result = await tool.run(ctx, (msg.params?.arguments as Record<string, unknown>) ?? {});
@@ -180,8 +183,9 @@ export async function handleRpc(ctx: Ctx, msg: RpcRequest): Promise<unknown | nu
           structuredContent: Array.isArray(result) ? { items: result } : result,
         });
       } catch (e) {
-        const message = e instanceof OrderError ? e.message : "Tool failed";
-        if (!(e instanceof OrderError)) console.error("mcp tool error:", { tool: name.replace(/[^\w-]/g, "").slice(0, 64) }, e);
+        const known = e instanceof OrderError || e instanceof LineToolError;
+        const message = known ? (e as Error).message : "Tool failed";
+        if (!known) console.error("mcp tool error:", { tool: name.replace(/[^\w-]/g, "").slice(0, 64) }, e);
         return ok(msg.id, { content: [{ type: "text", text: message }], isError: true });
       }
     }

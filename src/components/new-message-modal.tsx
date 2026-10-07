@@ -10,6 +10,12 @@ interface PhoneNumber {
   friendly_name: string | null;
 }
 
+interface NamedContact {
+  id: string;
+  phone: string;
+  name: string | null;
+}
+
 interface NewMessageModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -23,6 +29,7 @@ export function NewMessageModal({ isOpen, onClose, onSent, defaultNumberId }: Ne
   const [selectedNumberId, setSelectedNumberId] = useState("");
   const [recipientPhone, setRecipientPhone] = useState("");
   const [messageBody, setMessageBody] = useState("");
+  const [contacts, setContacts] = useState<NamedContact[]>([]);
   const [sending, setSending] = useState(false);
   const recipientRef = useRef<HTMLInputElement>(null);
   const supabase = createClient();
@@ -51,6 +58,10 @@ export function NewMessageModal({ isOpen, onClose, onSent, defaultNumberId }: Ne
     };
 
     loadNumbers();
+    fetch("/api/contacts")
+      .then((r) => (r.ok ? r.json() : { contacts: [] }))
+      .then((d: { contacts?: NamedContact[] }) => setContacts((d.contacts ?? []).filter((c) => c.name)))
+      .catch(() => setContacts([]));
     setTimeout(() => recipientRef.current?.focus(), 100);
   }, [isOpen, supabase, selectedNumberId]);
 
@@ -119,6 +130,28 @@ export function NewMessageModal({ isOpen, onClose, onSent, defaultNumberId }: Ne
               ))}
             </select>
           </div>
+
+          {contacts.length > 0 && (
+            <div>
+              <label htmlFor="compose-contact" className="block text-sm font-medium text-gray-300 mb-1">Contact</label>
+              <select
+                id="compose-contact"
+                value={contacts.find((c) => c.phone === recipientPhone.trim())?.id ?? ""}
+                onChange={(e) => {
+                  const c = contacts.find((x) => x.id === e.target.value);
+                  if (c) setRecipientPhone(c.phone);
+                }}
+                className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg"
+              >
+                <option value="">Pick by name, or type a number below</option>
+                {contacts.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name} ({c.phone})
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
           <div>
             <label className="block text-sm font-medium text-gray-300 mb-1">To</label>
