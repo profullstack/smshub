@@ -115,8 +115,13 @@ describe("configureVoice", () => {
   const json = (body: unknown, status = 200) => ({ ok: status < 400, status, json: async () => body });
   const HOOK = "https://smshub.dev/api/webhooks/telnyx/voice";
 
-  function account(apps: unknown[], connection: string | null) {
+  function account(apps: unknown[], connection: string | null, forwarding: Record<string, unknown> | null = null, connectionPatch = 200) {
     fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url.endsWith("/voice")) {
+        if (init?.method === "PATCH") return json({ data: {} });
+        return json({ data: { call_forwarding: forwarding ?? { call_forwarding_enabled: false } } });
+      }
+      if (init?.method === "PATCH" && connectionPatch >= 400) return json({ errors: [{ title: "Bad Request" }] }, connectionPatch);
       if (init?.method === "POST" && url.endsWith("/call_control_applications")) return json({ data: { id: "app-new", application_name: "smshub voice menu", webhook_event_url: HOOK } });
       if (init?.method === "PATCH") return json({ data: {} });
       if (url.includes("/call_control_applications")) return json({ data: apps });
@@ -156,6 +161,27 @@ describe("configureVoice", () => {
     expect(writes()).toEqual([]);
     expect(await configureVoice("KEY", "+14085550100", { apply: true, force: true })).toMatchObject({ ok: true, action: "assigned" });
     expect(writes()).toEqual([["PATCH", "https://api.telnyx.com/v2/phone_numbers/tn-1", { connection_id: "app-1" }]]);
+  });
+
+  it("treats Telnyx call forwarding as taken, and switches it off only when forced", async () => {
+    const fwd = { call_forwarding_enabled: true, forwards_to: "+14085550199", forwarding_type: "always" };
+    account([{ id: "app-1", application_name: "x", webhook_event_url: HOOK }], "cred-1", fwd);
+    const v = await configureVoice("KEY", "+14085550100", { apply: true });
+    expect(v).toMatchObject({ ok: false, state: "points_elsewhere", forwardsTo: "+14085550199" });
+    expect(v.message).toMatch(/forwarded to \+14085550199/);
+    expect(writes()).toEqual([]);
+    expect(await configureVoice("KEY", "+14085550100", { apply: true, force: true })).toMatchObject({ ok: true });
+    expect(writes()).toEqual([
+      ["PATCH", "https://api.telnyx.com/v2/phone_numbers/tn-1/voice", { call_forwarding: { call_forwarding_enabled: false } }],
+      ["PATCH", "https://api.telnyx.com/v2/phone_numbers/tn-1", { connection_id: "app-1" }],
+    ]);
+  });
+
+  it("puts the forwarding back when Telnyx refuses the connection", async () => {
+    const fwd = { call_forwarding_enabled: true, forwards_to: "+14085550199", forwarding_type: "always" };
+    account([{ id: "app-1", application_name: "x", webhook_event_url: HOOK }], "cred-1", fwd, 400);
+    expect(await configureVoice("KEY", "+14085550100", { apply: true, force: true })).toMatchObject({ ok: false, state: "error" });
+    expect(writes().at(-1)).toEqual(["PATCH", "https://api.telnyx.com/v2/phone_numbers/tn-1/voice", { call_forwarding: fwd }]);
   });
 
   it("round-trips client_state and shrugs at junk", () => {
