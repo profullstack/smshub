@@ -7,6 +7,9 @@ import { failureReason } from "@/lib/message-status";
 import { NewMessageModal } from "./new-message-modal";
 import { ContactNameEditor } from "./contact-name-editor";
 import { Logo } from "./logo";
+import { buildLines, type LineNumber } from "@/lib/inbox-lines";
+
+const LINE_KEY = "smshub.inbox.line";
 
 interface Conversation {
   id: string;
@@ -58,9 +61,11 @@ function MessageStatusIcon({ status, retryCount }: { status: string; retryCount?
 
 export function InboxClient({
   conversations: initialConversations,
+  numbers = [],
   userId: _userId,
 }: {
   conversations: Conversation[];
+  numbers?: LineNumber[];
   userId: string;
 }) {
   const [conversations, setConversations] = useState<Conversation[]>(initialConversations);
@@ -73,13 +78,32 @@ export function InboxClient({
   const [showArchived, setShowArchived] = useState(false);
   const [suggestingReply, setSuggestingReply] = useState(false);
   const [, setSelectedIndex] = useState(-1);
+  // The line (phone number) the list is narrowed to; null shows every line.
+  const [lineId, setLineId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
   const supabase = createClient();
   const { addToast } = useToast();
 
-  // Filter conversations by search and archived status
+  const lines = buildLines(numbers, conversations);
+  const totalUnread = lines.reduce((sum, l) => sum + l.unread, 0);
+  const activeLine = lines.find((l) => l.id === lineId) ?? null;
+
+  // Remember the chosen line across visits, and forget one that no longer exists.
+  useEffect(() => {
+    const saved = window.localStorage.getItem(LINE_KEY);
+    if (saved) setLineId(saved);
+  }, []);
+  const chooseLine = (id: string | null) => {
+    setLineId(id);
+    if (id) window.localStorage.setItem(LINE_KEY, id);
+    else window.localStorage.removeItem(LINE_KEY);
+  };
+
+  // Filter conversations by line, search and archived status
   const filteredConversations = conversations.filter((convo) => {
+    if (activeLine && convo.phone_number_id !== activeLine.id) return false;
+
     // Filter by archived status
     if (!showArchived && convo.archived) return false;
     if (showArchived && !convo.archived) return false;
@@ -364,6 +388,7 @@ export function InboxClient({
         isOpen={showNewMessage}
         onClose={() => setShowNewMessage(false)}
         onSent={reloadConversations}
+        defaultNumberId={activeLine?.id}
       />
 
       {/* Sidebar */}
@@ -427,12 +452,51 @@ export function InboxClient({
           >
             {showArchived ? "📦 Showing Archived" : "📦 Show Archived"}
           </button>
+
+          {/* Line filter: one chip per number, e.g. one per family member */}
+          {lines.length > 1 && (
+            <div className="mt-2 flex flex-wrap gap-1.5" role="group" aria-label="Filter by line">
+              {[{ id: null, label: "All lines", number: "", unread: totalUnread }, ...lines].map((line) => {
+                const active = (activeLine?.id ?? null) === line.id;
+                return (
+                  <button
+                    key={line.id ?? "all"}
+                    onClick={() => chooseLine(line.id)}
+                    aria-pressed={active}
+                    title={line.number || "Every number"}
+                    className={`max-w-full flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${
+                      active
+                        ? "bg-blue-600 text-white"
+                        : "bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-gray-200"
+                    }`}
+                  >
+                    <span className="truncate">{line.label}</span>
+                    {line.unread > 0 && (
+                      <span
+                        className={`rounded-full px-1.5 text-[10px] leading-4 ${
+                          active ? "bg-white text-blue-700" : "bg-blue-600 text-white"
+                        }`}
+                      >
+                        {line.unread}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         <div className="flex-1 overflow-y-auto">
           {filteredConversations.length === 0 ? (
             <div className="p-4 text-gray-500 text-center text-sm">
-              {searchQuery ? "No matches" : showArchived ? "No archived conversations" : "No conversations yet"}
+              {searchQuery
+                ? "No matches"
+                : showArchived
+                  ? "No archived conversations"
+                  : activeLine
+                    ? `No conversations on ${activeLine.label} yet`
+                    : "No conversations yet"}
             </div>
           ) : (
             filteredConversations.map((convo, index) => {

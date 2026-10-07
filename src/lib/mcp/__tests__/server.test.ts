@@ -62,6 +62,23 @@ describe("mcp server", () => {
     expect(other.result.structuredContent.error).toBe("Number not found");
   });
 
+  it("list_conversations narrows to one line", async () => {
+    const fdb = new FakeDb();
+    const line = "11111111-1111-4111-8111-111111111111";
+    fdb.rows("conversations").push(
+      { id: "c1", user_id: "u1", phone_number_id: line, archived: false, last_message_at: "2026-10-01" },
+      { id: "c2", user_id: "u1", phone_number_id: "other", archived: false, last_message_at: "2026-10-02" },
+      { id: "c3", user_id: "u2", phone_number_id: line, archived: false, last_message_at: "2026-10-03" }
+    );
+    const call = async (args: Record<string, unknown>) =>
+      ((await handleRpc(ctx(fdb), { jsonrpc: "2.0", id: 8, method: "tools/call", params: { name: "list_conversations", arguments: args } })) as {
+        result: { structuredContent: { conversations?: { id: string }[]; error?: string } };
+      }).result.structuredContent;
+    expect((await call({})).conversations!.map((c) => c.id)).toEqual(["c2", "c1"]);
+    expect((await call({ phone_number_id: line })).conversations!.map((c) => c.id)).toEqual(["c1"]);
+    expect((await call({ phone_number_id: "nope" })).error).toMatch(/number id/);
+  });
+
   it("rent_number explains why it cannot open a checkout", async () => {
     const res = (await handleRpc(ctx(), {
       jsonrpc: "2.0",

@@ -14,9 +14,11 @@ interface NewMessageModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSent: () => void;
+  /** Preselects this number as "From", e.g. the line the inbox is filtered to. */
+  defaultNumberId?: string;
 }
 
-export function NewMessageModal({ isOpen, onClose, onSent }: NewMessageModalProps) {
+export function NewMessageModal({ isOpen, onClose, onSent, defaultNumberId }: NewMessageModalProps) {
   const [phoneNumbers, setPhoneNumbers] = useState<PhoneNumber[]>([]);
   const [selectedNumberId, setSelectedNumberId] = useState("");
   const [recipientPhone, setRecipientPhone] = useState("");
@@ -25,6 +27,10 @@ export function NewMessageModal({ isOpen, onClose, onSent }: NewMessageModalProp
   const recipientRef = useRef<HTMLInputElement>(null);
   const supabase = createClient();
   const { addToast } = useToast();
+
+  useEffect(() => {
+    if (isOpen && defaultNumberId) setSelectedNumberId(defaultNumberId);
+  }, [isOpen, defaultNumberId]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -38,7 +44,7 @@ export function NewMessageModal({ isOpen, onClose, onSent }: NewMessageModalProp
         .eq("user_id", user.id);
       if (data) {
         setPhoneNumbers(data);
-        if (data.length > 0 && !selectedNumberId) {
+        if (data.length > 0 && !data.some((n) => n.id === selectedNumberId)) {
           setSelectedNumberId(data[0].id);
         }
       }

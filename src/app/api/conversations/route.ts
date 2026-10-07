@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { lineFilter } from "@/lib/conversations";
 
 export async function GET(request: Request) {
   try {
@@ -14,12 +15,17 @@ export async function GET(request: Request) {
 
     const url = new URL(request.url);
     const showArchived = url.searchParams.get("archived") === "true";
+    const phoneNumberId = lineFilter(url.searchParams);
+    if (phoneNumberId === undefined) {
+      return NextResponse.json({ error: "phone_number_id must be a number id (uuid)" }, { status: 400 });
+    }
 
     let query = supabase
       .from("conversations")
       .select(
         `
         *,
+        unread_count,
         contacts (id, phone, name),
         phone_numbers (id, number, friendly_name),
         messages (id, body, direction, status, created_at)
@@ -28,6 +34,10 @@ export async function GET(request: Request) {
       .eq("user_id", user.id)
       .order("last_message_at", { ascending: false })
       .limit(1, { referencedTable: "messages" });
+
+    if (phoneNumberId) {
+      query = query.eq("phone_number_id", phoneNumberId);
+    }
 
     if (!showArchived) {
       query = query.eq("archived", false);

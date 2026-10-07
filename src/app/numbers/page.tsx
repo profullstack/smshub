@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
+import { LineNameEditor } from "@/components/line-name-editor";
 
 interface NumberRow {
   id: string;
@@ -161,6 +162,9 @@ export default function NumbersPage() {
     return <div className="min-h-screen flex items-center justify-center text-gray-400">{error || "Loading..."}</div>;
   }
 
+  const renamed = (id: string, friendly_name: string | null) =>
+    setData((d) => (d ? { ...d, numbers: d.numbers.map((n) => (n.id === id ? { ...n, friendly_name } : n)) } : d));
+
   const price = data.pricing.usd_per_month;
   const rented = data.numbers.filter((n) => n.managed);
 
@@ -192,13 +196,42 @@ export default function NumbersPage() {
         <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-300">{error}</div>
       )}
 
+      {data.numbers.length > 0 && (
+        <section className="space-y-2">
+          <h2 className="text-lg font-semibold">Your lines</h2>
+          <p className="text-sm text-gray-400">
+            Every number lands in one inbox. Name each line (one per family member, say) and filter the inbox by it.
+          </p>
+          <div className="divide-y divide-gray-800 rounded-xl border border-gray-800">
+            {data.numbers.map((n) => (
+              <div key={n.id} className="flex flex-wrap items-center justify-between gap-2 p-3 text-sm">
+                <LineNameEditor
+                  numberId={n.id}
+                  number={n.number}
+                  name={n.friendly_name}
+                  onSaved={(name) => renamed(n.id, name)}
+                  onError={setError}
+                />
+                <div className="flex items-center gap-2 text-gray-400">
+                  <span className="font-mono">{n.number}</span>
+                  <span className="rounded bg-gray-800 px-1.5 py-0.5 text-xs">{n.managed ? "rented" : "your provider"}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
       <section className="space-y-4">
         {rented.length === 0 && <p className="text-gray-400">You have no rented numbers yet.</p>}
         {rented.map((n) => (
           <div key={n.id} className="rounded-xl border border-gray-800 bg-gray-900 p-4 space-y-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div>
-                <div className="font-mono text-lg">{n.number}</div>
+                <div className="font-mono text-lg">
+                  {n.number}
+                  {n.friendly_name && <span className="ml-2 font-sans text-base text-gray-400">{n.friendly_name}</span>}
+                </div>
                 <div className="text-xs text-gray-500">
                   Paid until {fmtDate(n.expires_at)}; released {fmtDate(n.release_at)} if not renewed
                 </div>

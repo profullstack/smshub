@@ -17,6 +17,7 @@ export default async function InboxPage() {
     .select(
       `
       *,
+      unread_count,
       contacts (id, phone, name),
       phone_numbers (id, number, friendly_name)
     `
@@ -24,5 +25,13 @@ export default async function InboxPage() {
     .eq("user_id", user.id)
     .order("last_message_at", { ascending: false });
 
-  return <InboxClient conversations={conversations || []} userId={user.id} />;
+  // The user's own numbers are the inbox's lines (one per family member, say).
+  const { data: numbers } = await supabase
+    .from("phone_numbers")
+    .select("id, number, friendly_name")
+    .eq("user_id", user.id)
+    .eq("status", "active")
+    .order("created_at", { ascending: true });
+
+  return <InboxClient conversations={conversations || []} numbers={numbers || []} userId={user.id} />;
 }
