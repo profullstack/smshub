@@ -82,3 +82,36 @@ describe("Provider index", () => {
     });
   });
 });
+
+describe("sendSMS number normalization", () => {
+  it("sends E.164 to the provider", async () => {
+    const spy = vi
+      .spyOn(TelnyxProvider.prototype, "send")
+      .mockResolvedValue({ success: true, messageId: "m1" });
+    await sendSMS({
+      provider: "telnyx",
+      to: "(408) 426-9127",
+      from: "408 555 0100",
+      body: "hi",
+      credentials: { apiKey: "k" },
+    });
+    expect(spy).toHaveBeenCalledWith(
+      expect.objectContaining({ to: "+14084269127", from: "+14085550100" })
+    );
+    spy.mockRestore();
+  });
+
+  it("rejects multiple recipients without calling the provider", async () => {
+    const spy = vi.spyOn(TelnyxProvider.prototype, "send");
+    const result = await sendSMS({
+      provider: "telnyx",
+      to: "4084269127, 4084269128",
+      from: "+14085550100",
+      body: "hi",
+      credentials: { apiKey: "k" },
+    });
+    expect(result.success).toBe(false);
+    expect(spy).not.toHaveBeenCalled();
+    spy.mockRestore();
+  });
+});
