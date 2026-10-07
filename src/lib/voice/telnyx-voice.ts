@@ -27,6 +27,8 @@ export interface VoiceStatus {
   applicationId: string | null;
   connectionId: string | null;
   connectionName: string | null;
+  /** Telnyx's own "always forward to" on the number, which blocks Call Control while it is on. */
+  forwardsTo?: string | null;
   action?: "created_application" | "assigned" | "already_set" | "refused";
   error?: TelnyxApiError;
   message: string;
@@ -80,6 +82,26 @@ async function findNumber(apiKey: string, number: string): Promise<TelnyxResult<
   };
 }
 
+interface Forwarding {
+  call_forwarding_enabled?: boolean;
+  forwards_to?: string | null;
+  forwarding_type?: string | null;
+}
+
+async function numberForwarding(apiKey: string, numberId: string): Promise<TelnyxResult<Forwarding | null>> {
+  const res = await telnyxRequest<{ data?: { call_forwarding?: Forwarding } }>(
+    apiKey,
+    "GET",
+    `/phone_numbers/${encodeURIComponent(numberId)}/voice`
+  );
+  if (!res.ok) return res;
+  const f = res.data.data?.call_forwarding;
+  return { ok: true, data: f?.call_forwarding_enabled ? f : null };
+}
+
+const setForwarding = (apiKey: string, numberId: string, f: Forwarding) =>
+  telnyxRequest(apiKey, "PATCH", `/phone_numbers/${encodeURIComponent(numberId)}/voice`, { call_forwarding: f });
+
 /**
  * Where a number's calls go now, and (with `apply`) point it at the voice
  * menu: find or create the "smshub voice menu" Call Control application and
@@ -111,18 +133,26 @@ export async function configureVoice(
   if (app && current === app.id) {
     return { ...status, ok: true, state: "configured", action: "already_set", message: "Calls to this number play the voice menu." };
   }
-  const elsewhere = Boolean(current);
-  const name = elsewhere ? await connectionName(apiKey, current!) : null;
+  // Telnyx refuses a Call Control connection while the number's own
+  // "always forward" is on, so that counts as calls going somewhere else too.
+  const fwdRes = await numberForwarding(apiKey, tn.id);
+  if (!fwdRes.ok) return fail(fwdRes.error, `Telnyx refused the number's voice settings lookup: ${fwdRes.error.message}`);
+  const forwarding = fwdRes.data;
+  const elsewhere = Boolean(current) || Boolean(forwarding);
+  const name = current ? await connectionName(apiKey, current) : null;
   if (!options.apply || (elsewhere && !options.force)) {
     return {
       ...status,
       connectionName: name,
+      forwardsTo: forwarding?.forwards_to ?? null,
       ok: false,
       state: elsewhere ? "points_elsewhere" : "not_configured",
       action: options.apply ? "refused" : undefined,
-      message: elsewhere
-        ? `Calls to this number go to "${name ?? current}" on Telnyx. Replace it to use the voice menu.`
-        : "Calls to this number are not answered yet.",
+      message: forwarding
+        ? `Calls to this number are forwarded to ${forwarding.forwards_to ?? "another phone"} by Telnyx. Replace it to use the voice menu (the forwarding is switched off).`
+        : elsewhere
+          ? `Calls to this number go to "${name ?? current}" on Telnyx. Replace it to use the voice menu.`
+          : "Calls to this number are not answered yet.",
     };
   }
 
@@ -141,8 +171,16 @@ export async function configureVoice(
     action = "created_application";
   }
 
+  if (forwarding) {
+    const off = await setForwarding(apiKey, tn.id, { call_forwarding_enabled: false });
+    if (!off.ok) return fail(off.error, `Could not switch off call forwarding on ${number}: ${off.error.message}`);
+  }
   const patch = await telnyxRequest(apiKey, "PATCH", `/phone_numbers/${encodeURIComponent(tn.id)}`, { connection_id: app.id });
-  if (!patch.ok) return fail(patch.error, `Could not point ${number} at the voice menu: ${patch.error.message}`);
+  if (!patch.ok) {
+    // Put the forwarding back rather than leave the number answering nowhere.
+    if (forwarding) await setForwarding(apiKey, tn.id, forwarding);
+    return fail(patch.error, `Could not point ${number} at the voice menu: ${patch.error.message}`);
+  }
   return {
     ...base,
     ok: true,
