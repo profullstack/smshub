@@ -31,6 +31,8 @@ export interface CallState {
   m?: string;
   a?: number;
   t?: number;
+  /** Hang up once the current announcement ends. */
+  h?: number;
 }
 
 export interface CallEvent {
@@ -146,11 +148,21 @@ export async function handleCallEvent(
       const pick = digit ? contacts.find((c) => String(c.keypad_digit) === digit) : undefined;
       if (pick) {
         await setBody(db, state.m, `Incoming call, put through to ${pick.name}`);
-        await command(callId, "transfer", {
+        const sent = await command(callId, "transfer", {
           to: pick.forward_to,
           timeout_secs: 30,
           client_state: encodeState({ ...state, t: 1 }),
         });
+        if (!sent.ok) {
+          // Say so and hang up, and keep Telnyx's reason in the call log.
+          await setBody(db, state.m, `Incoming call: could not put it through to ${pick.name} (${sent.error.message})`);
+          await command(callId, "speak", {
+            payload: `Sorry, ${spoken(pick.name)} can't be reached right now. Goodbye.`,
+            ...VOICE,
+            client_state: encodeState({ ...state, h: 1 }),
+          });
+          return `transfer to ${pick.name} failed`;
+        }
         return `transferred to ${pick.name}`;
       }
       const attempt = (state.a ?? 0) + 1;
@@ -162,6 +174,12 @@ export async function handleCallEvent(
       const lead = digit ? "Sorry, that is not an option." : "Sorry, I did not get that.";
       await command(callId, "gather_using_speak", gatherBody(contacts, { ...state, a: attempt }, lead));
       return "asked again";
+    }
+
+    case "call.speak.ended": {
+      if (!state?.h) return "ignored: not a goodbye";
+      await command(callId, "hangup", {});
+      return "hung up after goodbye";
     }
 
     case "call.hangup": {
