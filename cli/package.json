@@ -1,0 +1,36 @@
+{
+  "name": "@profullstack/smshub",
+  "version": "1.0.0",
+  "description": "Rent a phone number and receive SMS / verification codes from your terminal, scripts and AI agents (CLI, TUI, MCP) via smshub.dev",
+  "type": "module",
+  "bin": {
+    "smshub-cli": "smshub.mjs"
+  },
+  "files": [
+    "smshub.mjs",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": [
+    "sms",
+    "otp",
+    "verification-code",
+    "phone-number",
+    "mcp",
+    "cli",
+    "tui",
+    "smshub"
+  ],
+  "homepage": "https://smshub.dev/phonenumbers",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/profullstack/smshub.git",
+    "directory": "cli"
+  },
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  }
+}

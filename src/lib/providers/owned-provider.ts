@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { isManagedProvider } from "@/lib/managed-numbers/service";
 
 export interface OwnedProvider {
   id: string;
@@ -21,20 +22,19 @@ export async function loadOwnedProvider(
     .eq("id", providerId)
     .eq("user_id", userId)
     .single();
-  if (!provider) return null;
+  if (!provider || isManagedProvider(provider)) return null;
 
   const { data: numbers } = await serviceClient
     .from("phone_numbers")
     .select("number")
-    .eq("provider_id", providerId);
+    .eq("provider_id", providerId)
+    .eq("status", "active");
 
   return { ...provider, numbers: (numbers ?? []).map((n: { number: string }) => n.number) } as OwnedProvider;
 }
 
+/** Telnyx: keep the account's webhook signing key, which lives in api_secret. */
 export async function savePublicKey(serviceClient: SupabaseClient, provider: OwnedProvider, publicKey: string) {
-  if (provider.metadata?.public_key === publicKey) return;
-  await serviceClient
-    .from("providers")
-    .update({ metadata: { ...(provider.metadata ?? {}), public_key: publicKey } })
-    .eq("id", provider.id);
+  if (provider.type !== "telnyx" || provider.api_secret === publicKey) return;
+  await serviceClient.from("providers").update({ api_secret: publicKey }).eq("id", provider.id);
 }

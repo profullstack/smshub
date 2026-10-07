@@ -180,7 +180,8 @@ describe("TelnyxProvider", () => {
       const { publicKey, privateKey } = crypto.generateKeyPairSync("ed25519");
       const spki = publicKey.export({ format: "der", type: "spki" });
       const rawKey = spki.subarray(spki.length - 32).toString("base64");
-      const timestamp = "1760000000";
+      // Signatures older than five minutes are refused as replays.
+      const timestamp = String(Math.floor(Date.now() / 1000));
       const rawBody = JSON.stringify({ data: { event_type: "message.finalized" } });
       const signature = crypto.sign(null, Buffer.from(`${timestamp}|${rawBody}`), privateKey).toString("base64");
       return { rawKey, spki: spki.toString("base64"), timestamp, rawBody, signature };

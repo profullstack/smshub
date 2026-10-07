@@ -1,5 +1,6 @@
+import { getPlanUsage, limitReached } from "@/lib/plans";
 import { NextResponse } from "next/server";
-import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { createServerSupabaseClient, createServiceClient } from "@/lib/supabase/server";
 import { generateApiKey, hashApiKey } from "@/lib/api-auth";
 
 export async function GET() {
@@ -43,6 +44,11 @@ export async function POST(request: Request) {
     }
 
     const { name } = await request.json();
+
+    const limit = limitReached(await getPlanUsage(createServiceClient(), user.id), "apiKeys");
+    if (limit) {
+      return NextResponse.json({ error: limit }, { status: 403 });
+    }
 
     const rawKey = generateApiKey();
     const keyHash = hashApiKey(rawKey);

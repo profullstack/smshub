@@ -78,11 +78,12 @@ export class TwilioProvider implements SMSProvider {
     };
   }
 
-  validateWebhook(rawBody: string, headers: Headers, url: string): boolean {
+  validateWebhook(rawBody: string, headers: Headers, url: string, authTokenOverride?: string | null): boolean {
     const signature = headers.get("x-twilio-signature");
     if (!signature) return false;
 
-    const authToken = process.env.TWILIO_AUTH_TOKEN;
+    // A bring-your-own account signs with its own auth token.
+    const authToken = authTokenOverride || process.env.TWILIO_AUTH_TOKEN;
     if (!authToken) return false;
 
     const params: Record<string, string> = {};
@@ -91,6 +92,7 @@ export class TwilioProvider implements SMSProvider {
     });
 
     const expected = getSignature(authToken, url, params);
+    if (Buffer.byteLength(signature) !== Buffer.byteLength(expected)) return false;
     return crypto.timingSafeEqual(
       Buffer.from(signature),
       Buffer.from(expected)

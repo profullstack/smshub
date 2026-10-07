@@ -50,7 +50,7 @@ export default function OrgPage() {
       .select("org_id, role")
       .eq("user_id", user.id)
       .limit(1)
-      .single();
+      .maybeSingle();
 
     if (membership) {
       const { data: orgData } = await supabase

@@ -41,5 +41,5 @@ export interface SMSProvider {
   send(params: Omit<SendSMSParams, "provider">): Promise<SendSMSResult>;
   sendMMS?(params: SendMMSParams): Promise<SendSMSResult>;
   parseWebhook(body: Record<string, unknown>, headers: Headers): InboundMessage;
-  validateWebhook(body: string, headers: Headers, url: string): boolean;
+  validateWebhook(body: string, headers: Headers, url: string, secret?: string | null): boolean;
 }

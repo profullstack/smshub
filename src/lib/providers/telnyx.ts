@@ -18,27 +18,7 @@ function telnyxPublicKey(base64Key: string): crypto.KeyObject {
   return crypto.createPublicKey({ key: der, format: "der", type: "spki" });
 }
 
-/**
- * Check a webhook against one Telnyx account's public key. Each Telnyx
- * account signs with its own key, so callers try the key of every provider
- * that could have sent the event (see telnyx-webhook-auth.ts).
- */
-export function verifyTelnyxSignature(rawBody: string, headers: Headers, base64Key: string): boolean {
-  const signature = headers.get("telnyx-signature-ed25519");
-  const timestamp = headers.get("telnyx-timestamp");
-  if (!signature || !timestamp || !base64Key) return false;
-
-  try {
-    return crypto.verify(
-      null,
-      Buffer.from(`${timestamp}|${rawBody}`),
-      telnyxPublicKey(base64Key),
-      Buffer.from(signature, "base64")
-    );
-  } catch {
-    return false;
-  }
-}
+const WEBHOOK_TOLERANCE_SECONDS = 300;
 
 export class TelnyxProvider implements SMSProvider {
   async send(params: Omit<SendSMSParams, "provider">): Promise<SendSMSResult> {
@@ -115,8 +95,29 @@ export class TelnyxProvider implements SMSProvider {
     };
   }
 
-  validateWebhook(rawBody: string, headers: Headers, _url: string): boolean {
-    const publicKey = process.env.TELNYX_PUBLIC_KEY;
-    return !!publicKey && verifyTelnyxSignature(rawBody, headers, publicKey);
+  validateWebhook(rawBody: string, headers: Headers, _url: string, publicKeyOverride?: string | null): boolean {
+    const signature = headers.get("telnyx-signature-ed25519");
+    const timestamp = headers.get("telnyx-timestamp");
+    // Every Telnyx account signs with its own key; a bring-your-own account's
+    // public key is stored on its provider row.
+    const publicKey = publicKeyOverride || process.env.TELNYX_PUBLIC_KEY;
+
+    if (!signature || !timestamp || !publicKey) return false;
+
+    // Refuse replays of an old signed body.
+    const ts = Number(timestamp);
+    if (!Number.isFinite(ts) || Math.abs(Date.now() / 1000 - ts) > WEBHOOK_TOLERANCE_SECONDS) return false;
+
+    try {
+      const signedPayload = `${timestamp}|${rawBody}`;
+      return crypto.verify(
+        null,
+        Buffer.from(signedPayload),
+        telnyxPublicKey(publicKey),
+        Buffer.from(signature, "base64")
+      );
+    } catch {
+      return false;
+    }
   }
 }
