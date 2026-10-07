@@ -237,7 +237,7 @@ export async function configureVoice(
 
 export type CallCommand = (
   callControlId: string,
-  action: "answer" | "gather_using_speak" | "speak" | "transfer" | "hangup",
+  action: "answer" | "gather_using_speak" | "speak" | "transfer" | "hangup" | "record_start",
   body: Record<string, unknown>
 ) => Promise<TelnyxResult<unknown>>;
 
@@ -256,4 +256,19 @@ export function decodeState(raw: unknown): Record<string, unknown> | null {
   } catch {
     return null;
   }
+}
+
+/**
+ * A short-lived MP3 download URL for a call's recording, found by its call
+ * session. Telnyx keeps the audio; its signed URLs expire within minutes, so
+ * one is fetched each time someone plays the call.
+ */
+export async function recordingMp3Url(apiKey: string, callSessionId: string): Promise<string | null> {
+  const res = await telnyxRequest<{ data?: Array<{ download_urls?: { mp3?: string } }> }>(
+    apiKey,
+    "GET",
+    `/recordings?filter[call_session_id]=${encodeURIComponent(callSessionId)}&page[size]=5`
+  );
+  if (!res.ok) return null;
+  return res.data.data?.find((r) => r.download_urls?.mp3)?.download_urls?.mp3 ?? null;
 }

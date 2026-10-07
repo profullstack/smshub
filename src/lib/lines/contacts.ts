@@ -35,6 +35,8 @@ export interface Line {
   managed: boolean;
   /** Another line whose contacts book this one uses, if any. */
   contacts_line_id: string | null;
+  /** Record calls the voice menu answers on this number. */
+  record_calls: boolean;
 }
 
 export const LINE_CONTACT_COLUMNS =
@@ -117,7 +119,7 @@ export async function loadLine(db: SupabaseClient, userId: string, lineId: strin
   if (!isUuid(lineId)) return null;
   const { data } = await db
     .from("phone_numbers")
-    .select("id, user_id, number, friendly_name, provider_id, managed, contacts_line_id, providers(type, api_key, metadata)")
+    .select("id, user_id, number, friendly_name, provider_id, managed, contacts_line_id, record_calls, providers(type, api_key, metadata)")
     .eq("id", lineId)
     .eq("user_id", userId)
     .eq("status", "active")
@@ -134,6 +136,7 @@ type LineRow = {
   provider_id: string;
   managed: boolean | null;
   contacts_line_id?: string | null;
+  record_calls?: boolean | null;
   providers: { type: string; api_key: string | null; metadata: unknown } | null;
 };
 
@@ -147,6 +150,7 @@ function toLine(row: LineRow): Line {
     provider_type: row.providers?.type ?? "unknown",
     managed: Boolean(row.managed) || isManagedProvider(row.providers),
     contacts_line_id: row.contacts_line_id ?? null,
+    record_calls: Boolean(row.record_calls),
   };
 }
 
@@ -154,7 +158,7 @@ function toLine(row: LineRow): Line {
 export async function listLines(db: SupabaseClient, userId: string) {
   const { data: numbers, error } = await db
     .from("phone_numbers")
-    .select("id, user_id, number, friendly_name, provider_id, managed, contacts_line_id, providers(type, api_key, metadata)")
+    .select("id, user_id, number, friendly_name, provider_id, managed, contacts_line_id, record_calls, providers(type, api_key, metadata)")
     .eq("user_id", userId)
     .eq("status", "active")
     .order("created_at", { ascending: true });
@@ -312,4 +316,10 @@ export async function shareContactsBook(
   const { error } = await db.from("phone_numbers").update({ contacts_line_id: fromLineId }).eq("id", line.id).eq("user_id", line.user_id);
   if (error) throw error;
   return { ok: true };
+}
+
+/** Turns call recording on or off for one of the user's numbers. */
+export async function setRecordCalls(db: SupabaseClient, line: Line, on: boolean): Promise<void> {
+  const { error } = await db.from("phone_numbers").update({ record_calls: on }).eq("id", line.id).eq("user_id", line.user_id);
+  if (error) throw error;
 }

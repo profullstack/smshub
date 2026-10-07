@@ -104,6 +104,34 @@ describe("voice menu call flow", () => {
     expect(fdb.rows("messages")[0].body).toMatch(/could not put it through/);
   });
 
+  it("records when the line asks to: notice first, MP3 dual channel, length logged", async () => {
+    const { fdb, calls } = setup();
+    const command = vi.fn(async (_id: string, action: string, body: Record<string, unknown>) => {
+      calls.push({ action, body });
+      return { ok: true as const, data: {} };
+    });
+    const deps = { db: fdb as unknown as SupabaseClient, command };
+    const rec = { ...LINE, record_calls: true };
+    const send = (event_type: string, payload: Record<string, unknown>, state: CallState | null = null) =>
+      handleCallEvent(deps, rec, { event_type, payload: { call_control_id: "cc-1", ...payload } }, state);
+    await send("call.initiated", { direction: "incoming", from: "+12125550199", to: LINE.number, call_session_id: "sr" });
+    const state = decodeState(calls[0].body.client_state) as CallState;
+    expect(await send("call.answered", {}, state)).toBe("menu, recording");
+    expect(calls[1]).toMatchObject({ action: "record_start", body: { format: "mp3", channels: "dual" } });
+    expect(String(calls[2].body.payload)).toMatch(/^This call may be recorded\. Thanks for calling\. Press 1 for Kim/);
+    expect(await send("call.recording.saved", { recording_started_at: "2026-10-07T10:00:00Z", recording_ended_at: "2026-10-07T10:01:30Z" }, state)).toBe("recording saved");
+    expect(fdb.rows("messages")[0].recording_seconds).toBe(90);
+  });
+
+  it("does not record or announce when recording is off", async () => {
+    const { calls, send } = setup();
+    await send("call.initiated", { direction: "incoming", from: "+12125550199", to: LINE.number, call_session_id: "sn" });
+    const state = decodeState(calls[0].body.client_state) as CallState;
+    expect(await send("call.answered", {}, state)).toBe("menu");
+    expect(calls.map((c) => c.action)).toEqual(["answer", "gather_using_speak"]);
+    expect(String(calls[1].body.payload)).not.toMatch(/recorded/);
+  });
+
   it("asks again on a wrong digit, then gives up", async () => {
     const { fdb, calls, send } = setup();
     await send("call.initiated", { direction: "incoming", from: "+12125550199", to: LINE.number, call_session_id: "s2" });

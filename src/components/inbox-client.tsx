@@ -40,6 +40,7 @@ interface Message {
   error_detail?: string | null;
   kind?: "sms" | "call";
   routed_from?: string | null;
+  recording_seconds?: number | null;
   created_at: string;
 }
 
@@ -608,6 +609,14 @@ export function InboxClient({
                       {msg.kind === "call" && <span aria-label="Call">📞 </span>}
                       {msg.body}
                     </p>
+                    {msg.kind === "call" && msg.recording_seconds != null && (
+                      <div className="mt-2">
+                        <audio controls preload="none" src={`/api/messages/${msg.id}/recording`} className="w-64 max-w-full" />
+                        <a href={`/api/messages/${msg.id}/recording?download=1`} className="text-xs text-blue-300 hover:text-blue-200">
+                          Download mp3
+                        </a>
+                      </div>
+                    )}
                     <p
                       className={`text-xs mt-1 flex items-center ${
                         msg.direction === "outbound"
