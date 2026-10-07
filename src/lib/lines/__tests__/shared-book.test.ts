@@ -25,7 +25,7 @@ function setup() {
   return fdb;
 }
 const line = (id: string, contacts_line_id: string | null): Line => ({
-  id, user_id: "u1", number: "+1", friendly_name: null, provider_id: "p", provider_type: "telnyx", managed: false, contacts_line_id,
+  id, user_id: "u1", number: "+1", friendly_name: null, provider_id: "p", provider_type: "telnyx", managed: false, contacts_line_id, record_calls: false,
 });
 
 describe("shared contacts book", () => {

@@ -27,7 +27,8 @@ Install it once with `npm i -g @profullstack/smshub` and the command is `smshub-
 | `contacts <number> add --name Kim --cell +14155550123 [--digit 1] [--prefix K] [--forward-sms]` | add someone to a number; a digit also turns on the voice menu |
 | `contacts <number> edit <id> [--digit none] [--prefix none] ...` / `rm <id>` | change or remove them |
 | `contacts <number> share <other-number\|none>` | answer this number with another line's contacts, menu and prefixes |
-| `voice <number> [--setup] [--force]` | where calls to the number go; `--setup` points them at the voice menu |
+| `voice <number> [--setup] [--force] [--record on\|off]` | where calls to the number go; `--setup` points them at the voice menu; `--record` turns MP3 call recording on/off |
+| `recording <call-message-id> [--out call.mp3]` | save a recorded call as MP3 |
 | `tui` | full-screen live view |
 | `mcp` | MCP server on stdio, proxied to `https://smshub.dev/api/mcp` |
 

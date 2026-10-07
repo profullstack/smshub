@@ -21,6 +21,7 @@ interface Line {
   provider_type: string;
   managed: boolean;
   contacts_line_id: string | null;
+  record_calls: boolean;
   contacts: LineContact[];
 }
 
@@ -128,6 +129,22 @@ function LineCard({ line, lines, reload }: { line: Line; lines: Line[]; reload: 
   const lenders = lines.filter((l) => l.id !== line.id && !l.contacts_line_id);
   const borrowed = lines.some((l) => l.contacts_line_id === line.id);
 
+  const setRecording = async (on: boolean) => {
+    setBusy(true);
+    try {
+      const res = await fetch(`/api/lines/${line.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ record_calls: on }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) addToast(data.error || "Could not change", "error");
+      await reload();
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const share = async (from: string) => {
     setBusy(true);
     try {
@@ -215,6 +232,13 @@ function LineCard({ line, lines, reload }: { line: Line; lines: Line[]; reload: 
               <option key={l.id} value={l.id}>same as {l.friendly_name || l.number}</option>
             ))}
           </select>
+        </label>
+      )}
+
+      {line.provider_type === "telnyx" && (
+        <label className="flex items-center gap-2 text-sm text-gray-400">
+          <input type="checkbox" checked={line.record_calls} disabled={busy} onChange={(e) => setRecording(e.target.checked)} />
+          Record calls as MP3 (callers first hear &ldquo;This call may be recorded&rdquo;; play them in the inbox)
         </label>
       )}
 

@@ -14,7 +14,8 @@
 //   smshub-cli contacts <number> edit <contact-id> [--name ..] [--cell ..] [--digit 1|none] [--prefix K|none]
 //   smshub-cli contacts <number> rm <contact-id>
 //   smshub-cli contacts <number> share <other-number|none>   use another line's contacts and menu
-//   smshub-cli voice <number> [--setup] [--force]   where calls go; --setup plays the voice menu
+//   smshub-cli voice <number> [--setup] [--force] [--record on|off]   where calls go; --setup plays the voice menu
+//   smshub-cli recording <call-message-id> [--out call.mp3]   save a recorded call as MP3
 //   smshub-cli tui                          live view of numbers and texts
 //   smshub-cli mcp                          MCP over stdio, proxied to smshub.dev
 //
@@ -26,7 +27,7 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import { createInterface } from "node:readline";
 
-const VERSION = "1.3.0";
+const VERSION = "1.4.0";
 const CONFIG_DIR = join(process.env.XDG_CONFIG_HOME || join(homedir(), ".config"), "smshub");
 const CONFIG_FILE = join(CONFIG_DIR, "config.json");
 
@@ -221,8 +222,26 @@ const commands = {
 
   async voice(args) {
     const id = await resolveLine(args._[1] || "");
+    if (args.record !== undefined) {
+      const on = String(args.record) !== "off" && String(args.record) !== "false";
+      await api(`/api/lines/${id}`, { method: "PATCH", body: { record_calls: on } });
+      if (!args.json) console.log(`Call recording ${on ? "on" : "off"}.`);
+    }
     const d = await api(`/api/lines/${id}/voice`, args.setup ? { method: "POST", body: { force: Boolean(args.force) } } : {});
     print(args, d, (d) => console.log(d.voice.message));
+  },
+
+  async recording(args) {
+    const id = args._[1];
+    if (!id) throw new ApiError("Usage: smshub-cli recording <call-message-id> [--out call.mp3]");
+    if (!KEY) throw new ApiError("No API key. smshub-cli login --key <key>");
+    const res = await fetch(`${BASE}/api/messages/${encodeURIComponent(id)}/recording?download=1`, {
+      headers: { "X-API-Key": KEY, "User-Agent": `smshub-cli/${VERSION}` },
+    });
+    if (!res.ok) throw new ApiError((await res.json().catch(() => ({}))).error || `HTTP ${res.status}`);
+    const out = args.out || `call-${id}.mp3`;
+    writeFileSync(out, Buffer.from(await res.arrayBuffer()));
+    console.log(`Saved ${out}`);
   },
 
   async messages(args) {

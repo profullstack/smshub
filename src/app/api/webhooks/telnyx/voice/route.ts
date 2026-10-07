@@ -15,10 +15,11 @@ type LineRow = {
   number: string;
   provider_id: string;
   managed: boolean | null;
+  record_calls?: boolean | null;
   providers: { type: string; api_key: string | null; metadata: unknown } | null;
 };
 
-const LINE_COLUMNS = "id, user_id, number, provider_id, managed, providers(type, api_key, metadata)";
+const LINE_COLUMNS = "id, user_id, number, provider_id, managed, record_calls, providers(type, api_key, metadata)";
 
 /**
  * Telnyx Call Control events for numbers whose voice connection is the
@@ -76,7 +77,7 @@ export async function POST(request: Request) {
 
     const result = await handleCallEvent(
       { db, command: telnyxCallCommand(apiKey) },
-      { id: line.id, user_id: line.user_id, number: line.number },
+      { id: line.id, user_id: line.user_id, number: line.number, record_calls: Boolean(line.record_calls) },
       { event_type: eventType, payload },
       state
     );

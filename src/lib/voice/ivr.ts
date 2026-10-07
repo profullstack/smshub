@@ -24,7 +24,11 @@ export interface VoiceLine {
   id: string;
   user_id: string;
   number: string;
+  /** Record answered calls as MP3 (the menu says so first). */
+  record_calls?: boolean;
 }
+
+export const RECORDING_NOTICE = "This call may be recorded.";
 
 export interface CallState {
   l?: string;
@@ -136,8 +140,12 @@ export async function handleCallEvent(
         await command(callId, "hangup", {});
         return "hung up: menu emptied";
       }
-      await command(callId, "gather_using_speak", gatherBody(contacts, state, ""));
-      return "menu";
+      if (line.record_calls) {
+        // Dual channel: the caller and whoever picks up on separate tracks of one MP3.
+        await command(callId, "record_start", { format: "mp3", channels: "dual", client_state: encodeState(state as Record<string, unknown>) });
+      }
+      await command(callId, "gather_using_speak", gatherBody(contacts, state, line.record_calls ? `${RECORDING_NOTICE} Thanks for calling.` : ""));
+      return line.record_calls ? "menu, recording" : "menu";
     }
 
     case "call.gather.ended": {
@@ -174,6 +182,15 @@ export async function handleCallEvent(
       const lead = digit ? "Sorry, that is not an option." : "Sorry, I did not get that.";
       await command(callId, "gather_using_speak", gatherBody(contacts, { ...state, a: attempt }, lead));
       return "asked again";
+    }
+
+    case "call.recording.saved": {
+      if (!state?.m) return "ignored: not ours";
+      const start = Date.parse(String(p.recording_started_at ?? ""));
+      const end = Date.parse(String(p.recording_ended_at ?? ""));
+      const seconds = Number.isFinite(start) && Number.isFinite(end) && end >= start ? Math.round((end - start) / 1000) : 0;
+      await db.from("messages").update({ recording_seconds: seconds }).eq("id", state.m);
+      return "recording saved";
     }
 
     case "call.speak.ended": {

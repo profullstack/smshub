@@ -9,6 +9,7 @@ import {
   deleteLineContact,
   listLines,
   loadLine,
+  setRecordCalls,
   shareContactsBook,
   updateLineContact,
   type ContactInput,
@@ -112,8 +113,15 @@ export const LINE_TOOLS: LineTool[] = [
   {
     name: "voice_menu",
     description:
-      "Where calls to a number go. With setup=true, point them at the voice menu; force=true replaces a connection that already takes its calls.",
-    inputSchema: obj({ line_id: lineId, setup: { type: "boolean" }, force: { type: "boolean" } }, ["line_id"]),
-    run: async (c, a) => ({ voice: await lineVoice(c.db, await line(c, a), { apply: a.setup === true, force: a.force === true }) }),
+      "Where calls to a number go. With setup=true, point them at the voice menu; force=true replaces a connection that already takes its calls. record=true/false turns MP3 call recording on/off (callers hear 'This call may be recorded').",
+    inputSchema: obj({ line_id: lineId, setup: { type: "boolean" }, force: { type: "boolean" }, record: { type: "boolean" } }, ["line_id"]),
+    run: async (c, a) => {
+      const l = await line(c, a);
+      if (typeof a.record === "boolean") await setRecordCalls(c.db, l, a.record);
+      return {
+        voice: await lineVoice(c.db, l, { apply: a.setup === true, force: a.force === true }),
+        record_calls: typeof a.record === "boolean" ? a.record : l.record_calls,
+      };
+    },
   },
 ];

@@ -54,7 +54,7 @@ export async function GET(request: Request) {
         try {
           const { data } = await db
             .from("messages")
-            .select("id, conversation_id, direction, body, status, provider, media_url, kind, routed_from, created_at, conversations!inner(user_id)")
+            .select("id, conversation_id, direction, body, status, provider, media_url, kind, routed_from, recording_seconds, created_at, conversations!inner(user_id)")
             .eq("conversations.user_id", user.id)
             .gt("created_at", new Date(Date.now() - WINDOW_MS).toISOString())
             .order("created_at", { ascending: true })
@@ -62,7 +62,8 @@ export async function GET(request: Request) {
           const changed = [];
           const resumeAfter = first ? cursor : "";
           for (const m of data ?? []) {
-            const sig = `${m.status}`;
+            // Call log entries change body (put through, length) and gain a recording.
+            const sig = `${m.status}|${m.body}|${m.recording_seconds ?? ""}`;
             if (seen.get(m.id) !== sig) {
               seen.set(m.id, sig);
               // The first tick only primes `seen` (the page already loaded these),
