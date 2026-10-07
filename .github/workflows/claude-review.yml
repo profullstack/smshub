@@ -12,18 +12,36 @@ jobs:
       pull-requests: write
 
     steps:
+      # No key, no review: skipped with a notice instead of failing every PR.
+      # Set the ANTHROPIC_API_KEY repo secret to turn reviews back on.
+      - name: Check for an API key
+        id: key
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          if [ -n "$ANTHROPIC_API_KEY" ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::ANTHROPIC_API_KEY is not set for this repository; skipping the Claude review."
+            echo "present=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - uses: actions/checkout@v4
+        if: steps.key.outputs.present == 'true'
         with:
           fetch-depth: 0
 
       - uses: actions/setup-node@v4
+        if: steps.key.outputs.present == 'true'
         with:
           node-version: '20'
 
       - name: Install dependencies
+        if: steps.key.outputs.present == 'true'
         run: npm install @anthropic-ai/sdk
 
       - name: Run Claude Review
+        if: steps.key.outputs.present == 'true'
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
