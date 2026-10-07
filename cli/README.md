@@ -26,6 +26,7 @@ Install it once with `npm i -g @profullstack/smshub` and the command is `smshub-
 | `lines` | your numbers and who shares each one (name, cell, keypad digit, text prefix) |
 | `contacts <number> add --name Kim --cell +14155550123 [--digit 1] [--prefix K] [--forward-sms]` | add someone to a number; a digit also turns on the voice menu |
 | `contacts <number> edit <id> [--digit none] [--prefix none] ...` / `rm <id>` | change or remove them |
+| `contacts <number> share <other-number\|none>` | answer this number with another line's contacts, menu and prefixes |
 | `voice <number> [--setup] [--force]` | where calls to the number go; `--setup` points them at the voice menu |
 | `tui` | full-screen live view |
 | `mcp` | MCP server on stdio, proxied to `https://smshub.dev/api/mcp` |
@@ -43,7 +44,7 @@ Local (stdio), e.g. for Claude Code:
 claude mcp add smshub -e SMSHUB_API_KEY=smshub_... -- npx -y @profullstack/smshub mcp
 ```
 
-Tools: `account_overview`, `list_numbers`, `list_conversations`, `list_lines`, `add_line_contact`, `update_line_contact`, `remove_line_contact`, `voice_menu`, `rent_number`, `renew_number`, `order_status`,
+Tools: `account_overview`, `list_numbers`, `list_conversations`, `list_lines`, `add_line_contact`, `update_line_contact`, `remove_line_contact`, `share_line_contacts`, `voice_menu`, `rent_number`, `renew_number`, `order_status`,
 `list_orders`, `get_messages`, `wait_for_code`.
 
 Rented numbers receive texts only. Some services refuse virtual numbers for sign-up codes.

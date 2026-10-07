@@ -20,6 +20,7 @@ interface Line {
   friendly_name: string | null;
   provider_type: string;
   managed: boolean;
+  contacts_line_id: string | null;
   contacts: LineContact[];
 }
 
@@ -115,13 +116,34 @@ function ContactForm({
   );
 }
 
-function LineCard({ line, reload }: { line: Line; reload: () => Promise<void> }) {
+function LineCard({ line, lines, reload }: { line: Line; lines: Line[]; reload: () => Promise<void> }) {
   const { addToast } = useToast();
   const [adding, setAdding] = useState<Draft>(emptyDraft);
   const [editing, setEditing] = useState<{ id: string; draft: Draft } | null>(null);
   const [busy, setBusy] = useState(false);
   const [voice, setVoice] = useState<Voice | null>(null);
   const hasMenu = line.contacts.some((c) => c.keypad_digit !== null);
+  const source = lines.find((l) => l.id === line.contacts_line_id);
+  // Lines that keep their own book (and are not this one) can lend it.
+  const lenders = lines.filter((l) => l.id !== line.id && !l.contacts_line_id);
+  const borrowed = lines.some((l) => l.contacts_line_id === line.id);
+
+  const share = async (from: string) => {
+    setBusy(true);
+    try {
+      const res = await fetch(`/api/lines/${line.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ contacts_from: from || null }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) addToast(data.error || "Could not change", "error");
+      else report(data.voice);
+      await reload();
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const report = (v: Voice | undefined) => {
     if (!v) return;
@@ -184,6 +206,24 @@ function LineCard({ line, reload }: { line: Line; reload: () => Promise<void> })
         )}
       </div>
 
+      {lenders.length > 0 && !borrowed && (
+        <label className="flex flex-wrap items-center gap-2 text-sm text-gray-400">
+          Contacts:
+          <select className={input} value={line.contacts_line_id ?? ""} disabled={busy} onChange={(e) => share(e.target.value)}>
+            <option value="">this number&rsquo;s own</option>
+            {lenders.map((l) => (
+              <option key={l.id} value={l.id}>same as {l.friendly_name || l.number}</option>
+            ))}
+          </select>
+        </label>
+      )}
+
+      {source && (
+        <p className="text-sm text-gray-400">
+          Answers with {source.friendly_name || source.number}&rsquo;s contacts, voice menu and text prefixes. Edit them there.
+        </p>
+      )}
+
       {line.contacts.length > 0 ? (
         <ul className="divide-y divide-gray-800">
           {line.contacts.map((c) =>
@@ -209,7 +249,7 @@ function LineCard({ line, reload }: { line: Line; reload: () => Promise<void> })
                   {c.sms_prefix && <span className="ml-2 px-1.5 rounded bg-gray-800 text-gray-300">&ldquo;{c.sms_prefix}:&rdquo;</span>}
                   {c.forward_sms && <span className="ml-2 text-gray-500">forwards texts</span>}
                 </div>
-                <div className="flex gap-3 shrink-0">
+                <div className={`flex gap-3 shrink-0 ${source ? "hidden" : ""}`}>
                   <button onClick={() => setEditing({ id: c.id, draft: toDraft(c) })} className="text-blue-400 hover:text-blue-300">Edit</button>
                   <button onClick={() => remove(c)} className="text-red-400 hover:text-red-300">Remove</button>
                 </div>
@@ -221,7 +261,7 @@ function LineCard({ line, reload }: { line: Line; reload: () => Promise<void> })
         <p className="text-sm text-gray-400">No one on this line yet.</p>
       )}
 
-      <div className="border-t border-gray-800 pt-3">
+      <div className={`border-t border-gray-800 pt-3 ${source ? "hidden" : ""}`}>
         <h3 className="text-sm font-medium mb-2">Add someone</h3>
         <ContactForm
           draft={adding}
@@ -292,7 +332,7 @@ export default function LinesPage() {
             No numbers yet. <Link href="/settings" className="text-blue-400">Add one</Link> or <Link href="/numbers" className="text-blue-400">rent one</Link>.
           </p>
         )}
-        {lines?.map((line) => <LineCard key={line.id} line={line} reload={load} />)}
+        {lines?.map((line) => <LineCard key={line.id} line={line} lines={lines} reload={load} />)}
       </div>
     </div>
   );

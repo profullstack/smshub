@@ -13,6 +13,7 @@
 //   smshub-cli contacts <number> add --name Kim --cell +14155550123 [--digit 1] [--prefix K] [--forward-sms]
 //   smshub-cli contacts <number> edit <contact-id> [--name ..] [--cell ..] [--digit 1|none] [--prefix K|none]
 //   smshub-cli contacts <number> rm <contact-id>
+//   smshub-cli contacts <number> share <other-number|none>   use another line's contacts and menu
 //   smshub-cli voice <number> [--setup] [--force]   where calls go; --setup plays the voice menu
 //   smshub-cli tui                          live view of numbers and texts
 //   smshub-cli mcp                          MCP over stdio, proxied to smshub.dev
@@ -25,7 +26,7 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import { createInterface } from "node:readline";
 
-const VERSION = "1.2.0";
+const VERSION = "1.3.0";
 const CONFIG_DIR = join(process.env.XDG_CONFIG_HOME || join(homedir(), ".config"), "smshub");
 const CONFIG_FILE = join(CONFIG_DIR, "config.json");
 
@@ -202,7 +203,14 @@ const commands = {
     else if (sub === "add") d = await api(base, { method: "POST", body: fields() });
     else if (sub === "edit") d = await api(`${base}/${args._[3]}`, { method: "PATCH", body: fields() });
     else if (sub === "rm") d = await api(`${base}/${args._[3]}`, { method: "DELETE" });
-    else throw new ApiError("Usage: smshub-cli contacts <number> [list|add|edit <id>|rm <id>]");
+    else if (sub === "share") {
+      const other = args._[3];
+      if (!other) throw new ApiError("Usage: smshub-cli contacts <number> share <other-number|none>");
+      const from = other === "none" ? null : await resolveLine(other);
+      d = await api(`/api/lines/${id}`, { method: "PATCH", body: { contacts_from: from } });
+      if (!args.json) console.log(from ? `Now answers with ${other}'s contacts.` : "Has its own contacts again.");
+    }
+    else throw new ApiError("Usage: smshub-cli contacts <number> [list|add|edit <id>|rm <id>|share <other|none>]");
     print(args, d, (d) => {
       if (d.contacts) for (const c of d.contacts) console.log(contactLine(c));
       if (d.contact) console.log(contactLine(d.contact));

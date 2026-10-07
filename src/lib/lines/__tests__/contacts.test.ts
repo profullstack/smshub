@@ -24,6 +24,7 @@ const line: Line = {
   provider_id: "prov-1",
   provider_type: "telnyx",
   managed: false,
+  contacts_line_id: null,
 };
 
 describe("cleanContactInput", () => {

@@ -7,7 +7,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { InboundMessage } from "@/lib/providers/types";
 import { fireWebhooks, type UserWebhook } from "@/lib/webhooks/outbound";
 import { extractOtp } from "@/lib/managed-numbers/api";
-import { matchPrefix, type LineContact } from "@/lib/lines/contacts";
+import { bookLineId, matchPrefix, type LineContact } from "@/lib/lines/contacts";
 import { sendSMS } from "@/lib/providers";
 
 export interface OwnedNumber {
@@ -149,7 +149,7 @@ async function routeByPrefix(db: SupabaseClient, line: OwnedNumber, body: string
   const { data } = await db
     .from("line_contacts")
     .select("name, forward_to, sms_prefix, forward_sms")
-    .eq("phone_number_id", line.id);
+    .eq("phone_number_id", await bookLineId(db, line.id));
   const withPrefix = ((data ?? []) as RoutingContact[]).filter((c) => c.sms_prefix);
   return withPrefix.length ? matchPrefix(body, withPrefix) : null;
 }

@@ -9,6 +9,7 @@ import {
   deleteLineContact,
   listLines,
   loadLine,
+  shareContactsBook,
   updateLineContact,
   type ContactInput,
 } from "@/lib/lines/contacts";
@@ -93,6 +94,19 @@ export const LINE_TOOLS: LineTool[] = [
     run: async (c, a) => {
       if (!(await deleteLineContact(c.db, await line(c, a), String(a.contact_id ?? "")))) throw new LineToolError("Contact not found");
       return { ok: true };
+    },
+  },
+  {
+    name: "share_line_contacts",
+    description:
+      "Answer a number from another line's contacts book (same voice menu and text prefixes), e.g. a toll-free and a local number for one family. from_line_id null gives it its own book again.",
+    inputSchema: obj({ line_id: lineId, from_line_id: { type: ["string", "null"] } }, ["line_id", "from_line_id"]),
+    run: async (c, a) => {
+      const l = await line(c, a);
+      const from = a.from_line_id ? String(a.from_line_id) : null;
+      const res = await shareContactsBook(c.db, l, from);
+      if (!res.ok) throw new LineToolError(res.error);
+      return { ok: true, contacts_from: from };
     },
   },
   {
