@@ -38,7 +38,39 @@ interface CallControlApp {
   id: string;
   application_name: string;
   webhook_event_url: string | null;
+  outbound?: { outbound_voice_profile_id?: string | null } | null;
 }
+
+/**
+ * Putting a caller through is an outbound call, and Telnyx refuses it
+ * ("failed": true on the transfer) unless the application has an outbound
+ * voice profile. Use the account's enabled profile that can dial the US,
+ * preferring one named "Default".
+ */
+async function pickOutboundProfile(apiKey: string): Promise<string | null> {
+  const res = await telnyxRequest<{ data?: Array<Record<string, unknown>> }>(apiKey, "GET", "/outbound_voice_profiles?page[size]=50");
+  if (!res.ok) return null;
+  const usable = (res.data.data ?? []).filter(
+    (p) => p.enabled !== false && (!Array.isArray(p.whitelisted_destinations) || (p.whitelisted_destinations as string[]).includes("US"))
+  );
+  const best = usable.find((p) => String(p.name ?? "").toLowerCase() === "default") ?? usable[0];
+  return best ? String(best.id) : null;
+}
+
+async function ensureOutbound(apiKey: string, app: CallControlApp, webhookUrl: string): Promise<boolean> {
+  if (app.outbound?.outbound_voice_profile_id) return true;
+  const profileId = await pickOutboundProfile(apiKey);
+  if (!profileId) return false;
+  const res = await telnyxRequest(apiKey, "PATCH", `/call_control_applications/${encodeURIComponent(app.id)}`, {
+    application_name: app.application_name || VOICE_APP_NAME,
+    webhook_event_url: webhookUrl,
+    outbound: { outbound_voice_profile_id: profileId },
+  });
+  return res.ok;
+}
+
+const NO_OUTBOUND =
+  " Callers cannot be put through yet: the Telnyx account has no outbound voice profile that can dial the US (Telnyx portal > Voice > Outbound Voice Profiles).";
 
 async function findVoiceApp(apiKey: string, webhookUrl: string): Promise<TelnyxResult<CallControlApp | null>> {
   const res = await telnyxRequest<{ data?: CallControlApp[] }>(apiKey, "GET", "/call_control_applications?page[size]=250");
@@ -131,7 +163,14 @@ export async function configureVoice(
   const status = { ...base, applicationId: app?.id ?? null, connectionId: current };
 
   if (app && current === app.id) {
-    return { ...status, ok: true, state: "configured", action: "already_set", message: "Calls to this number play the voice menu." };
+    const canTransfer = app.outbound?.outbound_voice_profile_id ? true : options.apply ? await ensureOutbound(apiKey, app, webhookUrl) : false;
+    return {
+      ...status,
+      ok: canTransfer,
+      state: "configured",
+      action: "already_set",
+      message: "Calls to this number play the voice menu." + (canTransfer ? "" : NO_OUTBOUND),
+    };
   }
   // Telnyx refuses a Call Control connection while the number's own
   // "always forward" is on, so that counts as calls going somewhere else too.
@@ -175,6 +214,7 @@ export async function configureVoice(
     const off = await setForwarding(apiKey, tn.id, { call_forwarding_enabled: false });
     if (!off.ok) return fail(off.error, `Could not switch off call forwarding on ${number}: ${off.error.message}`);
   }
+  const canTransfer = await ensureOutbound(apiKey, app, webhookUrl);
   const patch = await telnyxRequest(apiKey, "PATCH", `/phone_numbers/${encodeURIComponent(tn.id)}`, { connection_id: app.id });
   if (!patch.ok) {
     // Put the forwarding back rather than leave the number answering nowhere.
@@ -189,7 +229,7 @@ export async function configureVoice(
     connectionId: app.id,
     connectionName: VOICE_APP_NAME,
     action,
-    message: "Calls to this number now play the voice menu.",
+    message: "Calls to this number now play the voice menu." + (canTransfer ? "" : NO_OUTBOUND),
   };
 }
 

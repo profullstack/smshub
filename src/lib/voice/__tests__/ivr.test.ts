@@ -26,6 +26,18 @@ function setup(withMenu = true) {
   return { fdb, calls, send };
 }
 
+function setupFailing(fdb: FakeDb, calls: Array<{ action: string; body: Record<string, unknown> }>) {
+  const command = vi.fn(async (_id: string, action: string, body: Record<string, unknown>) => {
+    calls.push({ action, body });
+    return action === "transfer"
+      ? { ok: false as const, error: { status: 422, code: "90018", message: "no outbound voice profile" } }
+      : { ok: true as const, data: {} };
+  });
+  const deps = { db: fdb as unknown as SupabaseClient, command };
+  return (event_type: string, payload: Record<string, unknown>, state: CallState | null = null) =>
+    handleCallEvent(deps, LINE, { event_type, payload: { call_control_id: "cc-1", ...payload } }, state);
+}
+
 describe("menuPrompt", () => {
   it("reads the book in digit order and skips people without a digit", () => {
     expect(
@@ -72,6 +84,24 @@ describe("voice menu call flow", () => {
     expect(fdb.rows("messages")[0].body).toBe("Incoming call, put through to Kim (1m 5s)");
     expect(fdb.rows("contacts")[0]).toMatchObject({ phone: "+12125550199" });
     expect(calls).toHaveLength(3);
+  });
+
+  it("tells the caller and logs the reason when Telnyx refuses the transfer", async () => {
+    const { fdb, calls, send } = setup();
+    await send("call.initiated", { direction: "incoming", from: "+12125550199", to: LINE.number, call_session_id: "sx" });
+    const state = decodeState(calls[0].body.client_state) as CallState;
+    // Make the next command (the transfer) fail.
+    const failing = setupFailing(fdb, calls);
+    expect(await failing("call.gather.ended", { digits: "1", status: "valid" }, state)).toBe("transfer to Kim failed");
+    expect(fdb.rows("messages")[0].body).toBe("Incoming call: could not put it through to Kim (no outbound voice profile)");
+    const speak = calls.at(-1)!;
+    expect(speak).toMatchObject({ action: "speak", body: { payload: "Sorry, Kim can't be reached right now. Goodbye." } });
+    const goodbye = decodeState(speak.body.client_state) as CallState;
+    expect(await failing("call.speak.ended", {}, goodbye)).toBe("hung up after goodbye");
+    expect(calls.at(-1)!.action).toBe("hangup");
+    // The hangup does not overwrite the failure in the log.
+    await failing("call.hangup", { start_time: "2026-10-07T10:00:00Z", end_time: "2026-10-07T10:00:20Z" }, state);
+    expect(fdb.rows("messages")[0].body).toMatch(/could not put it through/);
   });
 
   it("asks again on a wrong digit, then gives up", async () => {
@@ -127,6 +157,7 @@ describe("configureVoice", () => {
       if (url.includes("/call_control_applications")) return json({ data: apps });
       if (url.includes("/phone_numbers?")) return json({ data: [{ id: "tn-1", phone_number: "+14085550100", connection_id: connection }] });
       if (url.includes("/connections/")) return json({ data: { connection_name: "qrypt sip" } });
+      if (url.includes("/outbound_voice_profiles")) return json({ data: [{ id: "ovp-x", name: "AI", enabled: true, whitelisted_destinations: ["US"] }, { id: "ovp-default", name: "Default", enabled: true, whitelisted_destinations: ["US", "CA"] }] });
       throw new Error(`unexpected ${url}`);
     });
   }
@@ -144,18 +175,20 @@ describe("configureVoice", () => {
     expect(v).toMatchObject({ ok: true, state: "configured", action: "created_application", applicationId: "app-new" });
     expect(writes()).toEqual([
       ["POST", "https://api.telnyx.com/v2/call_control_applications", expect.objectContaining({ webhook_event_url: HOOK })],
+      // Without an outbound voice profile Telnyx refuses every transfer; "Default" wins.
+      ["PATCH", "https://api.telnyx.com/v2/call_control_applications/app-new", expect.objectContaining({ outbound: { outbound_voice_profile_id: "ovp-default" } })],
       ["PATCH", "https://api.telnyx.com/v2/phone_numbers/tn-1", { connection_id: "app-new" }],
     ]);
   });
 
   it("is a no-op when already set", async () => {
-    account([{ id: "app-1", application_name: "x", webhook_event_url: HOOK + "/" }], "app-1");
+    account([{ id: "app-1", application_name: "x", webhook_event_url: HOOK + "/", outbound: { outbound_voice_profile_id: "ovp-default" } }], "app-1");
     expect(await configureVoice("KEY", "+14085550100", { apply: true })).toMatchObject({ ok: true, action: "already_set" });
     expect(writes()).toEqual([]);
   });
 
   it("leaves another connection alone unless forced", async () => {
-    account([{ id: "app-1", application_name: "x", webhook_event_url: HOOK }], "sip-9");
+    account([{ id: "app-1", application_name: "x", webhook_event_url: HOOK, outbound: { outbound_voice_profile_id: "ovp-default" } }], "sip-9");
     const v = await configureVoice("KEY", "+14085550100", { apply: true });
     expect(v).toMatchObject({ ok: false, state: "points_elsewhere", action: "refused", connectionName: "qrypt sip" });
     expect(writes()).toEqual([]);
@@ -165,7 +198,7 @@ describe("configureVoice", () => {
 
   it("treats Telnyx call forwarding as taken, and switches it off only when forced", async () => {
     const fwd = { call_forwarding_enabled: true, forwards_to: "+14085550199", forwarding_type: "always" };
-    account([{ id: "app-1", application_name: "x", webhook_event_url: HOOK }], "cred-1", fwd);
+    account([{ id: "app-1", application_name: "x", webhook_event_url: HOOK, outbound: { outbound_voice_profile_id: "ovp-default" } }], "cred-1", fwd);
     const v = await configureVoice("KEY", "+14085550100", { apply: true });
     expect(v).toMatchObject({ ok: false, state: "points_elsewhere", forwardsTo: "+14085550199" });
     expect(v.message).toMatch(/forwarded to \+14085550199/);
@@ -179,9 +212,19 @@ describe("configureVoice", () => {
 
   it("puts the forwarding back when Telnyx refuses the connection", async () => {
     const fwd = { call_forwarding_enabled: true, forwards_to: "+14085550199", forwarding_type: "always" };
-    account([{ id: "app-1", application_name: "x", webhook_event_url: HOOK }], "cred-1", fwd, 400);
+    account([{ id: "app-1", application_name: "x", webhook_event_url: HOOK, outbound: { outbound_voice_profile_id: "ovp-default" } }], "cred-1", fwd, 400);
     expect(await configureVoice("KEY", "+14085550100", { apply: true, force: true })).toMatchObject({ ok: false, state: "error" });
     expect(writes().at(-1)).toEqual(["PATCH", "https://api.telnyx.com/v2/phone_numbers/tn-1/voice", { call_forwarding: fwd }]);
+  });
+
+  it("gives an already-wired app an outbound profile it lacks", async () => {
+    account([{ id: "app-1", application_name: "x", webhook_event_url: HOOK }], "app-1");
+    expect(await configureVoice("KEY", "+14085550100")).toMatchObject({ ok: false, state: "configured" });
+    expect(writes()).toEqual([]);
+    expect(await configureVoice("KEY", "+14085550100", { apply: true })).toMatchObject({ ok: true, action: "already_set" });
+    expect(writes()).toEqual([
+      ["PATCH", "https://api.telnyx.com/v2/call_control_applications/app-1", expect.objectContaining({ outbound: { outbound_voice_profile_id: "ovp-default" } })],
+    ]);
   });
 
   it("round-trips client_state and shrugs at junk", () => {
