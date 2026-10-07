@@ -4,6 +4,7 @@ import { getProvider } from "@/lib/providers";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { applyTelnyxStatus, isTelnyxStatusEvent, parseTelnyxStatusEvent } from "@/lib/providers/telnyx-status";
 import { findActiveNumber, recordInbound } from "@/lib/inbound";
+import { telnyxProviderPublicKey } from "@/lib/providers/telnyx-webhook-auth";
 
 const WEBHOOK_RATE_LIMIT = { limit: 100, windowMs: 60 * 1000 };
 
@@ -48,19 +49,16 @@ export async function POST(request: Request) {
 
     // Our own account (managed numbers) signs with TELNYX_PUBLIC_KEY; a
     // bring-your-own account signs with its own key, kept as the provider's
-    // api_secret. Nothing is stored until one of them verifies. Outside
-    // production with no key configured, local testing skips the check.
+    // api_secret (fetched from Telnyx if missing). Nothing is stored until
+    // one of them verifies. Outside production with no key configured, local
+    // testing skips the check.
     const env = process.env;
     let valid =
       provider.validateWebhook(rawBody, headers, "") ||
       (!env["TELNYX_PUBLIC_KEY"] && env.NODE_ENV !== "production");
     if (!valid && (await owner())) {
-      const { data: prov } = await supabase
-        .from("providers")
-        .select("api_secret")
-        .eq("id", phoneNumber!.provider_id)
-        .maybeSingle();
-      if (prov?.api_secret) valid = provider.validateWebhook(rawBody, headers, "", prov.api_secret);
+      const key = await telnyxProviderPublicKey(supabase, phoneNumber!.provider_id);
+      if (key) valid = provider.validateWebhook(rawBody, headers, "", key);
     }
     if (!valid) {
       return NextResponse.json({ error: "Invalid signature" }, { status: 403 });

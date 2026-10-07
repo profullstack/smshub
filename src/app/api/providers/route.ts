@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { createServerSupabaseClient, createServiceClient } from "@/lib/supabase/server";
 import { isManagedProvider } from "@/lib/managed-numbers/service";
 import { MANAGED_API_KEY } from "@/lib/providers";
+import { configureTelnyxWebhooks, fetchTelnyxPublicKey, type ConfigureWebhooksResult } from "@/lib/providers/telnyx-api";
+import { telnyxWebhookUrl } from "@/lib/providers/provider-check";
 
 function maskSecret(s: string): string {
   return s.length > 12 ? `${s.slice(0, 8)}…${s.slice(-4)}` : `${s.slice(0, 4)}…`;
@@ -59,22 +61,50 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Invalid api_key" }, { status: 400 });
     }
 
+    // Telnyx: check the key, fetch the account's webhook signing key (kept as
+    // api_secret) and point its messaging profiles at smshub, so nobody has
+    // to copy a public key or a webhook URL by hand.
+    let secret: string | null = api_secret || null;
+    let setup:
+      | { publicKey: "fetched" | "entered" | "missing"; publicKeyError?: string; webhooks?: ConfigureWebhooksResult }
+      | undefined;
+    if (type === "telnyx") {
+      const key = await fetchTelnyxPublicKey(String(api_key).trim());
+      if (!key.ok && (key.error.status === 401 || key.error.status === 403)) {
+        return NextResponse.json(
+          { error: `Telnyx rejected this API key: ${key.error.message}`, code: key.error.code },
+          { status: 400 }
+        );
+      }
+      const entered = typeof api_secret === "string" && api_secret.trim() ? api_secret.trim() : null;
+      secret = entered ?? (key.ok ? key.data : null);
+      setup = {
+        publicKey: entered ? "entered" : secret ? "fetched" : "missing",
+        publicKeyError: key.ok ? undefined : key.error.message,
+      };
+    }
+
     const serviceClient = createServiceClient();
     const { data, error } = await serviceClient
       .from("providers")
       .insert({
         user_id: user.id,
         type,
-        api_key,
-        api_secret: api_secret || null,
+        api_key: String(api_key).trim(),
+        api_secret: secret,
       })
       .select()
       .single();
 
     if (error) throw error;
 
+    if (setup) setup.webhooks = await configureTelnyxWebhooks(data.api_key, telnyxWebhookUrl());
+
     return NextResponse.json(
-      { provider: { ...data, api_key: maskSecret(data.api_key), api_secret: data.api_secret ? "set" : null } },
+      {
+        provider: { ...data, api_key: maskSecret(data.api_key), api_secret: data.api_secret ? "set" : null },
+        ...(setup ? { setup } : {}),
+      },
       { status: 201 }
     );
   } catch (error) {

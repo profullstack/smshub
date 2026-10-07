@@ -53,8 +53,8 @@ export function Footer() {
           <div>
             <h3 className="text-sm font-semibold text-gray-200 mb-3">Providers</h3>
             <ul className="space-y-2">
-              <li><span className="text-sm text-gray-400">Twilio</span></li>
-              <li><span className="text-sm text-gray-400">Telnyx</span></li>
+              <li><Link href="/docs/twilio" className="text-sm text-blue-400 hover:text-blue-300 transition-colors">Twilio setup</Link></li>
+              <li><Link href="/docs/telnyx" className="text-sm text-blue-400 hover:text-blue-300 transition-colors">Telnyx setup</Link></li>
               <li><Link href="/phonenumbers" className="text-sm text-blue-400 hover:text-blue-300 transition-colors">phonenumbers.bot</Link></li>
             </ul>
           </div>

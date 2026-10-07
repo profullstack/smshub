@@ -3,6 +3,8 @@ import { createServerSupabaseClient, createServiceClient } from "@/lib/supabase/
 import { isManagedProvider } from "@/lib/managed-numbers/service";
 import { getPlanUsage, limitReached } from "@/lib/plans";
 import { normalizeE164 } from "@/lib/phone";
+import { configureTelnyxWebhooks } from "@/lib/providers/telnyx-api";
+import { telnyxWebhookUrl } from "@/lib/providers/provider-check";
 
 export async function GET() {
   try {
@@ -57,7 +59,7 @@ export async function POST(request: Request) {
     const serviceClient = createServiceClient();
     const { data: provider } = await serviceClient
       .from("providers")
-      .select("id, api_key, metadata")
+      .select("id, type, api_key, metadata")
       .eq("id", provider_id)
       .eq("user_id", user.id)
       .single();
@@ -95,6 +97,13 @@ export async function POST(request: Request) {
       .single();
 
     if (error) throw error;
+
+    // Telnyx: make sure this number's messaging profile sends webhooks here.
+    // A profile already pointing elsewhere is reported, not overwritten.
+    if (provider.type === "telnyx") {
+      const webhook = await configureTelnyxWebhooks(provider.api_key, telnyxWebhookUrl(), { onlyNumbers: [number] });
+      return NextResponse.json({ phone_number: data, webhook }, { status: 201 });
+    }
 
     return NextResponse.json({ phone_number: data }, { status: 201 });
   } catch (error) {
