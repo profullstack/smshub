@@ -79,6 +79,14 @@ describe("Telnyx webhooks from a bring-your-own account", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
+  it("replaces junk typed into API Secret with the fetched key", async () => {
+    db.rows("providers")[0].api_secret = "abc123";
+    const { POST } = await import("@/app/api/webhooks/telnyx/route");
+    const res = await POST(signedRequest("/api/webhooks/telnyx", customer.privateKey, inbound));
+    expect(res.status).toBe(200);
+    expect(db.rows("providers")[0].api_secret).toBe(customer.raw);
+  });
+
   it("refuses an event signed by some other key", async () => {
     const { POST } = await import("@/app/api/webhooks/telnyx/route");
     const res = await POST(signedRequest("/api/webhooks/telnyx", keyPair().privateKey, inbound));
@@ -105,5 +113,16 @@ describe("Telnyx webhooks from a bring-your-own account", () => {
     );
     expect(res.status).toBe(200);
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("looksLikeEd25519Key", () => {
+  it("accepts raw and DER keys, rejects whatever else was typed in", async () => {
+    const { looksLikeEd25519Key } = await import("@/lib/providers/telnyx-webhook-auth");
+    expect(looksLikeEd25519Key(Buffer.alloc(32, 7).toString("base64"))).toBe(true);
+    expect(looksLikeEd25519Key(Buffer.alloc(44, 7).toString("base64"))).toBe(true);
+    expect(looksLikeEd25519Key("mysecret1234")).toBe(false);
+    expect(looksLikeEd25519Key("")).toBe(false);
+    expect(looksLikeEd25519Key(null)).toBe(false);
   });
 });
