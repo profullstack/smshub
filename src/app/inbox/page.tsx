@@ -1,6 +1,8 @@
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { InboxClient } from "@/components/inbox-client";
+import { StationInbox } from "@/components/station/station-inbox";
+import { getBrand } from "@/lib/brand-server";
 
 export default async function InboxPage() {
   const supabase = await createServerSupabaseClient();
@@ -32,6 +34,10 @@ export default async function InboxPage() {
     .eq("user_id", user.id)
     .eq("status", "active")
     .order("created_at", { ascending: true });
+
+  if ((await getBrand()).id === "numberstation") {
+    return <StationInbox conversations={conversations || []} numbers={numbers || []} />;
+  }
 
   return <InboxClient conversations={conversations || []} numbers={numbers || []} userId={user.id} />;
 }

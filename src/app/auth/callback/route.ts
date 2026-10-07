@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
-import { getSiteUrl } from "@/lib/site-url";
+import { getBrandSiteUrl } from "@/lib/brand-server";
 
 /**
  * Auth callback for email links (signup confirmation, password recovery).
@@ -10,8 +10,9 @@ import { getSiteUrl } from "@/lib/site-url";
  * We hand whichever is present to Supabase, then decide purely on whether a
  * session now exists: signed in -> `next`, otherwise -> /login.
  *
- * Redirects are built from getSiteUrl(), not request.url: behind Railway's
- * proxy the request origin is the container's localhost.
+ * Redirects are built from getBrandSiteUrl(), not request.url: behind the
+ * proxy the request origin is the container's localhost. It returns the brand
+ * host the link was opened on when that host is configured, else getSiteUrl().
  */
 
 type OtpType = "signup" | "recovery" | "email" | "email_change" | "magiclink";
@@ -27,7 +28,7 @@ export function safeNextPath(next: string | null): string {
 
 export async function GET(request: NextRequest) {
   const url = new URL(request.url);
-  const site = getSiteUrl();
+  const site = await getBrandSiteUrl(request);
   const code = url.searchParams.get("code") ?? "";
   const tokenHash = url.searchParams.get("token_hash") ?? "";
   const rawType = url.searchParams.get("type") ?? "";

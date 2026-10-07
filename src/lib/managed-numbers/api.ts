@@ -6,21 +6,11 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { CHECKOUT_CHAINS, DEFAULT_CHAIN } from "@/lib/coinpay/checkout";
 import { getPlanUsage, priceUsdPerMonth } from "@/lib/plans";
+import { extractOtp } from "@/lib/otp";
 import { GRACE_DAYS, orderingStatus } from "./service";
 
-/**
- * Pull a one-time code out of a text. Prefers a number next to a word like
- * "code", then any 4-8 digit run (also "123-456" / "123 456"). Null if none.
- */
-export function extractOtp(body: string | null | undefined): string | null {
-  if (!body) return null;
-  const text = String(body);
-  const near =
-    /(?:code|otp|pin|passcode|verification|verify|token|código|код)[^0-9]{0,24}(\d{3}[- ]?\d{3}|\d{4,8})/i.exec(text) ||
-    /(\d{3}[- ]?\d{3}|\d{4,8})[^0-9]{0,24}(?:is your|is the|est votre|es tu)/i.exec(text);
-  const raw = near?.[1] ?? /(?<![\d.,:/])(\d{3}[- ]\d{3}|\d{4,8})(?![\d.,:/])/.exec(text)?.[1];
-  return raw ? raw.replace(/[- ]/g, "") : null;
-}
+// Lives in lib/otp so the browser can import it without the server side.
+export { extractOtp };
 
 export interface NumberSummary {
   id: string;
