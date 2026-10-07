@@ -143,6 +143,7 @@ export async function POST(request: Request) {
         provider: providerData.type,
         retry_count: retryResult.attempts,
         media_url: mediaUrl || null,
+        error_detail: retryResult.error || null,
       });
 
       return NextResponse.json(

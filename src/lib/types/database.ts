@@ -126,6 +126,9 @@ export interface Database {
           provider_message_id: string | null;
           retry_count: number;
           media_url: string | null;
+          error_code: string | null;
+          error_detail: string | null;
+          status_updated_at: string | null;
           created_at: string;
         };
         Insert: {
@@ -138,6 +141,9 @@ export interface Database {
           provider_message_id?: string | null;
           retry_count?: number;
           media_url?: string | null;
+          error_code?: string | null;
+          error_detail?: string | null;
+          status_updated_at?: string | null;
           created_at?: string;
         };
         Update: {
@@ -150,6 +156,9 @@ export interface Database {
           provider_message_id?: string | null;
           retry_count?: number;
           media_url?: string | null;
+          error_code?: string | null;
+          error_detail?: string | null;
+          status_updated_at?: string | null;
           created_at?: string;
         };
       };

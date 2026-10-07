@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 import { getProvider } from "@/lib/providers";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { applyTelnyxStatus, isTelnyxStatusEvent, parseTelnyxStatusEvent } from "@/lib/providers/telnyx-status";
 
 const WEBHOOK_RATE_LIMIT = { limit: 100, windowMs: 60 * 1000 };
 
@@ -34,8 +35,17 @@ export async function POST(request: Request) {
       }
     }
 
-    // Only process message.received events
+    // The messaging profile sends every event here: delivery outcomes for
+    // outbound messages as well as inbound message.received.
     const eventType = body.data?.event_type;
+    if (isTelnyxStatusEvent(eventType)) {
+      const update = parseTelnyxStatusEvent(body);
+      if (update) {
+        const { error } = await applyTelnyxStatus(createServiceClient(), update);
+        if (error) console.error("Telnyx status update error:", error);
+      }
+      return NextResponse.json({ ok: true });
+    }
     if (eventType !== "message.received") {
       return NextResponse.json({ ok: true });
     }
