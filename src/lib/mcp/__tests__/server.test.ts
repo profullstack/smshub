@@ -90,3 +90,20 @@ describe("mcp server", () => {
     expect(res.result.content[0].text).toMatch(/not configured|open soon|private test/);
   });
 });
+
+describe("mcp line tools", () => {
+  it("lists them and refuses a line that is not yours", async () => {
+    const list = (await handleRpc(ctx(), { jsonrpc: "2.0", id: 1, method: "tools/list" })) as { result: { tools: { name: string }[] } };
+    expect(list.result.tools.map((t) => t.name)).toEqual(
+      expect.arrayContaining(["list_lines", "add_line_contact", "update_line_contact", "remove_line_contact", "voice_menu"])
+    );
+    const res = (await handleRpc(ctx(), {
+      jsonrpc: "2.0",
+      id: 2,
+      method: "tools/call",
+      params: { name: "add_line_contact", arguments: { line_id: "nope", name: "Kim", forward_to: "+14155550123" } },
+    })) as { result: { isError: boolean; content: { text: string }[] } };
+    expect(res.result.isError).toBe(true);
+    expect(res.result.content[0].text).toMatch(/not one of your numbers/);
+  });
+});

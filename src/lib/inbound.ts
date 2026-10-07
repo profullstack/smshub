@@ -7,6 +7,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { InboundMessage } from "@/lib/providers/types";
 import { fireWebhooks, type UserWebhook } from "@/lib/webhooks/outbound";
 import { extractOtp } from "@/lib/managed-numbers/api";
+import { matchPrefix, type LineContact } from "@/lib/lines/contacts";
+import { sendSMS } from "@/lib/providers";
 
 export interface OwnedNumber {
   id: string;
@@ -46,52 +48,25 @@ export async function recordInbound(
     if (dup?.[0]) return { messageId: dup[0].id, duplicate: true };
   }
 
-  let { data: contact } = await db
-    .from("contacts")
-    .select("id")
-    .eq("user_id", userId)
-    .eq("phone", inbound.from)
-    .limit(1)
-    .maybeSingle();
-  if (!contact) {
-    const { data } = await db
-      .from("contacts")
-      .insert({ user_id: userId, phone: inbound.from })
-      .select("id")
-      .single();
-    contact = data;
-  }
-  if (!contact) throw new Error("could not save the contact");
-
-  let { data: conversation } = await db
-    .from("conversations")
-    .select("id")
-    .eq("user_id", userId)
-    .eq("contact_id", contact.id)
-    .eq("phone_number_id", phoneNumber.id)
-    .limit(1)
-    .maybeSingle();
+  // "K: running late" on a line whose contacts book has prefix K is filed
+  // into K's thread, keeping who really sent it; anything else stays in the
+  // sender's own thread on this line.
+  const routed = await routeByPrefix(db, phoneNumber, inbound.body);
+  const threadPhone = routed?.contact.forward_to ?? inbound.from;
   const now = new Date().toISOString();
-  if (!conversation) {
-    const { data } = await db
-      .from("conversations")
-      .insert({ user_id: userId, contact_id: contact.id, phone_number_id: phoneNumber.id, last_message_at: now })
-      .select("id")
-      .single();
-    conversation = data;
-  }
-  if (!conversation) throw new Error("could not save the conversation");
+  const conversation = await findOrCreateThread(db, userId, phoneNumber.id, threadPhone, now);
 
   const { data: message } = await db
     .from("messages")
     .insert({
       conversation_id: conversation.id,
       direction: "inbound",
-      body: inbound.body,
+      body: routed ? routed.text : inbound.body,
       status: "delivered",
       provider: inbound.provider,
       provider_message_id: inbound.providerMessageId || null,
       media_url: inbound.mediaUrl ?? null,
+      ...(routed ? { routed_from: inbound.from } : {}),
     })
     .select("id, created_at")
     .single();
@@ -117,7 +92,107 @@ export async function recordInbound(
       otp: extractOtp(inbound.body),
       media_url: inbound.mediaUrl ?? null,
       received_at: message?.created_at ?? now,
+      ...(routed ? { routed_to: { name: routed.contact.name, phone: routed.contact.forward_to } } : {}),
     });
   }
+  if (routed?.contact.forward_sms && routed.contact.forward_to !== inbound.from) {
+    await forwardRouted(db, phoneNumber, conversation.id, routed.contact.forward_to, inbound.from, routed.text);
+  }
   return { messageId: message?.id ?? null, duplicate: false };
+}
+
+/** The conversation between a line and a phone, created (with its contact) when new. */
+export async function findOrCreateThread(
+  db: SupabaseClient,
+  userId: string,
+  phoneNumberId: string,
+  phone: string,
+  now = new Date().toISOString()
+): Promise<{ id: string; contact_id: string }> {
+  let { data: contact } = await db
+    .from("contacts")
+    .select("id")
+    .eq("user_id", userId)
+    .eq("phone", phone)
+    .limit(1)
+    .maybeSingle();
+  if (!contact) {
+    const { data } = await db.from("contacts").insert({ user_id: userId, phone }).select("id").single();
+    contact = data;
+  }
+  if (!contact) throw new Error("could not save the contact");
+
+  let { data: conversation } = await db
+    .from("conversations")
+    .select("id")
+    .eq("user_id", userId)
+    .eq("contact_id", contact.id)
+    .eq("phone_number_id", phoneNumberId)
+    .limit(1)
+    .maybeSingle();
+  if (!conversation) {
+    const { data } = await db
+      .from("conversations")
+      .insert({ user_id: userId, contact_id: contact.id, phone_number_id: phoneNumberId, last_message_at: now })
+      .select("id")
+      .single();
+    conversation = data;
+  }
+  if (!conversation) throw new Error("could not save the conversation");
+  return { id: conversation.id, contact_id: contact.id };
+}
+
+type RoutingContact = Pick<LineContact, "name" | "forward_to" | "sms_prefix" | "forward_sms">;
+
+async function routeByPrefix(db: SupabaseClient, line: OwnedNumber, body: string) {
+  if (!body) return null;
+  const { data } = await db
+    .from("line_contacts")
+    .select("name, forward_to, sms_prefix, forward_sms")
+    .eq("phone_number_id", line.id);
+  const withPrefix = ((data ?? []) as RoutingContact[]).filter((c) => c.sms_prefix);
+  return withPrefix.length ? matchPrefix(body, withPrefix) : null;
+}
+
+/**
+ * Text a prefix-routed message on to that person's own cell, logged as an
+ * outbound message in their thread. Until the line can send (10DLC), the
+ * provider refuses it and the thread shows why.
+ */
+async function forwardRouted(
+  db: SupabaseClient,
+  line: OwnedNumber,
+  conversationId: string,
+  to: string,
+  from: string,
+  text: string
+) {
+  const body = `From ${from}: ${text}`.slice(0, 1600);
+  try {
+    const { data: provider } = await db
+      .from("providers")
+      .select("type, api_key, api_secret")
+      .eq("id", line.provider_id)
+      .maybeSingle();
+    if (!provider) return;
+    // Rented numbers carry the managed placeholder key, which sendSMS refuses.
+    const result = await sendSMS({
+      to,
+      from: line.number,
+      body,
+      provider: provider.type,
+      credentials: { apiKey: provider.api_key, apiSecret: provider.api_secret },
+    });
+    await db.from("messages").insert({
+      conversation_id: conversationId,
+      direction: "outbound",
+      body,
+      status: result.success ? "sent" : "failed",
+      provider: provider.type,
+      provider_message_id: result.success ? result.messageId ?? null : null,
+      error_detail: result.success ? null : String(result.error ?? "send failed").slice(0, 500),
+    });
+  } catch (error) {
+    console.error("forward routed SMS failed:", error);
+  }
 }

@@ -9,6 +9,11 @@
 //   smshub-cli messages <number> [--since ISO] [--limit 20]
 //   smshub-cli otp <number> [--wait 60]     print the next code, nothing else
 //   smshub-cli conversations [--line <number>] [--limit 20]   the inbox, optionally one line
+//   smshub-cli lines                        who shares each number (contacts book)
+//   smshub-cli contacts <number> add --name Kim --cell +14155550123 [--digit 1] [--prefix K] [--forward-sms]
+//   smshub-cli contacts <number> edit <contact-id> [--name ..] [--cell ..] [--digit 1|none] [--prefix K|none]
+//   smshub-cli contacts <number> rm <contact-id>
+//   smshub-cli voice <number> [--setup] [--force]   where calls go; --setup plays the voice menu
 //   smshub-cli tui                          live view of numbers and texts
 //   smshub-cli mcp                          MCP over stdio, proxied to smshub.dev
 //
@@ -20,7 +25,7 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import { createInterface } from "node:readline";
 
-const VERSION = "1.1.0";
+const VERSION = "1.2.0";
 const CONFIG_DIR = join(process.env.XDG_CONFIG_HOME || join(homedir(), ".config"), "smshub");
 const CONFIG_FILE = join(CONFIG_DIR, "config.json");
 
@@ -101,6 +106,10 @@ async function resolveLine(ref) {
   return hit.id;
 }
 
+const contactLine = (c) =>
+  [c.name, c.forward_to, c.keypad_digit != null ? `press ${c.keypad_digit}` : "", c.sms_prefix ? `"${c.sms_prefix}:"` : "", c.forward_sms ? "forwards texts" : "", c.id]
+    .filter(Boolean)
+    .join("  ");
 const date = (iso) => (iso ? new Date(iso).toISOString().slice(0, 10) : "");
 const print = (args, data, human) => (args.json ? console.log(JSON.stringify(data, null, 2)) : human(data));
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -161,6 +170,51 @@ const commands = {
       body: { months: Number(args.months || 1), chain: args.chain },
     });
     print(args, order, (o) => console.log(`Pay here: ${o.pay_url}`));
+  },
+
+  async lines(args) {
+    const d = await api("/api/lines");
+    print(args, d, (d) => {
+      if (!d.lines.length) console.log("No numbers yet.");
+      for (const l of d.lines) {
+        console.log(`${l.number}  ${l.friendly_name || ""}  ${l.id}`);
+        if (!l.contacts.length) console.log("  (no contacts: smshub-cli contacts " + l.number + " add --name .. --cell ..)");
+        for (const c of l.contacts) console.log("  " + contactLine(c));
+      }
+    });
+  },
+
+  async contacts(args) {
+    const id = await resolveLine(args._[1] || "");
+    const sub = args._[2] || "list";
+    const base = `/api/lines/${id}/contacts`;
+    const fields = () => {
+      const b = {};
+      if (args.name !== undefined) b.name = String(args.name);
+      if (args.cell !== undefined) b.forward_to = String(args.cell);
+      if (args.digit !== undefined) b.keypad_digit = args.digit === "none" ? null : Number(args.digit);
+      if (args.prefix !== undefined) b.sms_prefix = args.prefix === "none" ? null : String(args.prefix);
+      if (args["forward-sms"] !== undefined) b.forward_sms = args["forward-sms"] !== "false";
+      return b;
+    };
+    let d;
+    if (sub === "list") d = await api(base);
+    else if (sub === "add") d = await api(base, { method: "POST", body: fields() });
+    else if (sub === "edit") d = await api(`${base}/${args._[3]}`, { method: "PATCH", body: fields() });
+    else if (sub === "rm") d = await api(`${base}/${args._[3]}`, { method: "DELETE" });
+    else throw new ApiError("Usage: smshub-cli contacts <number> [list|add|edit <id>|rm <id>]");
+    print(args, d, (d) => {
+      if (d.contacts) for (const c of d.contacts) console.log(contactLine(c));
+      if (d.contact) console.log(contactLine(d.contact));
+      if (d.voice) console.log(`Calls: ${d.voice.message}`);
+      if (d.ok) console.log("Removed.");
+    });
+  },
+
+  async voice(args) {
+    const id = await resolveLine(args._[1] || "");
+    const d = await api(`/api/lines/${id}/voice`, args.setup ? { method: "POST", body: { force: Boolean(args.force) } } : {});
+    print(args, d, (d) => console.log(d.voice.message));
   },
 
   async messages(args) {

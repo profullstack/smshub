@@ -338,7 +338,12 @@ export default function SettingsPage() {
 
         {/* Phone Numbers */}
         <section className="space-y-4">
-          <h2 className="text-lg font-semibold">Phone Numbers</h2>
+          <div className="flex items-baseline justify-between gap-2">
+            <h2 className="text-lg font-semibold">Phone Numbers</h2>
+            <Link href="/settings/lines" className="text-sm text-blue-400 hover:text-blue-300">
+              Who shares each number (names, voice menu, text prefixes) →
+            </Link>
+          </div>
 
           {phoneNumbers.map((pn) => {
             const provider = getProviderForNumber(pn.provider_id);

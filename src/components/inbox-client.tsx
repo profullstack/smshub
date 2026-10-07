@@ -38,6 +38,8 @@ interface Message {
   media_url?: string | null;
   error_code?: string | null;
   error_detail?: string | null;
+  kind?: "sms" | "call";
+  routed_from?: string | null;
   created_at: string;
 }
 
@@ -599,7 +601,13 @@ export function InboxClient({
                         />
                       </div>
                     )}
-                    <p className="text-sm">{msg.body}</p>
+                    {msg.routed_from && (
+                      <p className="text-xs text-gray-400 mb-1">From {msg.routed_from}</p>
+                    )}
+                    <p className="text-sm">
+                      {msg.kind === "call" && <span aria-label="Call">📞 </span>}
+                      {msg.body}
+                    </p>
                     <p
                       className={`text-xs mt-1 flex items-center ${
                         msg.direction === "outbound"
