@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 import { authenticateApiKey, checkApiKeyRateLimit } from "@/lib/api-auth";
+import { lineFilter, listConversations } from "@/lib/conversations";
 
 export async function GET(request: Request) {
   try {
@@ -17,19 +18,13 @@ export async function GET(request: Request) {
       );
     }
 
-    const supabase = createServiceClient();
+    // ?phone_number_id=<uuid> narrows the list to one line (one of your numbers).
+    const phoneNumberId = lineFilter(new URL(request.url).searchParams);
+    if (phoneNumberId === undefined) {
+      return NextResponse.json({ error: "phone_number_id must be a number id (uuid)" }, { status: 400 });
+    }
 
-    const { data: conversations, error } = await supabase
-      .from("conversations")
-      .select(`
-        *,
-        contacts(id, phone, name),
-        phone_numbers(id, number, friendly_name)
-      `)
-      .eq("user_id", auth.userId)
-      .order("last_message_at", { ascending: false });
-
-    if (error) throw error;
+    const conversations = await listConversations(createServiceClient(), auth.userId, { phoneNumberId });
 
     return NextResponse.json({ conversations });
   } catch (error) {

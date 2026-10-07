@@ -22,6 +22,7 @@ Install it once with `npm i -g @profullstack/smshub` and the command is `smshub-
 | `renew <number> [--months 1]` | extend a rented number |
 | `messages <number> [--since ISO] [--limit 20]` | texts received, newest first, codes extracted |
 | `otp <number> [--wait 60] [--recent 300]` | print the next one-time code (exit 2 if none) |
+| `conversations [--line <number>] [--limit 20]` | the inbox, newest first; `--line` takes a number, id or line name ("Mom") |
 | `tui` | full-screen live view |
 | `mcp` | MCP server on stdio, proxied to `https://smshub.dev/api/mcp` |
 
@@ -38,7 +39,7 @@ Local (stdio), e.g. for Claude Code:
 claude mcp add smshub -e SMSHUB_API_KEY=smshub_... -- npx -y @profullstack/smshub mcp
 ```
 
-Tools: `account_overview`, `list_numbers`, `rent_number`, `renew_number`, `order_status`,
+Tools: `account_overview`, `list_numbers`, `list_conversations`, `rent_number`, `renew_number`, `order_status`,
 `list_orders`, `get_messages`, `wait_for_code`.
 
 Rented numbers receive texts only. Some services refuse virtual numbers for sign-up codes.

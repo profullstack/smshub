@@ -8,10 +8,11 @@
 //   smshub-cli renew <number> [--months 1]
 //   smshub-cli messages <number> [--since ISO] [--limit 20]
 //   smshub-cli otp <number> [--wait 60]     print the next code, nothing else
+//   smshub-cli conversations [--line <number>] [--limit 20]   the inbox, optionally one line
 //   smshub-cli tui                          live view of numbers and texts
 //   smshub-cli mcp                          MCP over stdio, proxied to smshub.dev
 //
-// <number> is a number id or the number itself (+14155550123).
+// <number> is a number id or the number itself (+14155550123); --line also takes a line name ("Mom").
 // Every command takes --json. SMSHUB_API_KEY and SMSHUB_URL override the config.
 
 import { readFileSync, writeFileSync, mkdirSync, chmodSync } from "node:fs";
@@ -19,7 +20,7 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import { createInterface } from "node:readline";
 
-const VERSION = "1.0.0";
+const VERSION = "1.1.0";
 const CONFIG_DIR = join(process.env.XDG_CONFIG_HOME || join(homedir(), ".config"), "smshub");
 const CONFIG_FILE = join(CONFIG_DIR, "config.json");
 
@@ -90,6 +91,16 @@ async function resolveNumberId(ref) {
   return hit.id;
 }
 
+// A line is one of your numbers: its id, the +E164 number, or its friendly_name.
+async function resolveLine(ref) {
+  if (/^[0-9a-f-]{36}$/i.test(ref)) return ref;
+  const { numbers } = await api("/api/v1/numbers");
+  const want = ref.toLowerCase();
+  const hit = numbers.find((n) => n.number === ref || (n.friendly_name || "").toLowerCase() === want);
+  if (!hit) throw new ApiError(`${ref} is not one of your lines (see: smshub-cli numbers)`);
+  return hit.id;
+}
+
 const date = (iso) => (iso ? new Date(iso).toISOString().slice(0, 10) : "");
 const print = (args, data, human) => (args.json ? console.log(JSON.stringify(data, null, 2)) : human(data));
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -108,7 +119,7 @@ const commands = {
       if (!d.numbers.length) console.log("No numbers yet. Rent one: smshub-cli rent");
       for (const n of d.numbers) {
         const tail = n.managed ? `rented, paid until ${date(n.expires_at)}` : "your provider";
-        console.log(`${n.number}  ${n.id}  ${tail}`);
+        console.log(`${n.number}  ${n.id}  ${n.friendly_name ? `"${n.friendly_name}"  ` : ""}${tail}`);
       }
       console.log(`\nPlan: ${d.plan.plan}. Rent: $${d.pricing.usd_per_month}/month.${d.ordering.open ? "" : " " + d.ordering.reason}`);
     });
@@ -238,6 +249,22 @@ const commands = {
     await refresh();
     setInterval(refresh, 3000);
     await new Promise(() => {});
+  },
+
+  async conversations(args) {
+    const line = args.line && args.line !== true ? await resolveLine(String(args.line)) : null;
+    const d = await api(`/api/v1/conversations${line ? `?phone_number_id=${encodeURIComponent(line)}` : ""}`);
+    const limit = Number(args.limit) || 20;
+    const rows = d.conversations.slice(0, limit);
+    print(args, { conversations: rows }, () => {
+      if (!rows.length) console.log(line ? "No conversations on that line." : "No conversations yet.");
+      for (const c of rows) {
+        const who = c.contacts?.name ? `${c.contacts.name} (${c.contacts.phone})` : c.contacts?.phone || "?";
+        const via = c.phone_numbers?.friendly_name || c.phone_numbers?.number || "";
+        const unread = c.unread_count ? `  ${c.unread_count} unread` : "";
+        console.log(`${date(c.last_message_at)}  ${who}  via ${via}${unread}${c.archived ? "  [archived]" : ""}`);
+      }
+    });
   },
 
   // stdio MCP server: each JSON-RPC line goes to smshub.dev/api/mcp, replies come back as lines.

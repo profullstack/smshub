@@ -6,6 +6,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { getOrder, listNumbers, listOrders, numberMessages, overview } from "@/lib/managed-numbers/api";
 import { createOrder, OrderError } from "@/lib/managed-numbers/service";
+import { isUuid, listConversations } from "@/lib/conversations";
 import type { RequestUser } from "@/lib/request-user";
 
 export const PROTOCOL_VERSION = "2025-06-18";
@@ -44,6 +45,23 @@ const TOOLS: Tool[] = [
     description: "Phone numbers on this account (rented and bring-your-own), with expiry for rented ones.",
     inputSchema: obj({}),
     run: (c) => listNumbers(c.db, c.user.userId),
+  },
+  {
+    name: "list_conversations",
+    description:
+      "Conversations in the inbox, newest first, each with its contact, the line (number + friendly_name) it is on, and unread_count. Pass phone_number_id to see one line only.",
+    inputSchema: obj({
+      phone_number_id: { type: "string", description: "A number id from list_numbers; only conversations on that line." },
+      archived: { type: "boolean", description: "true for archived only, false for the inbox; both when omitted." },
+      limit: { type: "integer", minimum: 1, maximum: 200, default: 50 },
+    }),
+    run: async (c, a) => {
+      const phoneNumberId = a.phone_number_id ? String(a.phone_number_id) : null;
+      if (phoneNumberId && !isUuid(phoneNumberId)) return { error: "phone_number_id must be a number id from list_numbers" };
+      const limit = Math.min(200, Math.max(1, Number(a.limit) || 50));
+      const archived = typeof a.archived === "boolean" ? a.archived : undefined;
+      return { conversations: await listConversations(c.db, c.user.userId, { phoneNumberId, archived, limit }) };
+    },
   },
   {
     name: "rent_number",
