@@ -75,6 +75,9 @@ export function Footer() {
             <Link href="/terms" className="text-xs text-gray-500 hover:text-gray-300 transition-colors">
               Terms
             </Link>
+            <Link href="/sms" className="text-xs text-gray-500 hover:text-gray-300 transition-colors">
+              SMS
+            </Link>
             <Link href="https://github.com/profullstack/smshub" className="text-xs text-gray-500 hover:text-gray-300 transition-colors">
               GitHub
             </Link>

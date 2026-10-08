@@ -14,6 +14,7 @@ const PUBLIC_ROUTES = [
   "/install",
   "/privacy",
   "/terms",
+  "/sms",
   "/docs",
   "/api",
   "/manifest.json",
