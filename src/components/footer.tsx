@@ -6,7 +6,7 @@ import { Logo } from "@/components/logo";
 
 const APP_ROUTES = ["/inbox", "/settings", "/campaigns", "/contacts", "/analytics", "/org"];
 
-export function Footer() {
+export function Footer({ bottom }: { bottom?: React.ReactNode }) {
   const pathname = usePathname();
 
   // Hide footer on app routes
@@ -60,36 +60,8 @@ export function Footer() {
           </div>
         </div>
 
-        <div className="border-t border-gray-800 mt-8 pt-8 flex flex-col sm:flex-row justify-between items-center gap-4">
-          <p className="text-xs text-gray-500">
-            © {new Date().getFullYear()}{" "}
-            <a href="https://profullstack.com" className="hover:text-gray-300 transition-colors">
-              Profullstack, Inc.
-            </a>{" "}
-            All rights reserved.
-          </p>
-          <div className="flex gap-4">
-            <Link href="/privacy" className="text-xs text-gray-500 hover:text-gray-300 transition-colors">
-              Privacy
-            </Link>
-            <Link href="/terms" className="text-xs text-gray-500 hover:text-gray-300 transition-colors">
-              Terms
-            </Link>
-            <Link href="/sms" className="text-xs text-gray-500 hover:text-gray-300 transition-colors">
-              SMS
-            </Link>
-            <Link href="https://github.com/profullstack/smshub" className="text-xs text-gray-500 hover:text-gray-300 transition-colors">
-              GitHub
-            </Link>
-          </div>
-        </div>
-
-        <nav className="webring mt-4 flex justify-center gap-4 text-xs text-gray-500" aria-label="Profullstack webring">
-          <a href="https://rssamplifier.com/ring/profullstack/previous?from=https%3A%2F%2Fsmshub.dev%2F" rel="prev" className="hover:text-gray-300 transition-colors">{"<<"}</a>
-          <a href="https://rssamplifier.com/ring/profullstack" className="hover:text-gray-300 transition-colors">Profullstack</a>
-          <a href="https://rssamplifier.com/ring/profullstack/next?from=https%3A%2F%2Fsmshub.dev%2F" rel="next" className="hover:text-gray-300 transition-colors">{">>"}</a>
-          <a href="https://rssamplifier.com/ring/profullstack/random?from=https%3A%2F%2Fsmshub.dev%2F" title="Random site" aria-label="Random site" className="hover:text-gray-300 transition-colors">{"⚄"}</a>
-        </nav>
+        {/* Copyright, links and the Profullstack webring: @profullstack/footer, server-rendered in app/layout.tsx */}
+        {bottom && <div className="mt-8">{bottom}</div>}
       </div>
     </footer>
   );

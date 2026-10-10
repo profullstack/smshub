@@ -24,6 +24,7 @@
     ]
   },
   "dependencies": {
+    "@profullstack/footer": "latest",
     "@profullstack/referrals": "^0.1.0",
     "@profullstack/stack": "^0.1.3",
     "@profullstack/x402-gateway": "^0.7.0",
