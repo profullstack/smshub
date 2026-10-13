@@ -27,6 +27,15 @@ A multi-platform, real-time SMS messaging platform with unified inbox, multi-pro
 | 📱 iOS | React Native (Expo) | ✅ v1 |
 | 🤖 Android | React Native (Expo) | ✅ v1 |
 | 🖥 Desktop | Electron | ✅ v1 |
+| ⌨️ CLI / TUI / MCP | `smshub-cli` ([cli/](cli/README.md)) | ✅ v1 |
+
+Install the CLI (rent numbers, read texts and codes from a terminal or an agent):
+
+```sh
+curl -fsSL https://smshub.dev/cli/install.sh | sh
+```
+
+`https://smshub.dev/install.sh` stays the desktop app installer.
 
 ## Features
 

@@ -3,6 +3,15 @@
 Rent a US phone number on [smshub.dev](https://smshub.dev/phonenumbers) and read the texts and
 verification codes it receives, from a terminal, a script or an AI agent. No dependencies.
 
+Install the `smshub-cli` command (brings its own Node if yours is older than 18; remove with
+`sh ~/.local/share/smshub/uninstall.sh`):
+
+```sh
+curl -fsSL https://smshub.dev/cli/install.sh | sh
+```
+
+Or run it without installing:
+
 ```sh
 npx @profullstack/smshub login --key smshub_...      # Settings > API Keys on smshub.dev
 npx @profullstack/smshub rent --area 415             # prints a CoinPay link, waits for payment
@@ -11,7 +20,7 @@ npx @profullstack/smshub otp +14155550123 --wait 60  # prints the next code and 
 npx @profullstack/smshub tui                         # live view
 ```
 
-Install it once with `npm i -g @profullstack/smshub` and the command is `smshub-cli`.
+Installed, the command is `smshub-cli` (`npm i -g @profullstack/smshub` works too).
 
 | command | what it does |
 | --- | --- |
