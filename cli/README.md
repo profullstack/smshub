@@ -38,6 +38,8 @@ Installed, the command is `smshub-cli` (`npm i -g @profullstack/smshub` works to
 | `contacts <number> share <other-number\|none>` | answer this number with another line's contacts, menu and prefixes |
 | `voice <number> [--setup] [--force] [--record on\|off]` | where calls to the number go; `--setup` points them at the voice menu; `--record` turns MP3 call recording on/off |
 | `recording <call-message-id> [--out call.mp3]` | save a recorded call as MP3 |
+| `alert "<message>" [--severity info\|warning\|critical] [--to +1...]` | alert your phone (Settings > Alerts): a text when your number can send one, otherwise a call that reads it; critical always calls; the same alert is sent once per 10 minutes |
+| `alerts [--limit 20]` | recent alerts and how each went out |
 | `tui` | full-screen live view |
 | `mcp` | MCP server on stdio, proxied to `https://smshub.dev/api/mcp` |
 

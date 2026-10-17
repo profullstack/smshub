@@ -340,9 +340,14 @@ export default function SettingsPage() {
         <section className="space-y-4">
           <div className="flex items-baseline justify-between gap-2">
             <h2 className="text-lg font-semibold">Phone Numbers</h2>
-            <Link href="/settings/lines" className="text-sm text-blue-400 hover:text-blue-300">
-              Who shares each number (names, voice menu, text prefixes) →
-            </Link>
+            <div className="flex flex-col items-end gap-1">
+              <Link href="/settings/lines" className="text-sm text-blue-400 hover:text-blue-300">
+                Who shares each number (names, voice menu, text prefixes) →
+              </Link>
+              <Link href="/settings/alerts" className="text-sm text-blue-400 hover:text-blue-300">
+                Alerts to your phone (text or call) →
+              </Link>
+            </div>
           </div>
 
           {phoneNumbers.map((pn) => {
