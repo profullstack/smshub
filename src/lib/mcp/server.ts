@@ -9,6 +9,7 @@ import { createOrder, OrderError } from "@/lib/managed-numbers/service";
 import { isUuid, listConversations } from "@/lib/conversations";
 import type { RequestUser } from "@/lib/request-user";
 import { LINE_TOOLS, LineToolError } from "./line-tools";
+import { AlertError, listAlerts, sendAlert } from "@/lib/alerts/service";
 
 export const PROTOCOL_VERSION = "2025-06-18";
 const MAX_WAIT_SECONDS = 55;
@@ -139,6 +140,26 @@ const TOOLS: Tool[] = [
       }
     },
   },
+  {
+    name: "send_alert",
+    description:
+      "Alert a human now: texts your alert phone (Settings > Alerts) when one of your numbers can send SMS, otherwise phones it and reads the message aloud twice. severity critical always calls. The same message to the same phone within 10 minutes is sent once.",
+    inputSchema: obj(
+      {
+        message: { type: "string", maxLength: 600, description: "What happened, in one or two plain sentences (it may be read aloud)." },
+        severity: { type: "string", enum: ["info", "warning", "critical"], default: "warning" },
+        to: { type: "string", description: "Optional E.164 phone; must be your alert phone or someone in a line contacts book." },
+      },
+      ["message"]
+    ),
+    run: (c, a) => sendAlert({ db: c.db }, c.user.userId, a),
+  },
+  {
+    name: "list_alerts",
+    description: "Recent alerts, newest first, with how each went out (sms, call) and any error.",
+    inputSchema: obj({ limit: { type: "integer", minimum: 1, maximum: 100, default: 20 } }),
+    run: async (c, a) => ({ alerts: await listAlerts(c.db, c.user.userId, Number(a.limit) || 20) }),
+  },
 ];
 
 const ALL_TOOLS: Tool[] = [...TOOLS, ...LINE_TOOLS];
@@ -183,7 +204,7 @@ export async function handleRpc(ctx: Ctx, msg: RpcRequest): Promise<unknown | nu
           structuredContent: Array.isArray(result) ? { items: result } : result,
         });
       } catch (e) {
-        const known = e instanceof OrderError || e instanceof LineToolError;
+        const known = e instanceof OrderError || e instanceof LineToolError || e instanceof AlertError;
         const message = known ? (e as Error).message : "Tool failed";
         if (!known) console.error("mcp tool error:", { tool: name.replace(/[^\w-]/g, "").slice(0, 64) }, e);
         return ok(msg.id, { content: [{ type: "text", text: message }], isError: true });

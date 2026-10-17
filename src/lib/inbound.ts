@@ -9,6 +9,7 @@ import { fireWebhooks, type UserWebhook } from "@/lib/webhooks/outbound";
 import { extractOtp } from "@/lib/managed-numbers/api";
 import { bookLineId, matchPrefix, type LineContact } from "@/lib/lines/contacts";
 import { sendSMS } from "@/lib/providers";
+import { noteAlertOptOut } from "@/lib/alerts/opt-out";
 
 export interface OwnedNumber {
   id: string;
@@ -75,6 +76,7 @@ export async function recordInbound(
     .from("conversations")
     .update({ last_message_at: now, archived: false })
     .eq("id", conversation.id);
+  await noteAlertOptOut(db, inbound.from, inbound.body, now);
 
   const { data: hooks } = await db
     .from("user_webhooks")

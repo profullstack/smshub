@@ -16,6 +16,8 @@
 //   smshub-cli contacts <number> share <other-number|none>   use another line's contacts and menu
 //   smshub-cli voice <number> [--setup] [--force] [--record on|off]   where calls go; --setup plays the voice menu
 //   smshub-cli recording <call-message-id> [--out call.mp3]   save a recorded call as MP3
+//   smshub-cli alert "<message>" [--severity info|warning|critical] [--to +1...]   text or call you (Settings > Alerts)
+//   smshub-cli alerts [--limit 20]           recent alerts and how each went out
 //   smshub-cli tui                          live view of numbers and texts
 //   smshub-cli mcp                          MCP over stdio, proxied to smshub.dev
 //
@@ -27,7 +29,7 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import { createInterface } from "node:readline";
 
-const VERSION = "1.4.0";
+const VERSION = "1.5.0";
 const CONFIG_DIR = join(process.env.XDG_CONFIG_HOME || join(homedir(), ".config"), "smshub");
 const CONFIG_FILE = join(CONFIG_DIR, "config.json");
 
@@ -242,6 +244,28 @@ const commands = {
     const out = args.out || `call-${id}.mp3`;
     writeFileSync(out, Buffer.from(await res.arrayBuffer()));
     console.log(`Saved ${out}`);
+  },
+
+  async alert(args) {
+    const message = args._.slice(1).join(" ").trim() || (args.message === true ? "" : args.message || "");
+    if (!message) throw new ApiError('What to say? smshub-cli alert "disk full on dev2"');
+    const body = { message };
+    if (args.severity) body.severity = args.severity;
+    if (args.to) body.to = args.to;
+    const res = await api("/api/v1/alerts", { method: "POST", body });
+    print(args, res, (r) =>
+      console.log(r.deduped ? `already sent at ${r.alert.created_at} (same alert within 10 minutes)` : `${r.alert.channels.join(" + ") || r.alert.status}: ${r.note}`)
+    );
+  },
+
+  async alerts(args) {
+    const { alerts } = await api(`/api/v1/alerts?limit=${Number(args.limit) || 20}`);
+    print(args, alerts, (list) => {
+      if (!list.length) return console.log("No alerts yet.");
+      for (const a of list) {
+        console.log(`${a.created_at.slice(0, 19).replace("T", " ")}  ${a.status === "failed" ? "FAILED" : a.channels.join("+")}  ${a.severity}  ${a.message}${a.error ? `  (${a.error})` : ""}`);
+      }
+    });
   },
 
   async messages(args) {

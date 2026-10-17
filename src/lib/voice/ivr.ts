@@ -16,6 +16,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { bookLineId, type LineContact } from "@/lib/lines/contacts";
 import { findOrCreateThread } from "@/lib/inbound";
 import { encodeState, type CallCommand } from "./telnyx-voice";
+import { handleAlertCall } from "@/lib/alerts/call";
 
 export const MAX_MENU_ATTEMPTS = 3;
 const VOICE = { voice: "female", language: "en-US" };
@@ -37,6 +38,8 @@ export interface CallState {
   t?: number;
   /** Hang up once the current announcement ends. */
   h?: number;
+  /** An outbound alert call (src/lib/alerts/call.ts): the alert id. */
+  al?: string;
 }
 
 export interface CallEvent {
@@ -99,6 +102,9 @@ export async function handleCallEvent(
   const callId = String(p.call_control_id ?? "");
   if (!callId) return "ignored: no call_control_id";
   if (state?.t) return "ignored: transferred leg";
+  if (state?.al && event.event_type !== "call.speak.ended") {
+    return handleAlertCall(deps, event, state as CallState & { al: string });
+  }
 
   switch (event.event_type) {
     case "call.initiated": {
