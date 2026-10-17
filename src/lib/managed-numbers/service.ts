@@ -16,7 +16,9 @@ import {
   CHECKOUT_WINDOW_MINUTES,
   coinpayConfig,
   createPayment,
-  normalizeChain,
+  createPaypalPayment,
+  normalizeMethod,
+  PAYPAL_METHOD,
   type CoinPayConfig,
   type WebhookEvent,
 } from "@/lib/coinpay/checkout";
@@ -131,7 +133,7 @@ export async function createOrder(
   const cp = coinpayConfig(env) as CoinPayConfig;
   const kind = input.kind ?? "new";
   const months = clampMonths(input.months);
-  const chain = normalizeChain(input.chain);
+  const chain = normalizeMethod(input.chain);
   const areaCode = cleanAreaCode(input.areaCode);
   const { db } = deps;
 
@@ -173,18 +175,36 @@ export async function createOrder(
   if (error || !order) throw new OrderError("Could not create the order", 500);
 
   try {
-    const payment = await createPayment(
-      cp,
-      {
-        amountUsd: amount,
-        chain,
-        description: `smshub.dev: ${numberLabel}, ${months} month${months > 1 ? "s" : ""}`,
-        metadata: { order_id: order.id, user_id: input.userId, kind },
-        redirectUrl: `${input.siteUrl}/numbers?order=${order.id}`,
-        idempotencyKey: `smshub-order-${order.id}`,
-      },
-      deps.fetchImpl
-    );
+    const description = `smshub.dev: ${numberLabel}, ${months} month${months > 1 ? "s" : ""}`;
+    const metadata = { order_id: order.id, user_id: input.userId, kind };
+    const backUrl = `${input.siteUrl}/numbers?order=${order.id}`;
+    const payment =
+      chain === PAYPAL_METHOD
+        ? await createPaypalPayment(
+            cp,
+            {
+              amountUsd: amount,
+              description,
+              metadata,
+              successUrl: backUrl,
+              cancelUrl: `${input.siteUrl}/numbers`,
+              invoiceNumber: `smshub-${order.id}`,
+            },
+            deps.fetchImpl
+          )
+        : await createPayment(
+            cp,
+            {
+              amountUsd: amount,
+              chain,
+              description,
+              metadata,
+              redirectUrl: backUrl,
+              cancelUrl: `${input.siteUrl}/numbers`,
+              idempotencyKey: `smshub-order-${order.id}`,
+            },
+            deps.fetchImpl
+          );
     const { data: updated } = await db
       .from("number_orders")
       .update({ coinpay_payment_id: payment.id, pay_url: payment.payUrl, updated_at: new Date().toISOString() })

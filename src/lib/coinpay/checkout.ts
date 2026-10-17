@@ -31,6 +31,24 @@ export function normalizeChain(chain: unknown): CheckoutChain {
   return (CHECKOUT_CHAINS as readonly string[]).includes(c) ? (c as CheckoutChain) : DEFAULT_CHAIN;
 }
 
+/**
+ * PayPal, through CoinPay's PayPal rail. The smshub business is connected with
+ * Anthony's own PayPal REST app (self-serve mode), so the money lands in that
+ * PayPal account and CoinPay takes no cut. Stored in number_orders.chain like a
+ * coin so every listing, the CLI and the MCP need no new field.
+ */
+export const PAYPAL_METHOD = "PAYPAL" as const;
+
+/** Everything the buyer can pick: the default coin, PayPal, then the other coins. */
+export const CHECKOUT_METHODS = [DEFAULT_CHAIN, PAYPAL_METHOD, ...CHECKOUT_CHAINS.filter((c) => c !== DEFAULT_CHAIN)] as const;
+export type CheckoutMethod = CheckoutChain | typeof PAYPAL_METHOD;
+
+/** Like normalizeChain, but PayPal is also a valid answer. */
+export function normalizeMethod(method: unknown): CheckoutMethod {
+  const m = String(method ?? "").trim().toUpperCase();
+  return m === PAYPAL_METHOD ? PAYPAL_METHOD : normalizeChain(m);
+}
+
 export interface CoinPayConfig {
   apiUrl: string;
   apiKey: string;
@@ -82,6 +100,8 @@ export async function createPayment(
     description: string;
     metadata: Record<string, string>;
     redirectUrl?: string;
+    /** "Back to smshub" on CoinPay's expired pay page. */
+    cancelUrl?: string;
     idempotencyKey: string;
   },
   fetchImpl: typeof fetch = fetch
@@ -101,6 +121,7 @@ export async function createPayment(
       description: opts.description,
       metadata: opts.metadata,
       redirect_url: opts.redirectUrl,
+      cancel_url: opts.cancelUrl,
       expires_in_minutes: CHECKOUT_WINDOW_MINUTES,
     }),
   });
@@ -119,6 +140,50 @@ export async function createPayment(
     address: body.payment?.payment_address,
     cryptoAmount: body.payment?.crypto_amount != null ? String(body.payment.crypto_amount) : undefined,
   };
+}
+
+/**
+ * Open a PayPal order through CoinPay (POST /api/paypal/payments/create).
+ * `amount` there is MAJOR units (dollars), unlike CoinPay's card rail.
+ * The returned id is CoinPay's PayPal transaction id, which is also the
+ * `payment_id` of the payment.confirmed webhook CoinPay sends on capture, so
+ * settlement needs nothing PayPal-specific. The invoice number is the order id:
+ * PayPal refuses a second order with the same invoice id, so a retry cannot
+ * open two.
+ */
+export async function createPaypalPayment(
+  cfg: CoinPayConfig,
+  opts: {
+    amountUsd: number;
+    description: string;
+    metadata: Record<string, string>;
+    successUrl: string;
+    cancelUrl: string;
+    invoiceNumber: string;
+  },
+  fetchImpl: typeof fetch = fetch
+): Promise<CreatedPayment> {
+  const res = await fetchImpl(`${cfg.apiUrl}/paypal/payments/create`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${cfg.apiKey}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      business_id: cfg.businessId,
+      amount: opts.amountUsd,
+      currency: "USD",
+      description: opts.description,
+      metadata: opts.metadata,
+      success_url: opts.successUrl,
+      cancel_url: opts.cancelUrl,
+      invoiceNumber: opts.invoiceNumber,
+    }),
+  });
+  const body = (await res.json().catch(() => ({}))) as { error?: string; transaction_id?: string };
+  const id = body.transaction_id;
+  if (!res.ok || !id) {
+    throw new CoinPayError(body.error || `CoinPay PayPal answered ${res.status}`, res.status);
+  }
+  // Built from our own config rather than trusted from the response.
+  return { id, payUrl: `${cfg.apiUrl.replace(/\/api$/, "")}/pay/paypal/${id}` };
 }
 
 /** Verify `X-CoinPay-Signature: t=<unix>,v1=<hex hmac-sha256 of "t.rawBody">`. */
