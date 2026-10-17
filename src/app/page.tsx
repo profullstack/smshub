@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { SisterSimLink } from "@/components/sister-sim-link";
 import { PLANS, priceUsdPerMonth } from "@/lib/plans";
 import { getBrand } from "@/lib/brand-server";
 import { StationHome } from "@/components/station/station-home";
@@ -47,6 +48,9 @@ export default async function LandingPage() {
           <p className="text-sm text-gray-500">
             Receive only. The number is yours alone while it is paid. Some services refuse virtual numbers for
             sign-up codes.
+          </p>
+          <p className="text-xs text-gray-600">
+            <SisterSimLink />
           </p>
         </div>
       </section>

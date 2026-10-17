@@ -59,3 +59,14 @@ describe("coinpay checkout", () => {
     expect(readWebhook({ id: "evt_only", status: "paid" }).paymentId).toBeNull();
   });
 });
+
+describe("checkout window", () => {
+  it("matches CoinPay's fixed 15-minute quote", async () => {
+    const { CHECKOUT_WINDOW_MINUTES, checkoutWindowOpen } = await import("../checkout");
+    expect(CHECKOUT_WINDOW_MINUTES).toBe(15);
+    const made = new Date("2026-10-17T11:09:49Z");
+    expect(checkoutWindowOpen(made.toISOString(), new Date(made.getTime() + 14 * 60_000))).toBe(true);
+    expect(checkoutWindowOpen(made.toISOString(), new Date(made.getTime() + 15 * 60_000))).toBe(false);
+    expect(checkoutWindowOpen("not a date", made)).toBe(false);
+  });
+});

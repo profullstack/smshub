@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { PHONENUMBERS_BOT_URL } from "@/components/sister-sim-link";
 import { usePathname } from "next/navigation";
 import { Logo } from "@/components/logo";
 
@@ -33,7 +34,7 @@ export function Footer({ bottom }: { bottom?: React.ReactNode }) {
             <ul className="space-y-2">
               <li><Link href="/#features" className="text-sm text-gray-400 hover:text-white transition-colors">Features</Link></li>
               <li><Link href="/#pricing" className="text-sm text-gray-400 hover:text-white transition-colors">Pricing</Link></li>
-              <li><Link href="/phonenumbers" className="text-sm text-gray-400 hover:text-white transition-colors">Phone Numbers</Link></li>
+              <li><Link href="/phonenumbers" className="text-sm text-gray-400 hover:text-white transition-colors">Rent a number</Link></li>
               <li><Link href="/#api" className="text-sm text-gray-400 hover:text-white transition-colors">API</Link></li>
             </ul>
           </div>
@@ -55,7 +56,12 @@ export function Footer({ bottom }: { bottom?: React.ReactNode }) {
             <ul className="space-y-2">
               <li><Link href="/docs/twilio" className="text-sm text-blue-400 hover:text-blue-300 transition-colors">Twilio setup</Link></li>
               <li><Link href="/docs/telnyx" className="text-sm text-blue-400 hover:text-blue-300 transition-colors">Telnyx setup</Link></li>
-              <li><Link href="/phonenumbers" className="text-sm text-blue-400 hover:text-blue-300 transition-colors">phonenumbers.bot</Link></li>
+              <li><Link href="/phonenumbers" className="text-sm text-blue-400 hover:text-blue-300 transition-colors">SMSHub rented numbers</Link></li>
+              <li>
+                <a href={PHONENUMBERS_BOT_URL} target="_blank" rel="noopener" className="text-sm text-gray-400 hover:text-white transition-colors">
+                  phonenumbers.bot: real SIMs, coming soon
+                </a>
+              </li>
             </ul>
           </div>
         </div>

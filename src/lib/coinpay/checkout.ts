@@ -51,6 +51,9 @@ export function coinpayConfig(env: NodeJS.ProcessEnv = process.env): CoinPayConf
   return { apiUrl, apiKey, businessId, webhookSecret };
 }
 
+// Client-safe (no node:crypto), so /numbers can count down the same window.
+export { CHECKOUT_WINDOW_MINUTES, checkoutWindowOpen } from "./window";
+
 export function payPageUrl(cfg: CoinPayConfig, paymentId: string): string {
   return `${cfg.apiUrl.replace(/\/api$/, "")}/pay/${paymentId}`;
 }

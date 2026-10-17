@@ -13,7 +13,7 @@ export async function generateMetadata(): Promise<Metadata> {
 const GUIDES = [
   { href: "/docs/telnyx", name: "Telnyx", desc: "API key only. We set up the webhook for you." },
   { href: "/docs/twilio", name: "Twilio", desc: "Account SID, Auth Token and one webhook URL." },
-  { href: "/phonenumbers", name: "phonenumbers.bot", desc: "Managed numbers, nothing to set up." },
+  { href: "/phonenumbers", name: "Rented numbers", desc: "Managed numbers, nothing to set up." },
 ];
 
 export default function DocsPage() {

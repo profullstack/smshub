@@ -197,6 +197,20 @@ describe("managed numbers", () => {
     expect(fdb.rows("phone_numbers").find((r) => r.id === "pn-support")!.status).toBe("active");
   });
 
+  it("sweep frees an abandoned checkout within the hour, not after a day", async () => {
+    const f = fakeFetch();
+    const deps = { db, env: baseEnv("live"), fetchImpl: f.impl };
+    await createOrder(deps, { userId: USER, email: EMAIL, siteUrl: "x" });
+    await createOrder(deps, { userId: USER, email: EMAIL, siteUrl: "x" });
+    const [old, fresh] = fdb.rows("number_orders");
+    old.created_at = new Date(Date.now() - 61 * 60_000).toISOString();
+    fresh.created_at = new Date(Date.now() - 10 * 60_000).toISOString();
+    const report = await sweep({ ...deps, now: () => new Date() });
+    expect(report.expiredCheckouts).toBe(1);
+    expect(old.status).toBe("expired");
+    expect(fresh.status).toBe("pending");
+  });
+
   it("a payment that settles after its checkout expired is still honoured", async () => {
     const f = fakeFetch();
     const deps = { db, env: baseEnv("live"), fetchImpl: f.impl };
