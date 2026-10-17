@@ -10,6 +10,7 @@ const PUBLIC_ROUTES = [
   "/forgot-password",
   "/auth",
   "/phonenumbers",
+  "/verification-numbers",
   "/offline",
   "/install",
   "/privacy",

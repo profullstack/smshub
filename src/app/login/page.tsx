@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Logo } from "@/components/logo";
+import { nextFromLocation } from "@/lib/safe-next";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -12,12 +13,14 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [next, setNext] = useState("/inbox");
   const router = useRouter();
 
   // /auth/callback lands here with ?error=link when the email link could not
   // sign the user in: usually it was opened in another browser or the mail
   // app, where the signup confirmation still went through.
   useEffect(() => {
+    setNext(nextFromLocation());
     if (new URLSearchParams(window.location.search).get("error") === "link") {
       setNotice(
         "If you just confirmed your email, it is confirmed: sign in below. If the link was for a password reset, it expired or was opened in another browser, so request a new one."
@@ -40,7 +43,7 @@ export default function LoginPage() {
       setError(error.message);
       setLoading(false);
     } else {
-      router.push("/inbox");
+      router.push(next);
       router.refresh();
     }
   };
@@ -118,7 +121,10 @@ export default function LoginPage() {
 
         <p className="text-center text-sm text-gray-400">
           Don&apos;t have an account?{" "}
-          <Link href="/register" className="text-blue-400 hover:text-blue-300">
+          <Link
+            href={next === "/inbox" ? "/register" : `/register?next=${encodeURIComponent(next)}`}
+            className="text-blue-400 hover:text-blue-300"
+          >
             Sign up
           </Link>
         </p>

@@ -1,6 +1,9 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getBrandSiteUrl } from "@/lib/brand-server";
+import { safeNextPath } from "@/lib/safe-next";
+
+export { safeNextPath };
 
 /**
  * Auth callback for email links (signup confirmation, password recovery).
@@ -17,14 +20,6 @@ import { getBrandSiteUrl } from "@/lib/brand-server";
 
 type OtpType = "signup" | "recovery" | "email" | "email_change" | "magiclink";
 const OTP_TYPES: readonly OtpType[] = ["signup", "recovery", "email", "email_change", "magiclink"];
-
-/** Only allow same-origin relative paths so the redirect cannot leave the site. */
-export function safeNextPath(next: string | null): string {
-  if (!next || !next.startsWith("/") || next.startsWith("//")) {
-    return "/inbox";
-  }
-  return next;
-}
 
 export async function GET(request: NextRequest) {
   const url = new URL(request.url);
@@ -63,5 +58,6 @@ export async function GET(request: NextRequest) {
 
   const failure = new URL("/login", site);
   failure.searchParams.set("error", "link");
+  if (next !== "/inbox") failure.searchParams.set("next", next);
   return NextResponse.redirect(failure);
 }

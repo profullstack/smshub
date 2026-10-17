@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { InboxClient } from "@/components/inbox-client";
 import { StationInbox } from "@/components/station/station-inbox";
 import { getBrand } from "@/lib/brand-server";
+import { priceUsdPerMonth } from "@/lib/plans";
 
 export default async function InboxPage() {
   const supabase = await createServerSupabaseClient();
@@ -39,5 +40,12 @@ export default async function InboxPage() {
     return <StationInbox conversations={conversations || []} numbers={numbers || []} />;
   }
 
-  return <InboxClient conversations={conversations || []} numbers={numbers || []} userId={user.id} />;
+  return (
+    <InboxClient
+      conversations={conversations || []}
+      numbers={numbers || []}
+      userId={user.id}
+      rentPriceUsd={priceUsdPerMonth()}
+    />
+  );
 }

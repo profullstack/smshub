@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Logo } from "@/components/logo";
+import { nextFromLocation } from "@/lib/safe-next";
 
 export default function RegisterPage() {
   const [email, setEmail] = useState("");
@@ -13,7 +14,15 @@ export default function RegisterPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [confirmSent, setConfirmSent] = useState(false);
+  // Where to land after signup, e.g. /numbers when they came to rent a number.
+  const [next, setNext] = useState("/inbox");
   const router = useRouter();
+
+  useEffect(() => {
+    setNext(nextFromLocation());
+  }, []);
+
+  const renting = next.startsWith("/numbers");
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -37,7 +46,9 @@ export default function RegisterPage() {
       email,
       password,
       options: {
-        emailRedirectTo: `${window.location.origin}/auth/callback`,
+        emailRedirectTo: `${window.location.origin}/auth/callback${
+          next === "/inbox" ? "" : `?next=${encodeURIComponent(next)}`
+        }`,
       },
     });
 
@@ -49,7 +60,7 @@ export default function RegisterPage() {
       setConfirmSent(true);
       setLoading(false);
     } else {
-      router.push("/inbox");
+      router.push(next);
       router.refresh();
     }
   };
@@ -66,11 +77,17 @@ export default function RegisterPage() {
             />
           </div>
           <p className="text-gray-400 mt-2">Create your account</p>
+          {renting && (
+            <p className="text-sm text-gray-500 mt-2">
+              Next you pick an area code and pay with crypto. Your number is ready once the payment confirms.
+            </p>
+          )}
         </div>
 
         {confirmSent ? (
           <div className="bg-green-500/10 border border-green-500/20 rounded-lg p-4 text-green-400 text-sm text-center">
             Check your email for a confirmation link to finish creating your account.
+            {renting && " The link brings you straight back to renting your number."}
           </div>
         ) : (
         <form onSubmit={handleRegister} className="space-y-4">
@@ -141,7 +158,10 @@ export default function RegisterPage() {
 
         <p className="text-center text-sm text-gray-400">
           Already have an account?{" "}
-          <Link href="/login" className="text-blue-400 hover:text-blue-300">
+          <Link
+            href={next === "/inbox" ? "/login" : `/login?next=${encodeURIComponent(next)}`}
+            className="text-blue-400 hover:text-blue-300"
+          >
             Sign in
           </Link>
         </p>

@@ -11,8 +11,7 @@ const NAV_LINKS = [
   { href: "/#features", label: "Features" },
   { href: "/#pricing", label: "Pricing" },
   { href: "/#api", label: "API" },
-  { href: "/#apps", label: "Apps" },
-  { href: "/phonenumbers", label: "Phone Numbers" },
+  { href: "/verification-numbers", label: "Verification numbers" },
 ];
 
 export function Header() {
@@ -43,10 +42,10 @@ export function Header() {
             Sign in
           </Link>
           <Link
-            href="/install"
-            className="text-sm px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg font-medium transition-colors hidden sm:inline-block"
+            href="/numbers"
+            className="text-sm px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg font-medium transition-colors hidden sm:inline-block"
           >
-            Get Started
+            Rent a number
           </Link>
 
           {/* Mobile hamburger */}
@@ -88,11 +87,11 @@ export function Header() {
             Sign in
           </Link>
           <Link
-            href="/install"
-            className="block text-sm text-center px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg font-medium transition-colors"
+            href="/numbers"
+            className="block text-sm text-center px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg font-medium transition-colors"
             onClick={() => setMobileMenuOpen(false)}
           >
-            Get Started
+            Rent a number
           </Link>
         </nav>
       )}
