@@ -93,7 +93,9 @@ export default function NumbersPage() {
   const load = useCallback(async () => {
     const res = await fetch("/api/numbers");
     if (res.status === 401) {
-      window.location.href = "/login";
+      // Most people who reach this signed out are new: sign up, then come back
+      // here. The signup page links to sign in with the same `next`.
+      window.location.href = `/register?next=${encodeURIComponent(window.location.pathname + window.location.search)}`;
       return;
     }
     if (!res.ok) {

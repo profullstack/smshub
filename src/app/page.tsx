@@ -7,43 +7,68 @@ export const dynamic = "force-dynamic";
 
 export default async function LandingPage() {
   if ((await getBrand()).id === "numberstation") return <StationHome />;
+  const price = priceUsdPerMonth();
 
   return (
     <div className="min-h-screen flex flex-col">
       {/* Hero */}
       <section className="flex-1 flex items-center justify-center px-4 py-20">
         <div className="max-w-4xl mx-auto text-center space-y-8">
-          <div className="inline-block bg-blue-600/10 border border-blue-600/20 text-blue-400 text-sm font-medium px-4 py-1.5 rounded-full">
-            Multi-platform SMS — Web, Mobile, Desktop
+          <div className="inline-block bg-green-600/10 border border-green-600/20 text-green-400 text-sm font-medium px-4 py-1.5 rounded-full">
+            Real US phone numbers · ${price}/month
           </div>
 
           <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold tracking-tight">
-            One inbox for
+            A real number for
             <br />
-            <span className="text-blue-500">all your SMS</span>
+            <span className="text-blue-500">your verification codes</span>
           </h1>
 
           <p className="text-lg sm:text-xl text-gray-400 max-w-2xl mx-auto">
-            Send and receive SMS from any device. Multi-provider support with Twilio, Telnyx, and real SIM numbers.
-            Built for developers, designed for everyone.
+            Rent your own US phone number and receive SMS and one-time codes in your inbox, by API, CLI or MCP.
+            ${price} a month, paid in crypto through CoinPay. No card, no carrier contract.
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link
-              href="/register"
-              className="px-8 py-3 bg-blue-600 hover:bg-blue-700 rounded-lg font-semibold text-lg transition-colors"
+              href="/numbers"
+              className="px-8 py-3 bg-green-600 hover:bg-green-700 rounded-lg font-semibold text-lg transition-colors"
             >
-              Get Started Free
+              Rent a number · ${price}/mo
             </Link>
             <Link
-              href="#features"
+              href="/verification-numbers"
               className="px-8 py-3 bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded-lg font-semibold text-lg transition-colors"
             >
-              See Features
+              How it works
             </Link>
           </div>
 
-          <p className="text-sm text-gray-500">No credit card required · Free tier available</p>
+          <p className="text-sm text-gray-500">
+            Receive only. The number is yours alone while it is paid. Some services refuse virtual numbers for
+            sign-up codes.
+          </p>
+        </div>
+      </section>
+
+      {/* How renting works */}
+      <section className="py-16 px-4 border-t border-gray-800">
+        <div className="max-w-5xl mx-auto grid md:grid-cols-3 gap-6">
+          <FeatureCard
+            emoji="1️⃣"
+            title="Create an account"
+            desc="Sign up with your email. Free, and you can bring your own Twilio or Telnyx number later."
+          />
+          <FeatureCard
+            emoji="2️⃣"
+            title={`Pay $${price} in crypto`}
+            desc="Pick an area code if you want one, then pay with USDC, USDT, BTC, ETH, SOL or POL through CoinPay."
+          />
+          <FeatureCard
+            emoji="3️⃣"
+            title="Receive your codes"
+            desc="The number is set up as soon as the payment confirms. Texts show up in seconds with the code pulled out."
+          />
         </div>
       </section>
 
@@ -121,14 +146,13 @@ export default async function LandingPage() {
         </div>
       </section>
 
-      {/* Download Apps */}
-      <section id="apps" className="py-20 px-4 border-t border-gray-800">
+      {/* Pricing */}
+      <section id="pricing" className="py-20 px-4 border-t border-gray-800">
         <div className="max-w-4xl mx-auto">
           <div className="text-center mb-12">
-            <h2 className="text-3xl sm:text-4xl font-bold mb-4">Native apps coming soon</h2>
+            <h2 className="text-3xl sm:text-4xl font-bold mb-4">Pricing</h2>
             <p className="text-gray-400 text-lg max-w-2xl mx-auto">
-              Take SMSHub with you everywhere. Native apps for iOS, Android, and desktop — built with
-              React Native and Electron.
+              Bring your own provider for free, or rent a number from us for ${price} a month.
             </p>
           </div>
 
@@ -148,16 +172,16 @@ export default async function LandingPage() {
             />
             <PricingCard
               name="Rented number"
-              price={`$${priceUsdPerMonth()}`}
+              price={`$${price}`}
               period="/mo per number"
               features={[
                 "A US number for SMS and verification codes",
                 "Codes in your inbox, API, CLI and MCP",
-                "Pay with crypto through CoinPay",
+                "Pay with crypto through CoinPay, 1 to 12 months",
                 `Unlocks Pro: ${PLANS.pro.byoNumbers} numbers, ${PLANS.pro.apiKeys} API keys, AI replies`,
               ]}
               cta="Rent a number"
-              href="/phonenumbers"
+              href="/numbers"
               featured
             />
           </div>
@@ -192,16 +216,24 @@ export default async function LandingPage() {
       {/* CTA */}
       <section className="py-20 px-4 border-t border-gray-800">
         <div className="max-w-2xl mx-auto text-center space-y-6">
-          <h2 className="text-3xl sm:text-4xl font-bold">Ready to start messaging?</h2>
+          <h2 className="text-3xl sm:text-4xl font-bold">Need a number for a code?</h2>
           <p className="text-gray-400 text-lg">
-            Create your account in seconds. No credit card required.
+            Create your account, pay ${price} in crypto, and your number is ready once the payment confirms.
           </p>
-          <Link
-            href="/register"
-            className="inline-block px-8 py-3 bg-blue-600 hover:bg-blue-700 rounded-lg font-semibold text-lg transition-colors"
-          >
-            Get Started Free
-          </Link>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <Link
+              href="/numbers"
+              className="inline-block px-8 py-3 bg-green-600 hover:bg-green-700 rounded-lg font-semibold text-lg transition-colors"
+            >
+              Rent a number · ${price}/mo
+            </Link>
+            <Link
+              href="/register"
+              className="inline-block px-8 py-3 bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded-lg font-semibold text-lg transition-colors"
+            >
+              Start free with your own provider
+            </Link>
+          </div>
         </div>
       </section>
     </div>
@@ -306,7 +338,7 @@ function PricingCard({
     >
       {featured && (
         <div className="text-xs font-semibold text-blue-400 uppercase tracking-wide mb-2">
-          Most Popular
+          For verification codes
         </div>
       )}
       <h3 className="text-lg font-semibold">{name}</h3>

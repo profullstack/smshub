@@ -9,6 +9,7 @@ import { Header } from "@/components/header";
 import { Footer } from "@/components/footer";
 import { Footer as PfsFooter } from "@profullstack/footer/react";
 import { getSiteUrl } from "@/lib/site-url";
+import { priceUsdPerMonth } from "@/lib/plans";
 import { getBrand } from "@/lib/brand-server";
 import type { Brand } from "@/lib/brand";
 import { BrandProvider } from "@/contexts/brand-context";
@@ -18,12 +19,13 @@ const inter = Inter({ subsets: ["latin"] });
 const stationDisplay = Space_Grotesk({ subsets: ["latin"], variable: "--font-station-display" });
 const stationMono = JetBrains_Mono({ subsets: ["latin"], variable: "--font-station-mono" });
 const siteUrl = getSiteUrl();
+const price = priceUsdPerMonth();
 
 const smshubMetadata: Metadata = {
   metadataBase: new URL(siteUrl),
-  title: "SMSHub — Multi-platform SMS Messaging",
+  title: "SMSHub: rent a US number for SMS verification codes",
   description:
-    "Send and receive SMS from any device. Multi-provider support with Twilio, Telnyx, and real SIM numbers. Built for developers, designed for everyone.",
+    `Rent a real US phone number for $${price}/month and receive SMS and one-time verification codes in your inbox, by API, CLI or MCP. Pay with crypto, or bring your own Twilio or Telnyx number for free.`,
   manifest: "/manifest.json",
   icons: {
     icon: [
@@ -55,9 +57,9 @@ const smshubMetadata: Metadata = {
     "msapplication-TileImage": "/icons/apple-touch-icon-144x144.png",
   },
   openGraph: {
-    title: "SMSHub — Multi-platform SMS Messaging",
+    title: "SMSHub: rent a US number for SMS verification codes",
     description:
-      "One inbox for all your SMS. Web, iOS, Android, desktop. Multi-provider support with developer-first API.",
+      `Rent a real US phone number for $${price}/month and receive SMS verification codes in your inbox, by API, CLI or MCP. Pay with crypto.`,
     url: siteUrl,
     siteName: "SMSHub",
     type: "website",
@@ -72,9 +74,9 @@ const smshubMetadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "SMSHub — Multi-platform SMS Messaging",
+    title: "SMSHub: rent a US number for SMS verification codes",
     description:
-      "One inbox for all your SMS. Web, iOS, Android, desktop. Multi-provider support with developer-first API.",
+      `Rent a real US phone number for $${price}/month and receive SMS verification codes in your inbox, by API, CLI or MCP. Pay with crypto.`,
     images: ["/icons/icon-512x512.png"],
   },
   alternates: {

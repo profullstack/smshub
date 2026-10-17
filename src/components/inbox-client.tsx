@@ -30,10 +30,13 @@ export function InboxClient({
   conversations: initialConversations,
   numbers = [],
   userId: _userId,
+  rentPriceUsd = 5,
 }: {
   conversations: Conversation[];
   numbers?: LineNumber[];
   userId: string;
+  /** Monthly price of a rented number, shown to accounts with no number yet. */
+  rentPriceUsd?: number;
 }) {
   const {
     filteredConversations,
@@ -418,12 +421,33 @@ export function InboxClient({
           </>
         ) : (
           <div className="flex-1 flex items-center justify-center text-gray-500">
+            {numbers.length === 0 ? (
+              <div className="max-w-md mx-4 rounded-xl border border-green-600/30 bg-green-600/10 p-6 text-center space-y-4">
+                <div className="text-4xl">📱</div>
+                <h2 className="text-xl font-semibold text-white">Get a number for your verification codes</h2>
+                <p className="text-sm text-gray-300">
+                  Rent your own US number for ${rentPriceUsd}/month, paid in crypto through CoinPay. It is ready once
+                  the payment confirms, and every text and code lands right here.
+                </p>
+                <a
+                  href="/numbers"
+                  className="inline-block rounded-lg bg-green-600 px-6 py-3 font-semibold text-white transition-colors hover:bg-green-700"
+                >
+                  Rent a number · ${rentPriceUsd}/mo
+                </a>
+                <p className="text-xs text-gray-500">
+                  Receive only; some services refuse virtual numbers. Have Twilio or Telnyx?{" "}
+                  <a href="/settings" className="underline hover:text-gray-300">Bring your own number</a> for free.
+                </p>
+              </div>
+            ) : (
             <div className="text-center">
               <p>Select a conversation to start messaging</p>
               <p className="text-sm mt-2 text-gray-600">
                 or press <kbd className="bg-gray-800 px-1.5 py-0.5 rounded text-xs">Ctrl+N</kbd> for new message
               </p>
             </div>
+            )}
           </div>
         )}
       </div>

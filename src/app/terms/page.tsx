@@ -51,6 +51,7 @@ export default async function TermsPage() {
           <li>Violate A2P 10DLC, TCPA, GDPR, or other messaging compliance regulations</li>
           <li>Attempt to circumvent rate limits or abuse the API</li>
           <li>Resell access to the Service without authorization</li>
+          <li>Use a rented number for fraud, to create accounts in bulk, or to evade another service&apos;s bans or limits</li>
         </ul>
       </Section>
 
