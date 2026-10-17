@@ -90,7 +90,7 @@ describe("managed numbers", () => {
     expect(order.chain).toBe("USDC_POL");
     expect(order.pay_url).toBe("https://coinpayportal.com/pay/pay-1");
     const create = f.calls.find((c) => c.url.endsWith("/payments/create"))!;
-    expect(create.body).toMatchObject({ business_id: "biz-1", amount: 15, blockchain: "USDC_POL" });
+    expect(create.body).toMatchObject({ business_id: "biz-1", amount: 15, blockchain: "USDC_POL", expires_in_minutes: 60 });
     expect((create.body as { merchant_wallet_address?: string }).merchant_wallet_address).toBeUndefined();
   });
 
