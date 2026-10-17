@@ -46,6 +46,7 @@ interface Text {
 }
 
 const CHAIN_LABELS: Record<string, string> = {
+  PAYPAL: "PayPal",
   USDC_POL: "USDC (Polygon)",
   USDC_SOL: "USDC (Solana)",
   USDT_POL: "USDT (Polygon)",
@@ -319,7 +320,8 @@ export default function NumbersPage() {
       <section className="rounded-xl border border-gray-800 bg-gray-900 p-6 space-y-4">
         <h2 className="text-lg font-semibold">Rent a number</h2>
         <p className="text-sm text-gray-400">
-          A US number that receives texts and verification codes, ${price}/month, paid in crypto through CoinPay.
+          A US number that receives texts and verification codes, ${price}/month, paid in crypto or with PayPal
+          through CoinPay.
           It is set up as soon as the payment confirms. Rented numbers receive only; some services refuse
           virtual numbers.
         </p>
@@ -333,6 +335,10 @@ export default function NumbersPage() {
             <li>
               Press Pay: CoinPay shows an address and an exact amount (a few cents over ${price} covers the network
               fee). Send exactly that, on the network you picked. USDC on Polygon costs the least to send.
+            </li>
+            <li>
+              No crypto? Pick <strong className="text-gray-300">PayPal</strong> and pay ${price} a month on
+              PayPal&apos;s page. The number is set up once PayPal confirms the payment.
             </li>
             <li>
               The payment page stays open for {CHECKOUT_WINDOW_MINUTES} minutes. If it closes before you pay, start

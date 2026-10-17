@@ -33,6 +33,10 @@ function fakeFetch() {
     const body = init?.body ? JSON.parse(String(init.body)) : undefined;
     calls.push({ method, url, body });
     const json = (data: unknown, status = 200) => new Response(JSON.stringify(data), { status });
+    if (url.endsWith("/api/paypal/payments/create")) {
+      paymentSeq++;
+      return json({ transaction_id: `pp-${paymentSeq}`, hosted_checkout_url: "https://evil.example/x" }, 200);
+    }
     if (url.endsWith("/api/payments/create")) {
       paymentSeq++;
       return json({ success: true, payment: { id: `pay-${paymentSeq}`, payment_address: "0xabc" } }, 201);
@@ -92,6 +96,39 @@ describe("managed numbers", () => {
     const create = f.calls.find((c) => c.url.endsWith("/payments/create"))!;
     expect(create.body).toMatchObject({ business_id: "biz-1", amount: 15, blockchain: "USDC_POL", expires_in_minutes: 60 });
     expect((create.body as { merchant_wallet_address?: string }).merchant_wallet_address).toBeUndefined();
+  });
+
+  it("opens a PayPal order through CoinPay when the buyer picks PayPal, and settles on its webhook", async () => {
+    const f = fakeFetch();
+    const deps = { db, env: baseEnv("live"), fetchImpl: f.impl };
+    const order = await createOrder(deps, {
+      userId: USER, email: EMAIL, months: 1, chain: "paypal", siteUrl: "https://smshub.dev",
+    });
+    expect(order.chain).toBe("PAYPAL");
+    expect(order.coinpay_payment_id).toBe("pp-1");
+    // Built from our config, never the URL in the response.
+    expect(order.pay_url).toBe("https://coinpayportal.com/pay/paypal/pp-1");
+    const create = f.calls.find((c) => c.url.endsWith("/paypal/payments/create"))!;
+    expect(create.body).toMatchObject({
+      business_id: "biz-1",
+      amount: 5,
+      currency: "USD",
+      invoiceNumber: `smshub-${order.id}`,
+      success_url: `https://smshub.dev/numbers?order=${order.id}`,
+      cancel_url: "https://smshub.dev/numbers",
+    });
+    expect(f.calls.some((c) => c.url.endsWith("/api/payments/create"))).toBe(false);
+
+    // CoinPay's PayPal capture webhook: payment_id is the PayPal transaction id, status completed.
+    const r = await settlePayment(deps, settledEvent("pp-1", "completed"));
+    expect(r).toMatchObject({ settled: true, status: "active" });
+  });
+
+  it("sends the Back-to-smshub link with a crypto checkout", async () => {
+    const f = fakeFetch();
+    await createOrder({ db, env: baseEnv("live"), fetchImpl: f.impl }, { userId: USER, email: EMAIL, siteUrl: "https://smshub.dev" });
+    const create = f.calls.find((c) => c.url.endsWith("/api/payments/create"))!;
+    expect(create.body).toMatchObject({ cancel_url: "https://smshub.dev/numbers" });
   });
 
   it("live: provisions exactly once on a settled webhook, tags the number, and ignores replays", async () => {

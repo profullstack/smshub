@@ -4,7 +4,7 @@
  */
 
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { CHECKOUT_CHAINS, CHECKOUT_WINDOW_MINUTES, DEFAULT_CHAIN } from "@/lib/coinpay/checkout";
+import { CHECKOUT_METHODS, CHECKOUT_WINDOW_MINUTES, DEFAULT_CHAIN } from "@/lib/coinpay/checkout";
 import { getPlanUsage, priceUsdPerMonth } from "@/lib/plans";
 import { extractOtp } from "@/lib/otp";
 import { GRACE_DAYS, orderingStatus } from "./service";
@@ -70,7 +70,7 @@ export async function overview(db: SupabaseClient, userId: string, email: string
     ordering: orderingStatus(email),
     pricing: {
       usd_per_month: priceUsdPerMonth(),
-      chains: CHECKOUT_CHAINS,
+      chains: CHECKOUT_METHODS,
       default_chain: DEFAULT_CHAIN,
       grace_days: GRACE_DAYS,
       // CoinPay's pay page expires this long after the order is created.
