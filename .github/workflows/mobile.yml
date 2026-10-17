@@ -1,10 +1,9 @@
 name: Mobile Builds (EAS)
 
+# Manual only. Every push to master used to queue an iOS + Android EAS cloud
+# build (68 builds in one billing period, 300% of the Expo plan's credit).
+# Run it from the Actions tab when a build is actually wanted.
 on:
-  push:
-    branches: [master]
-    tags:
-      - 'v*'
   workflow_dispatch:
     inputs:
       platform:
