@@ -61,12 +61,12 @@ describe("coinpay checkout", () => {
 });
 
 describe("checkout window", () => {
-  it("matches CoinPay's fixed 15-minute quote", async () => {
+  it("is the 60-minute window we ask CoinPay for", async () => {
     const { CHECKOUT_WINDOW_MINUTES, checkoutWindowOpen } = await import("../checkout");
-    expect(CHECKOUT_WINDOW_MINUTES).toBe(15);
+    expect(CHECKOUT_WINDOW_MINUTES).toBe(60);
     const made = new Date("2026-10-17T11:09:49Z");
-    expect(checkoutWindowOpen(made.toISOString(), new Date(made.getTime() + 14 * 60_000))).toBe(true);
-    expect(checkoutWindowOpen(made.toISOString(), new Date(made.getTime() + 15 * 60_000))).toBe(false);
+    expect(checkoutWindowOpen(made.toISOString(), new Date(made.getTime() + 59 * 60_000))).toBe(true);
+    expect(checkoutWindowOpen(made.toISOString(), new Date(made.getTime() + 60 * 60_000))).toBe(false);
     expect(checkoutWindowOpen("not a date", made)).toBe(false);
   });
 });

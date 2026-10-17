@@ -52,6 +52,7 @@ export function coinpayConfig(env: NodeJS.ProcessEnv = process.env): CoinPayConf
 }
 
 // Client-safe (no node:crypto), so /numbers can count down the same window.
+import { CHECKOUT_WINDOW_MINUTES } from "./window";
 export { CHECKOUT_WINDOW_MINUTES, checkoutWindowOpen } from "./window";
 
 export function payPageUrl(cfg: CoinPayConfig, paymentId: string): string {
@@ -100,6 +101,7 @@ export async function createPayment(
       description: opts.description,
       metadata: opts.metadata,
       redirect_url: opts.redirectUrl,
+      expires_in_minutes: CHECKOUT_WINDOW_MINUTES,
     }),
   });
   const body = (await res.json().catch(() => ({}))) as {

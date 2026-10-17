@@ -37,13 +37,14 @@ import { MANAGED_API_KEY } from "@/lib/providers";
 
 export const GRACE_DAYS = 3;
 /**
- * A pending order stops counting as an open checkout this long after it was
- * made. CoinPay's quote dies after CHECKOUT_WINDOW_MINUTES; holding the row for
- * 24 hours (as before) kept a dead "Waiting for payment" link on /numbers and
- * counted against the plan's open-checkout limit all day. Marking it expired
- * grants or forfeits nothing: settlePayment still honours a late payment.
+ * A pending order stops counting as an open checkout when CoinPay's pay page
+ * closes, CHECKOUT_WINDOW_MINUTES after it was made (we ask CoinPay for that same
+ * window). Holding the row longer (it was 24 hours once) kept a dead "Waiting for
+ * payment" link on /numbers and counted against the plan's open-checkout limit.
+ * Marking it expired grants or forfeits nothing: settlePayment still honours a
+ * late payment.
  */
-export const PENDING_TTL_MINUTES = CHECKOUT_WINDOW_MINUTES + 45;
+export const PENDING_TTL_MINUTES = CHECKOUT_WINDOW_MINUTES;
 export const MAX_PROVISION_ATTEMPTS = 5;
 const MANAGED_PROVIDER_KEY = MANAGED_API_KEY;
 
