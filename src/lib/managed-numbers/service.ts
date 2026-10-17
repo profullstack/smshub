@@ -13,6 +13,7 @@
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
+  CHECKOUT_WINDOW_MINUTES,
   coinpayConfig,
   createPayment,
   normalizeChain,
@@ -35,7 +36,14 @@ import { getPlanUsage, orderAmountUsd } from "@/lib/plans";
 import { MANAGED_API_KEY } from "@/lib/providers";
 
 export const GRACE_DAYS = 3;
-export const PENDING_TTL_HOURS = 24;
+/**
+ * A pending order stops counting as an open checkout this long after it was
+ * made. CoinPay's quote dies after CHECKOUT_WINDOW_MINUTES; holding the row for
+ * 24 hours (as before) kept a dead "Waiting for payment" link on /numbers and
+ * counted against the plan's open-checkout limit all day. Marking it expired
+ * grants or forfeits nothing: settlePayment still honours a late payment.
+ */
+export const PENDING_TTL_MINUTES = CHECKOUT_WINDOW_MINUTES + 45;
 export const MAX_PROVISION_ATTEMPTS = 5;
 const MANAGED_PROVIDER_KEY = MANAGED_API_KEY;
 
@@ -396,7 +404,7 @@ export async function sweep(deps: Deps): Promise<SweepReport> {
     if (r.status !== "active") report.errors.push(`order ${o.id} still ${r.status}`);
   }
 
-  const cutoff = new Date(now.getTime() - PENDING_TTL_HOURS * 3600_000).toISOString();
+  const cutoff = new Date(now.getTime() - PENDING_TTL_MINUTES * 60_000).toISOString();
   const { data: expired } = await db
     .from("number_orders")
     .update({ status: "expired", updated_at: now.toISOString() })

@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { priceUsdPerMonth } from "@/lib/plans";
+import { CHECKOUT_WINDOW_MINUTES } from "@/lib/coinpay/window";
+import { SisterSimLink } from "@/components/sister-sim-link";
 
 export const dynamic = "force-dynamic";
 
@@ -71,7 +73,12 @@ export default function VerificationNumbersPage() {
           <li>Rented numbers receive texts. They do not send texts or take calls.</li>
           <li>
             Some services refuse virtual (VoIP) numbers for sign-up codes. We cannot promise that any particular
-            site will accept the number or send to it.
+            site will accept the number or send to it. <SisterSimLink lead="For those sites:" />
+          </li>
+          <li>
+            You pay in crypto on CoinPay&apos;s page: send the exact amount shown, on the network you picked, within{" "}
+            {CHECKOUT_WINDOW_MINUTES} minutes. Have the coins in a wallet before you press Pay. If the page closes first,
+            start a new checkout; coins you already sent are still credited.
           </li>
           <li>Numbers are US only for now.</li>
           <li>

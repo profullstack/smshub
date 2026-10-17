@@ -2,6 +2,8 @@ import Link from "next/link";
 import { WaitlistForm } from "@/components/waitlist-form";
 import { priceUsdPerMonth } from "@/lib/plans";
 import { managedMode } from "@/lib/telnyx/numbers";
+import { CHECKOUT_WINDOW_MINUTES } from "@/lib/coinpay/window";
+import { SisterSimLink } from "@/components/sister-sim-link";
 
 export const dynamic = "force-dynamic";
 
@@ -24,6 +26,28 @@ export default function PhoneNumbersPage() {
           <p className="text-xl text-gray-400">
             A US number that receives texts and verification codes, ${price}/month.
           </p>
+          {open && (
+            <div className="flex flex-col sm:flex-row gap-3 justify-center pt-2">
+              <Link
+                href="/numbers"
+                className="inline-flex items-center justify-center rounded-xl bg-green-600 px-6 py-3 font-semibold text-white transition-colors hover:bg-green-700"
+              >
+                Rent a number · ${price}/mo
+              </Link>
+              <Link
+                href="/verification-numbers"
+                className="inline-flex items-center justify-center rounded-xl border border-gray-700 bg-gray-800 px-6 py-3 font-semibold text-white transition-colors hover:bg-gray-700"
+              >
+                How it works
+              </Link>
+            </div>
+          )}
+          {open && (
+            <p className="text-sm text-gray-500">
+              Create a free account, pick 1 to 12 months, pay in crypto. The number is ready a minute or two after
+              the payment confirms.
+            </p>
+          )}
         </div>
 
         <div className="bg-gray-900 border border-gray-800 rounded-2xl p-8 space-y-4 text-left">
@@ -31,6 +55,11 @@ export default function PhoneNumbersPage() {
           <Feature emoji="🪙" title="Pay with crypto" desc="USDC, USDT, BTC, ETH, SOL or POL through CoinPay. No card, no account at a carrier." />
           <Feature emoji="⚡" title="Ready on payment" desc="The number is set up as soon as the payment confirms. Renew any time before it expires." />
           <Feature emoji="🤖" title="API, CLI and MCP" desc="Wait for a code from a script, a terminal or an AI agent with one call." />
+          <Feature
+            emoji="⏱️"
+            title="Have your wallet ready"
+            desc={`CoinPay shows an exact amount and address, and the payment page stays open for ${CHECKOUT_WINDOW_MINUTES} minutes. USDC on Polygon is the cheapest to send.`}
+          />
           <Feature emoji="ℹ️" title="Receive only" desc="Rented numbers receive texts. Some services refuse virtual numbers for sign-up codes." />
         </div>
 
@@ -49,6 +78,9 @@ export default function PhoneNumbersPage() {
           )}
           <p className="text-sm text-gray-500">
             Already have Twilio or Telnyx? <Link href="/settings" className="underline">Bring your own number</Link>.
+          </p>
+          <p className="text-xs text-gray-600">
+            <SisterSimLink />
           </p>
         </div>
 

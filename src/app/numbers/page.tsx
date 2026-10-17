@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { LineNameEditor } from "@/components/line-name-editor";
+import { CHECKOUT_WINDOW_MINUTES, checkoutWindowOpen } from "@/lib/coinpay/window";
 
 interface NumberRow {
   id: string;
@@ -16,6 +17,7 @@ interface NumberRow {
 interface OrderRow {
   id: string;
   kind: "new" | "renew";
+  phone_number_id?: string | null;
   area_code: string | null;
   months: number;
   amount_usd: number | string;
@@ -64,6 +66,24 @@ const STATUS_TEXT: Record<OrderRow["status"], string> = {
   expired: "Checkout expired",
 };
 
+/**
+ * CoinPay's pay page dies CHECKOUT_WINDOW_MINUTES after the order is made, but
+ * our row stays `pending` until the sweeper runs. Never offer a dead pay link.
+ */
+function payable(o: OrderRow, now: Date): boolean {
+  return o.status === "pending" && checkoutWindowOpen(o.created_at, now);
+}
+
+function minutesLeft(o: OrderRow, now: Date): number {
+  const end = new Date(o.created_at).getTime() + CHECKOUT_WINDOW_MINUTES * 60_000;
+  return Math.max(1, Math.ceil((end - now.getTime()) / 60_000));
+}
+
+function statusText(o: OrderRow, now: Date): string {
+  if (o.status === "pending" && !payable(o, now)) return "Checkout window closed";
+  return STATUS_TEXT[o.status];
+}
+
 /** Only ever send the browser to CoinPay's own payment page. */
 function safePayUrl(raw: unknown): string | null {
   try {
@@ -89,6 +109,13 @@ export default function NumbersPage() {
   const [busy, setBusy] = useState(false);
   const [texts, setTexts] = useState<Record<string, Text[]>>({});
   const [watchOrder, setWatchOrder] = useState<string | null>(null);
+  const [now, setNow] = useState(() => new Date());
+
+  // Re-render every 15s so a checkout's window closes on screen when CoinPay's does.
+  useEffect(() => {
+    const t = setInterval(() => setNow(new Date()), 15_000);
+    return () => clearInterval(t);
+  }, []);
 
   const load = useCallback(async () => {
     const res = await fetch("/api/numbers");
@@ -169,6 +196,12 @@ export default function NumbersPage() {
 
   const price = data.pricing.usd_per_month;
   const rented = data.numbers.filter((n) => n.managed);
+  // A checkout still inside its window: send people back to it instead of opening another.
+  const openCheckout = data.orders.find((o) => payable(o, now) && safePayUrl(o.pay_url));
+  const retry = (o: OrderRow) =>
+    o.kind === "renew" && o.phone_number_id
+      ? checkout(`/api/numbers/${o.phone_number_id}/renew`, { months: o.months, chain: o.chain })
+      : checkout("/api/numbers/orders", { area_code: o.area_code ?? "", months: o.months, chain: o.chain });
 
   return (
     <div className="min-h-screen max-w-3xl mx-auto px-4 py-8 space-y-8">
@@ -182,15 +215,25 @@ export default function NumbersPage() {
       {watched && (
         <div className="rounded-xl border border-blue-500/30 bg-blue-500/10 p-4 text-sm text-blue-200">
           Order for {watched.number || (watched.area_code ? `a ${watched.area_code} number` : "a number")}:{" "}
-          <strong>{STATUS_TEXT[watched.status]}</strong>
-          {watched.status === "pending" && safePayUrl(watched.pay_url) && (
+          <strong>{statusText(watched, now)}</strong>
+          {payable(watched, now) && safePayUrl(watched.pay_url) && (
             <>
               {" "}
               <a href={safePayUrl(watched.pay_url)!} className="underline">
-                Open the payment page
+                Open the payment page ({minutesLeft(watched, now)} min left)
               </a>
             </>
           )}
+        </div>
+      )}
+
+      {openCheckout && openCheckout.id !== watched?.id && (
+        <div className="rounded-xl border border-green-500/30 bg-green-500/10 p-4 text-sm text-green-200">
+          You have a checkout open for ${Number(openCheckout.amount_usd).toFixed(2)} in{" "}
+          {CHAIN_LABELS[openCheckout.chain] || openCheckout.chain}.{" "}
+          <a href={safePayUrl(openCheckout.pay_url)!} className="font-semibold underline">
+            Continue paying ({minutesLeft(openCheckout, now)} min left)
+          </a>
         </div>
       )}
 
@@ -280,6 +323,24 @@ export default function NumbersPage() {
           It is set up as soon as the payment confirms. Rented numbers receive only; some services refuse
           virtual numbers.
         </p>
+        <div className="rounded-lg border border-gray-800 bg-gray-950 p-4 text-sm text-gray-300 space-y-2">
+          <div className="font-semibold text-gray-200">How paying works</div>
+          <ol className="list-decimal pl-5 space-y-1 text-gray-400">
+            <li>
+              Have the coins in a wallet first (MetaMask, Trust Wallet, Exodus, Phantom...). An exchange
+              withdrawal can take longer than the checkout stays open.
+            </li>
+            <li>
+              Press Pay: CoinPay shows an address and an exact amount (a few cents over ${price} covers the network
+              fee). Send exactly that, on the network you picked. USDC on Polygon costs the least to send.
+            </li>
+            <li>
+              The payment page stays open for {CHECKOUT_WINDOW_MINUTES} minutes. If it closes before you pay, start
+              a new checkout. If you already sent the coins, do not pay again: a late payment is still credited,
+              it only takes longer.
+            </li>
+          </ol>
+        </div>
         {!data.ordering.open ? (
           <p className="text-sm text-yellow-300">{data.ordering.reason}</p>
         ) : (
@@ -346,13 +407,25 @@ export default function NumbersPage() {
                 </div>
                 <div className="text-right">
                   <span className={o.status === "active" ? "text-green-400" : o.status === "failed" ? "text-red-400" : "text-gray-300"}>
-                    {STATUS_TEXT[o.status]}
+                    {statusText(o, now)}
                   </span>
-                  {o.status === "pending" && safePayUrl(o.pay_url) && (
+                  {payable(o, now) && safePayUrl(o.pay_url) && (
                     <a href={safePayUrl(o.pay_url)!} className="ml-2 underline">
-                      Pay
+                      Pay ({minutesLeft(o, now)} min left)
                     </a>
                   )}
+                  {(o.status === "expired" || (o.status === "pending" && !payable(o, now))) &&
+                    data.ordering.open &&
+                    !openCheckout && (
+                      <button
+                        type="button"
+                        disabled={busy}
+                        onClick={() => retry(o)}
+                        className="ml-2 underline disabled:opacity-50"
+                      >
+                        Start a new checkout
+                      </button>
+                    )}
                 </div>
               </div>
             ))}
