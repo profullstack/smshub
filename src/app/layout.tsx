@@ -8,6 +8,7 @@ import { ServiceWorkerRegister } from "@/components/sw-register";
 import { Header } from "@/components/header";
 import { Footer } from "@/components/footer";
 import { Footer as PfsFooter } from "@profullstack/footer/react";
+import { PitFooter } from "@/components/pit-footer";
 import { getSiteUrl } from "@/lib/site-url";
 import { priceUsdPerMonth } from "@/lib/plans";
 import { getBrand } from "@/lib/brand-server";
@@ -183,9 +184,12 @@ export default async function RootLayout({
                 <PfsFooter
                   site="https://smshub.dev/"
                   links={[
+                    { label: "Pricing", href: "/#pricing" },
+                    { label: "Rent a number", href: "/phonenumbers" },
+                    { label: "Docs", href: "/docs" },
+                    { label: "API", href: "/docs/api" },
                     { label: "Privacy", href: "/privacy" },
                     { label: "Terms", href: "/terms" },
-                    { label: "SMS", href: "/sms" },
                     { label: "GitHub", href: "https://github.com/profullstack/smshub" },
                   ]}
                 />
@@ -195,6 +199,7 @@ export default async function RootLayout({
             <ServiceWorkerRegister />
           </ToastProvider>
         </BrandProvider>
+        <PitFooter />
       </body>
     </html>
   );
