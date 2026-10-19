@@ -448,7 +448,7 @@ export default function NumbersPage() {
 npx @profullstack/smshub otp <number-id> --wait 60
 curl -H "X-API-Key: $SMSHUB_API_KEY" https://smshub.dev/api/v1/numbers`}</pre>
         <p>
-          MCP: <code>https://smshub.dev/api/mcp</code> with header <code>X-API-Key</code>.
+          MCP: <code>https://smshub.dev/api/mcp</code> with header <code>X-API-Key</code>. <Link href="/docs/api" className="underline">Full API, CLI and MCP docs</Link>.
         </p>
       </section>
     </div>

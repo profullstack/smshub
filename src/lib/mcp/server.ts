@@ -6,7 +6,8 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { getOrder, listNumbers, listOrders, numberMessages, overview } from "@/lib/managed-numbers/api";
 import { createOrder, OrderError } from "@/lib/managed-numbers/service";
-import { isUuid, listConversations } from "@/lib/conversations";
+import { conversationMessages, isUuid, listConversations } from "@/lib/conversations";
+import { SendError, sendMessage } from "@/lib/messages/send";
 import type { RequestUser } from "@/lib/request-user";
 import { LINE_TOOLS, LineToolError } from "./line-tools";
 import { AlertError, listAlerts, sendAlert } from "@/lib/alerts/service";
@@ -64,6 +65,31 @@ const TOOLS: Tool[] = [
       const archived = typeof a.archived === "boolean" ? a.archived : undefined;
       return { conversations: await listConversations(c.db, c.user.userId, { phoneNumberId, archived, limit }) };
     },
+  },
+  {
+    name: "get_conversation",
+    description: "Messages in one conversation (from list_conversations), oldest first, both directions.",
+    inputSchema: obj(
+      { conversation_id: { type: "string" }, limit: { type: "integer", minimum: 1, maximum: 200, default: 50 } },
+      ["conversation_id"]
+    ),
+    run: async (c, a) =>
+      (await conversationMessages(c.db, c.user.userId, String(a.conversation_id), Number(a.limit) || 50)) ?? { error: "Conversation not found" },
+  },
+  {
+    name: "send_message",
+    description:
+      "Send one SMS from one of your own (Twilio/Telnyx) numbers. Rented numbers receive only. 10 sends per minute.",
+    inputSchema: obj(
+      {
+        to: { type: "string", description: "Recipient, E.164, e.g. +14155551234." },
+        message: { type: "string", maxLength: 1600 },
+        from: { type: "string", description: "Your number (E.164) or its id from list_numbers; optional if only one of your numbers can send." },
+        media_url: { type: "string", description: "Optional public image URL to send as MMS." },
+      },
+      ["to", "message"]
+    ),
+    run: (c, a) => sendMessage(c.db, c.user.userId, a),
   },
   {
     name: "rent_number",
@@ -164,6 +190,9 @@ const TOOLS: Tool[] = [
 
 const ALL_TOOLS: Tool[] = [...TOOLS, ...LINE_TOOLS];
 
+/** Names and descriptions, for the docs. */
+export const MCP_TOOLS = ALL_TOOLS.map(({ name, description }) => ({ name, description }));
+
 interface RpcRequest {
   jsonrpc?: string;
   id?: string | number | null;
@@ -184,7 +213,7 @@ export async function handleRpc(ctx: Ctx, msg: RpcRequest): Promise<unknown | nu
         capabilities: { tools: { listChanged: false } },
         serverInfo: { name: "smshub", version: "1.0.0" },
         instructions:
-          "Rent a US phone number that receives SMS, then wait for verification codes on it. rent_number returns a pay_url that a human or a paying agent must complete; poll order_status until active, then use wait_for_code.",
+          "Rent a US phone number that receives SMS, then wait for verification codes on it. rent_number returns a pay_url that a human or a paying agent must complete; poll order_status until active, then use wait_for_code. With your own Twilio/Telnyx number connected, send_message texts anyone and list_conversations/get_conversation read the inbox.",
       });
     case "notifications/initialized":
     case "notifications/cancelled":
@@ -204,7 +233,7 @@ export async function handleRpc(ctx: Ctx, msg: RpcRequest): Promise<unknown | nu
           structuredContent: Array.isArray(result) ? { items: result } : result,
         });
       } catch (e) {
-        const known = e instanceof OrderError || e instanceof LineToolError || e instanceof AlertError;
+        const known = e instanceof OrderError || e instanceof LineToolError || e instanceof AlertError || e instanceof SendError;
         const message = known ? (e as Error).message : "Tool failed";
         if (!known) console.error("mcp tool error:", { tool: name.replace(/[^\w-]/g, "").slice(0, 64) }, e);
         return ok(msg.id, { content: [{ type: "text", text: message }], isError: true });

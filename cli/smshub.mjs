@@ -8,7 +8,9 @@
 //   smshub-cli renew <number> [--months 1]
 //   smshub-cli messages <number> [--since ISO] [--limit 20]
 //   smshub-cli otp <number> [--wait 60]     print the next code, nothing else
+//   smshub-cli send <to> "<message>" [--from <number>] [--media <url>]   text someone from your own number
 //   smshub-cli conversations [--line <number>] [--limit 20]   the inbox, optionally one line
+//   smshub-cli thread <conversation-id> [--limit 50]   messages in one conversation
 //   smshub-cli lines                        who shares each number (contacts book)
 //   smshub-cli contacts <number> add --name Kim --cell +14155550123 [--digit 1] [--prefix K] [--forward-sms]
 //   smshub-cli contacts <number> edit <contact-id> [--name ..] [--cell ..] [--digit 1|none] [--prefix K|none]
@@ -29,7 +31,7 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import { createInterface } from "node:readline";
 
-const VERSION = "1.5.0";
+const VERSION = "1.6.0";
 const CONFIG_DIR = join(process.env.XDG_CONFIG_HOME || join(homedir(), ".config"), "smshub");
 const CONFIG_FILE = join(CONFIG_DIR, "config.json");
 
@@ -354,6 +356,28 @@ const commands = {
     await refresh();
     setInterval(refresh, 3000);
     await new Promise(() => {});
+  },
+
+  async send(args) {
+    const to = args._[1];
+    const message = args._.slice(2).join(" ").trim() || (typeof args.message === "string" ? args.message : "");
+    if (!to || !message) throw new ApiError('Usage: smshub-cli send +14155550123 "hello" [--from <number>]');
+    const body = { to, message };
+    if (args.from && args.from !== true) body.from = await resolveLine(String(args.from));
+    if (args.media && args.media !== true) body.media_url = args.media;
+    const res = await api("/api/v1/messages/send", { method: "POST", body });
+    print(args, res, (r) => console.log(`sent ${r.from} -> ${r.to}  ${r.message?.id ?? ""}`));
+  },
+
+  async thread(args) {
+    const id = args._[1];
+    if (!id) throw new ApiError("Which conversation? smshub-cli conversations --json shows ids");
+    const { messages } = await api(`/api/v1/messages?conversation_id=${encodeURIComponent(id)}`);
+    const rows = messages.slice(-(Number(args.limit) || 50));
+    print(args, { messages: rows }, () => {
+      if (!rows.length) console.log("No messages.");
+      for (const m of rows) console.log(`${m.created_at.slice(0, 19).replace("T", " ")}  ${m.direction === "outbound" ? ">" : "<"}  ${m.body ?? ""}${m.status === "failed" ? "  (FAILED)" : ""}`);
+    });
   },
 
   async conversations(args) {

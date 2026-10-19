@@ -56,6 +56,7 @@ export function Footer({ bottom }: { bottom?: React.ReactNode }) {
             <ul className="space-y-2">
               <li><Link href="/docs/twilio" className="text-sm text-blue-400 hover:text-blue-300 transition-colors">Twilio setup</Link></li>
               <li><Link href="/docs/telnyx" className="text-sm text-blue-400 hover:text-blue-300 transition-colors">Telnyx setup</Link></li>
+              <li><Link href="/docs/api" className="text-sm text-blue-400 hover:text-blue-300 transition-colors">API, CLI &amp; MCP</Link></li>
               <li><Link href="/phonenumbers" className="text-sm text-blue-400 hover:text-blue-300 transition-colors">SMSHub rented numbers</Link></li>
               <li>
                 <a href={PHONENUMBERS_BOT_URL} target="_blank" rel="noopener" className="text-sm text-gray-400 hover:text-white transition-colors">
