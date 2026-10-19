@@ -52,7 +52,9 @@ function setup(opts: { verified?: string[]; smsFails?: boolean; callFails?: bool
     return { ok: false as const, error: { status: 404, code: null, message: `unexpected ${path}` } };
   });
   const sendSms = vi.fn(async () => (opts.smsFails ? { success: false, error: "40010 not registered" } : { success: true, messageId: "sms-1" }));
-  let now = Date.parse("2026-10-17T16:00:00Z");
+  // Start from the real clock: FakeDb stamps created_at with Date.now(), so a
+  // pinned date drifts out of the dedupe window as the calendar moves on.
+  let now = Date.now();
   const deps: AlertDeps = {
     db: fdb as unknown as SupabaseClient,
     telnyx: telnyx as unknown as AlertDeps["telnyx"],
