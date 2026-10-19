@@ -109,3 +109,10 @@
     animation: none;
   }
 }
+
+/* CrawlProof ad unit: zero height until ad.js starts a fill, so an unsold or
+   blocked slot leaves no hole. Reserves the format plus ad.js's caption. */
+.cp-ad { height: 0; overflow: hidden; }
+.cp-ad[data-cp-filled] { height: auto; overflow: visible; margin: 2rem 0; }
+.cp-ad[data-cp-filled][data-format="banner_728x90"] { min-height: 106px; }
+.cp-ad[data-cp-filled][data-format="banner_300x250"] { min-height: 266px; }

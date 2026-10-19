@@ -14,6 +14,7 @@ import { getBrand } from "@/lib/brand-server";
 import type { Brand } from "@/lib/brand";
 import { BrandProvider } from "@/contexts/brand-context";
 import { StationChrome } from "@/components/station/chrome";
+import { AdUnit } from "@/components/ad-unit";
 
 const inter = Inter({ subsets: ["latin"] });
 const stationDisplay = Space_Grotesk({ subsets: ["latin"], variable: "--font-station-display" });
@@ -168,6 +169,7 @@ export default async function RootLayout({
     <html lang="en" className="dark" data-brand={brand.id}>
       <head>
         <script data-site="0f7a1259-e26d-4705-a07a-c38aba040251" src="https://crawlproof.com/stats.js" async></script>
+        <script src="https://crawlproof.com/ad.js" async></script>
       </head>
       <body
         className={`${inter.className} bg-gray-950 text-gray-100 min-h-screen flex flex-col`}
@@ -176,6 +178,7 @@ export default async function RootLayout({
           <ToastProvider>
             <Header />
             <main className="flex-1"><ReferralProvider>{children}</ReferralProvider></main>
+            <AdUnit />
             <Footer
               bottom={
                 <PfsFooter
