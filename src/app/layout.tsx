@@ -177,8 +177,7 @@ export default async function RootLayout({
         <BrandProvider brand={brand}>
           <ToastProvider>
             <Header />
-            <main className="flex-1"><ReferralProvider>{children}</ReferralProvider></main>
-            <AdUnit />
+            <main className="flex-1"><AdUnit /><ReferralProvider>{children}</ReferralProvider></main>
             <Footer
               bottom={
                 <PfsFooter
