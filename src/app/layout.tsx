@@ -7,7 +7,7 @@ import { ToastContainer } from "@/components/toast-container";
 import { ServiceWorkerRegister } from "@/components/sw-register";
 import { Header } from "@/components/header";
 import { Footer } from "@/components/footer";
-import { Footer as PfsFooter } from "@profullstack/footer/react";
+import { PitFooter } from "@/components/pit-footer";
 import { getSiteUrl } from "@/lib/site-url";
 import { priceUsdPerMonth } from "@/lib/plans";
 import { getBrand } from "@/lib/brand-server";
@@ -177,25 +177,14 @@ export default async function RootLayout({
         <BrandProvider brand={brand}>
           <ToastProvider>
             <Header />
-            <main className="flex-1"><ReferralProvider>{children}</ReferralProvider></main>
             <AdUnit />
-            <Footer
-              bottom={
-                <PfsFooter
-                  site="https://smshub.dev/"
-                  links={[
-                    { label: "Privacy", href: "/privacy" },
-                    { label: "Terms", href: "/terms" },
-                    { label: "SMS", href: "/sms" },
-                    { label: "GitHub", href: "https://github.com/profullstack/smshub" },
-                  ]}
-                />
-              }
-            />
+            <main className="flex-1"><ReferralProvider>{children}</ReferralProvider></main>
+            <Footer />
             <ToastContainer />
             <ServiceWorkerRegister />
           </ToastProvider>
         </BrandProvider>
+        <PitFooter />
       </body>
     </html>
   );
