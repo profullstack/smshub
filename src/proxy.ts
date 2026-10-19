@@ -1,4 +1,5 @@
 import { gate } from "@/lib/crawl-gateway";
+import { meter } from "@/lib/throttle";
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { updateSession } from "@/lib/supabase/middleware";
@@ -14,6 +15,11 @@ export async function proxy(request: NextRequest) {
   // and retrieval crawlers fall through to everything below.
   const answer = await gate(request);
   if (answer) return answer;
+
+  // Then the site-wide allowance on page routes: 100 requests a minute per
+  // caller, and going over is answered 402 with the same offer (lib/throttle).
+  const overLimit = await meter(request);
+  if (overLimit) return overLimit;
 
   const hostname = request.headers.get("host") || "";
 
