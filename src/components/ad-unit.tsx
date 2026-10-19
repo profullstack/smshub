@@ -8,7 +8,8 @@ import { AD_SLOT, isAdPage, requestAdScan, type AdFormat } from "@/lib/ads";
 const LEADERBOARD_QUERY = "(min-width: 768px)";
 
 /**
- * One CrawlProof unit at the top of the content on smshub.dev public pages.
+ * One CrawlProof unit at the top of the main content on smshub.dev public pages
+ * (never above or inside the footer).
  *
  * The div is rendered without `data-slot`, so ad.js's own first pass skips it;
  * the mount effect picks one format from the viewport, sets slot + format and
