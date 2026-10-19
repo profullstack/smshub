@@ -14,6 +14,7 @@ const GUIDES = [
   { href: "/docs/telnyx", name: "Telnyx", desc: "API key only. We set up the webhook for you." },
   { href: "/docs/twilio", name: "Twilio", desc: "Account SID, Auth Token and one webhook URL." },
   { href: "/phonenumbers", name: "Rented numbers", desc: "Managed numbers, nothing to set up." },
+  { href: "/docs/api", name: "API, CLI and MCP", desc: "Send and read texts from code, the terminal or an AI agent." },
 ];
 
 export default function DocsPage() {
@@ -21,7 +22,7 @@ export default function DocsPage() {
     <div className="max-w-3xl mx-auto px-4 py-16 space-y-8">
       <h1 className="text-4xl font-bold">Setup guides</h1>
       <p className="text-gray-400">Pick the SMS provider you use.</p>
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2">
         {GUIDES.map((g) => (
           <Link key={g.href} href={g.href} className="rounded-lg border border-gray-800 bg-gray-900 p-4 hover:border-blue-600">
             <div className="font-medium">{g.name}</div>

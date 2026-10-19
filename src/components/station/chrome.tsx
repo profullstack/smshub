@@ -150,7 +150,7 @@ function SiteFooter() {
         </div>
         <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-gray-400">
           <Link href="/numbers" className="hover:text-gray-100">Rent a number</Link>
-          <Link href="/docs" className="hover:text-gray-100">API docs</Link>
+          <Link href="/docs/api" className="hover:text-gray-100">API docs</Link>
           <Link href="/terms" className="hover:text-gray-100">Terms</Link>
           <Link href="/privacy" className="hover:text-gray-100">Privacy</Link>
           <InstallButton />

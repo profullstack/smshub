@@ -46,3 +46,18 @@ export async function listConversations(db: SupabaseClient, userId: string, opts
   if (error) throw error;
   return data ?? [];
 }
+
+/** Messages in one of the user's conversations, oldest first; null if not theirs. */
+export async function conversationMessages(db: SupabaseClient, userId: string, id: string, limit = 50) {
+  if (!isUuid(id)) return null;
+  const { data: convo } = await db.from("conversations").select("id").eq("id", id).eq("user_id", userId).maybeSingle();
+  if (!convo) return null;
+  const { data, error } = await db
+    .from("messages")
+    .select("id, direction, body, status, media_url, error_detail, created_at")
+    .eq("conversation_id", id)
+    .order("created_at", { ascending: false })
+    .limit(Math.min(200, Math.max(1, limit)));
+  if (error) throw error;
+  return (data ?? []).reverse();
+}
