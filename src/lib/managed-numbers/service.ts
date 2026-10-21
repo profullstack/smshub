@@ -14,9 +14,12 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   CHECKOUT_WINDOW_MINUTES,
+  checkoutWindowOpen,
   coinpayConfig,
+  createCheckoutSession,
   createPayment,
   createPaypalPayment,
+  paymentMetadata,
   normalizeMethod,
   PAYPAL_METHOD,
   type CoinPayConfig,
@@ -176,10 +179,26 @@ export async function createOrder(
 
   try {
     const description = `smshub.dev: ${numberLabel}, ${months} month${months > 1 ? "s" : ""}`;
-    const metadata = { order_id: order.id, user_id: input.userId, kind };
+    const metadata = paymentMetadata({ orderId: order.id, userId: input.userId, kind, email: input.email });
     const backUrl = `${input.siteUrl}/numbers?order=${order.id}`;
+    const cancelUrl = `${input.siteUrl}/numbers`;
+    const session = await createCheckoutSession(
+      cp,
+      {
+        amountUsd: amount,
+        description,
+        customerEmail: input.email,
+        accountId: input.userId,
+        metadata: { ...metadata, preferred_method: chain },
+        successUrl: backUrl,
+        cancelUrl,
+        idempotencyKey: `smshub-session-${order.id}`,
+      },
+      deps.fetchImpl
+    );
     const payment =
-      chain === PAYPAL_METHOD
+      session ??
+      (chain === PAYPAL_METHOD
         ? await createPaypalPayment(
             cp,
             {
@@ -187,8 +206,9 @@ export async function createOrder(
               description,
               metadata,
               successUrl: backUrl,
-              cancelUrl: `${input.siteUrl}/numbers`,
+              cancelUrl,
               invoiceNumber: `smshub-${order.id}`,
+              customerEmail: input.email,
             },
             deps.fetchImpl
           )
@@ -200,11 +220,11 @@ export async function createOrder(
               description,
               metadata,
               redirectUrl: backUrl,
-              cancelUrl: `${input.siteUrl}/numbers`,
+              cancelUrl,
               idempotencyKey: `smshub-order-${order.id}`,
             },
             deps.fetchImpl
-          );
+          ));
     const { data: updated } = await db
       .from("number_orders")
       .update({ coinpay_payment_id: payment.id, pay_url: payment.payUrl, updated_at: new Date().toISOString() })
@@ -228,14 +248,36 @@ export async function settlePayment(deps: Deps, ev: WebhookEvent): Promise<Settl
   if (!ev.paymentId) return { settled: false, reason: "no payment id" };
   if (!ev.settled) return { settled: false, reason: `status ${ev.status || "unknown"}` };
   const { db } = deps;
-  const { data: order } = await db
+  const metaOrder = typeof ev.metadata?.order_id === "string" ? ev.metadata.order_id : null;
+  const metaUser = typeof ev.metadata?.user_id === "string" ? ev.metadata.user_id : null;
+  let { data: order } = await db
     .from("number_orders")
     .select("*")
     .eq("coinpay_payment_id", ev.paymentId)
     .maybeSingle();
+  if (!order && metaOrder && metaUser) {
+    // A payment made inside a hosted checkout session (we stored the session id),
+    // or one whose id we never wrote down: map it back by the metadata we sent.
+    // The webhook is signed with our secret and only we create payments for this
+    // business, so this metadata is ours.
+    const { data: byMeta } = await db
+      .from("number_orders")
+      .select("*")
+      .eq("id", metaOrder)
+      .eq("user_id", metaUser)
+      .maybeSingle();
+    if (byMeta) {
+      await db
+        .from("number_orders")
+        .update({ coinpay_payment_id: ev.paymentId, updated_at: new Date().toISOString() })
+        .eq("id", byMeta.id)
+        .in("status", ["pending", "expired"]);
+      order = { ...byMeta, coinpay_payment_id: ev.paymentId };
+    }
+  }
   if (!order) return { settled: false, reason: "unknown payment" };
-  const metaOrder = ev.metadata?.order_id;
   if (metaOrder && metaOrder !== order.id) return { settled: false, reason: "order mismatch" };
+  if (metaUser && metaUser !== order.user_id) return { settled: false, reason: "user mismatch" };
 
   // The one transition that grants anything. A late payment for a checkout we
   // already expired is still honoured.
@@ -459,4 +501,56 @@ export async function sweep(deps: Deps): Promise<SweepReport> {
     }
   }
   return report;
+}
+
+/**
+ * Abandoned-checkout recovery: one click on /numbers or the inbox reopens an
+ * expired (or window-closed) order as a fresh checkout with the same area code,
+ * months and kind. The buyer may switch method (PayPal, another coin). If a
+ * checkout is already open, that one comes back instead of a second.
+ */
+export async function reopenOrder(
+  deps: Deps,
+  input: { userId: string; email: string | null | undefined; orderId: string; chain?: unknown; siteUrl: string }
+): Promise<NumberOrder> {
+  const { db } = deps;
+  const now = deps.now?.() ?? new Date();
+  const { data: old } = await db
+    .from("number_orders")
+    .select("*")
+    .eq("id", input.orderId)
+    .eq("user_id", input.userId)
+    .maybeSingle();
+  if (!old) throw new OrderError("Order not found", 404);
+  const o = old as NumberOrder;
+  const windowClosed = !checkoutWindowOpen(o.created_at, now);
+  const reopenable =
+    o.status === "expired" ||
+    (o.status === "pending" && windowClosed) ||
+    (o.status === "failed" && String(o.error ?? "").startsWith("checkout:"));
+  if (!reopenable) throw new OrderError("This order cannot be reopened", 409);
+
+  const { data: open } = await db
+    .from("number_orders")
+    .select("*")
+    .eq("user_id", input.userId)
+    .eq("status", "pending")
+    .order("created_at", { ascending: false })
+    .limit(5);
+  const live = ((open ?? []) as NumberOrder[]).find((x) => x.pay_url && checkoutWindowOpen(x.created_at, now));
+  if (live) return live;
+
+  if (o.status === "pending") {
+    await db.from("number_orders").update({ status: "expired", updated_at: now.toISOString() }).eq("id", o.id).eq("status", "pending");
+  }
+  return createOrder(deps, {
+    userId: input.userId,
+    email: input.email,
+    kind: o.kind,
+    phoneNumberId: o.phone_number_id,
+    areaCode: o.area_code ?? "",
+    months: o.months,
+    chain: input.chain ?? o.chain,
+    siteUrl: input.siteUrl,
+  });
 }

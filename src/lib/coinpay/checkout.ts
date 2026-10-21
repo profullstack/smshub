@@ -9,20 +9,36 @@
 
 import { createHmac, timingSafeEqual } from "crypto";
 
-/** Chains the smshub CoinPay business holds wallets for, cheapest first. */
+/**
+ * Every coin CoinPay can take a payment in, stablecoins first, cheapest to send
+ * first. What the buyer is offered is this list narrowed to what CoinPay reports
+ * as active for the business right now (see availableChains): its 15 own wallets
+ * plus USDC_BASE through the merchant's global wallet. A coin CoinPay switches on
+ * later (USDT_TRON once it has a wallet) appears without a deploy, and one
+ * switched off drops out.
+ */
 export const CHECKOUT_CHAINS = [
   "USDC_POL",
   "USDC_SOL",
+  "USDC_BASE",
   "USDT_POL",
   "USDT_SOL",
+  "USDT_TRON",
   "USDC_ETH",
   "USDT_ETH",
   "POL",
   "SOL",
   "ETH",
   "BTC",
+  "BCH",
+  "DOGE",
+  "XRP",
+  "ADA",
+  "BNB",
 ] as const;
 export type CheckoutChain = (typeof CHECKOUT_CHAINS)[number];
+/** Offered when CoinPay cannot be asked: the coins the business was last seen to accept. */
+export const FALLBACK_CHAINS: readonly CheckoutChain[] = CHECKOUT_CHAINS.filter((c) => c !== "USDT_TRON");
 export const DEFAULT_CHAIN: CheckoutChain = "USDC_POL";
 
 /** An unknown or misspelled chain falls back to the default rather than reaching CoinPay. */
@@ -40,8 +56,76 @@ export function normalizeChain(chain: unknown): CheckoutChain {
 export const PAYPAL_METHOD = "PAYPAL" as const;
 
 /** Everything the buyer can pick: the default coin, PayPal, then the other coins. */
-export const CHECKOUT_METHODS = [DEFAULT_CHAIN, PAYPAL_METHOD, ...CHECKOUT_CHAINS.filter((c) => c !== DEFAULT_CHAIN)] as const;
+export const CHECKOUT_METHODS = [DEFAULT_CHAIN, PAYPAL_METHOD, ...FALLBACK_CHAINS.filter((c) => c !== DEFAULT_CHAIN)] as const;
 export type CheckoutMethod = CheckoutChain | typeof PAYPAL_METHOD;
+
+/**
+ * The coins CoinPay reports active for the business (GET /api/supported-coins),
+ * kept to the ones we know, in our order. Any failure answers FALLBACK_CHAINS:
+ * a checkout on a coin that was just switched off fails at create time with a
+ * clear error, which beats offering nothing.
+ */
+let chainsCache: { at: number; chains: CheckoutChain[] } | null = null;
+const CHAINS_TTL_MS = 10 * 60_000;
+
+export async function availableChains(
+  cfg: CoinPayConfig | null,
+  fetchImpl: typeof fetch = fetch,
+  nowMs: number = Date.now()
+): Promise<CheckoutChain[]> {
+  if (!cfg) return [...FALLBACK_CHAINS];
+  if (chainsCache && nowMs - chainsCache.at < CHAINS_TTL_MS) return chainsCache.chains;
+  try {
+    const res = await fetchImpl(`${cfg.apiUrl}/supported-coins?active_only=true`, {
+      headers: { Authorization: `Bearer ${cfg.apiKey}` },
+      signal: AbortSignal.timeout(4000),
+    });
+    const body = (await res.json().catch(() => ({}))) as { coins?: { symbol?: string; is_active?: boolean }[] };
+    const active = new Set(
+      (body.coins ?? []).filter((c) => c.is_active !== false).map((c) => String(c.symbol ?? "").toUpperCase())
+    );
+    const chains = CHECKOUT_CHAINS.filter((c) => active.has(c));
+    if (!res.ok || chains.length === 0) return [...FALLBACK_CHAINS];
+    chainsCache = { at: nowMs, chains };
+    return chains;
+  } catch {
+    return [...FALLBACK_CHAINS];
+  }
+}
+
+/** Test hook. */
+export function resetChainsCache(): void {
+  chainsCache = null;
+}
+
+/** Buyer-facing methods: the default coin, PayPal, then the other live coins. */
+export function methodsFor(chains: readonly CheckoutChain[]): CheckoutMethod[] {
+  const first = chains.includes(DEFAULT_CHAIN) ? [DEFAULT_CHAIN] : [];
+  return [...first, PAYPAL_METHOD, ...chains.filter((c) => c !== DEFAULT_CHAIN)];
+}
+
+/** Every payment carries this, so CoinPay rows map back to the site, user and order. */
+export const PAYMENT_PROPERTY = "smshub.dev";
+
+export function paymentMetadata(input: {
+  orderId: string;
+  userId: string;
+  kind: string;
+  email?: string | null;
+}): Record<string, string> {
+  const meta: Record<string, string> = {
+    property: PAYMENT_PROPERTY,
+    order_id: input.orderId,
+    user_id: input.userId,
+    kind: input.kind,
+  };
+  const email = String(input.email ?? "").trim();
+  if (email) {
+    meta.email = email;
+    meta.customer_email = email;
+  }
+  return meta;
+}
 
 /** Like normalizeChain, but PayPal is also a valid answer. */
 export function normalizeMethod(method: unknown): CheckoutMethod {
@@ -160,6 +244,8 @@ export async function createPaypalPayment(
     successUrl: string;
     cancelUrl: string;
     invoiceNumber: string;
+    /** CoinPay's PayPal rail stores this on the transaction (receipts, disputes). */
+    customerEmail?: string | null;
   },
   fetchImpl: typeof fetch = fetch
 ): Promise<CreatedPayment> {
@@ -175,6 +261,7 @@ export async function createPaypalPayment(
       success_url: opts.successUrl,
       cancel_url: opts.cancelUrl,
       invoiceNumber: opts.invoiceNumber,
+      customer_email: opts.customerEmail || undefined,
     }),
   });
   const body = (await res.json().catch(() => ({}))) as { error?: string; transaction_id?: string };
@@ -184,6 +271,78 @@ export async function createPaypalPayment(
   }
   // Built from our own config rather than trusted from the response.
   return { id, payUrl: `${cfg.apiUrl.replace(/\/api$/, "")}/pay/paypal/${id}` };
+}
+
+/**
+ * CoinPay hosted checkout sessions (POST /api/checkout/sessions): one page where
+ * the buyer picks any coin CoinPay takes or PayPal. Preferred when CoinPay has
+ * it; until then (404/405/501 or an HTML answer) this returns null, remembers that
+ * for a while, and the caller opens the method-specific payment instead. Any
+ * other failure also returns null so a checkout never dies on the new path.
+ * The session id is not a payment id, so the webhook maps a session payment back
+ * by metadata (order_id + user_id), see settlePayment.
+ */
+let sessionsUnsupportedUntil = 0;
+const SESSIONS_RECHECK_MS = 15 * 60_000;
+
+export function resetSessionsProbe(): void {
+  sessionsUnsupportedUntil = 0;
+}
+
+export async function createCheckoutSession(
+  cfg: CoinPayConfig,
+  opts: {
+    amountUsd: number;
+    description: string;
+    customerEmail?: string | null;
+    accountId: string;
+    metadata: Record<string, string>;
+    successUrl: string;
+    cancelUrl: string;
+    idempotencyKey: string;
+  },
+  fetchImpl: typeof fetch = fetch,
+  nowMs: number = Date.now()
+): Promise<CreatedPayment | null> {
+  if (nowMs < sessionsUnsupportedUntil) return null;
+  try {
+    const res = await fetchImpl(`${cfg.apiUrl}/checkout/sessions`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${cfg.apiKey}`,
+        "Content-Type": "application/json",
+        "Idempotency-Key": opts.idempotencyKey,
+      },
+      body: JSON.stringify({
+        business_id: cfg.businessId,
+        amount: opts.amountUsd,
+        currency: "USD",
+        description: opts.description,
+        customer_email: opts.customerEmail || undefined,
+        account_id: opts.accountId,
+        property: PAYMENT_PROPERTY,
+        metadata: opts.metadata,
+        success_url: opts.successUrl,
+        cancel_url: opts.cancelUrl,
+        expires_in_minutes: CHECKOUT_WINDOW_MINUTES,
+      }),
+      signal: AbortSignal.timeout(8000),
+    });
+    const isJson = (res.headers.get("content-type") || "").includes("json");
+    if ([404, 405, 501].includes(res.status) || !isJson) {
+      sessionsUnsupportedUntil = nowMs + SESSIONS_RECHECK_MS;
+      return null;
+    }
+    const body = (await res.json().catch(() => ({}))) as { id?: string; url?: string };
+    if (!res.ok || !body.id || !body.url) return null;
+    // Only ever send buyers to CoinPay's own origin.
+    const origin = new URL(cfg.apiUrl).origin;
+    const u = new URL(body.url, origin);
+    if (u.origin !== origin || u.protocol !== "https:") return null;
+    return { id: String(body.id), payUrl: u.toString() };
+  } catch {
+    return null;
+  }
 }
 
 /** Verify `X-CoinPay-Signature: t=<unix>,v1=<hex hmac-sha256 of "t.rawBody">`. */

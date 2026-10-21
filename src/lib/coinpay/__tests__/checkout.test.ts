@@ -6,6 +6,11 @@ import {
   signWebhookBody,
   verifyWebhookSignature,
   CHECKOUT_CHAINS,
+  FALLBACK_CHAINS,
+  availableChains,
+  methodsFor,
+  paymentMetadata,
+  resetChainsCache,
 } from "../checkout";
 
 describe("coinpay checkout", () => {
@@ -27,10 +32,62 @@ describe("coinpay checkout", () => {
     );
   });
 
-  it("falls back to the default chain for anything we hold no wallet for", () => {
+  it("knows every coin CoinPay takes and falls back to the default for anything else", () => {
     expect(normalizeChain("usdc_sol")).toBe("USDC_SOL");
-    expect(normalizeChain("USDC_BASE")).toBe("USDC_POL");
-    expect(CHECKOUT_CHAINS).not.toContain("USDC_BASE");
+    expect(normalizeChain("USDC_BASE")).toBe("USDC_BASE");
+    expect(normalizeChain("doge")).toBe("DOGE");
+    expect(normalizeChain("SHIB")).toBe("USDC_POL");
+    for (const c of ["BTC", "BCH", "ETH", "POL", "SOL", "DOGE", "XRP", "ADA", "BNB", "USDT_TRON"]) {
+      expect(CHECKOUT_CHAINS).toContain(c);
+    }
+    expect(FALLBACK_CHAINS).not.toContain("USDT_TRON");
+  });
+
+  it("offers what CoinPay reports active, PayPal second, and falls back when CoinPay cannot answer", async () => {
+    resetChainsCache();
+    const cfg = coinpayConfig({
+      COINPAY_API_KEY: "cp_live_" + "0".repeat(20),
+      COINPAY_BUSINESS_ID: "b",
+      COINPAY_WEBHOOK_SECRET: "s",
+    } as unknown as NodeJS.ProcessEnv)!;
+    let calls = 0;
+    const ok = (async (url: RequestInfo | URL) => {
+      calls++;
+      expect(String(url)).toBe("https://coinpayportal.com/api/supported-coins?active_only=true");
+      return new Response(
+        JSON.stringify({
+          coins: [
+            { symbol: "BTC", is_active: true },
+            { symbol: "USDC_POL", is_active: true },
+            { symbol: "DOGE", is_active: true },
+            { symbol: "XRP", is_active: false },
+            { symbol: "SHIB", is_active: true },
+          ],
+        })
+      );
+    }) as unknown as typeof fetch;
+    const chains = await availableChains(cfg, ok, 1000);
+    expect(chains).toEqual(["USDC_POL", "BTC", "DOGE"]);
+    expect(methodsFor(chains)).toEqual(["USDC_POL", "PAYPAL", "BTC", "DOGE"]);
+    await availableChains(cfg, ok, 2000);
+    expect(calls).toBe(1); // cached
+
+    resetChainsCache();
+    const down = (async () => new Response("nope", { status: 502 })) as unknown as typeof fetch;
+    expect(await availableChains(cfg, down)).toEqual([...FALLBACK_CHAINS]);
+    resetChainsCache();
+  });
+
+  it("tags every payment with the property, user, order and email", () => {
+    expect(paymentMetadata({ orderId: "o1", userId: "u1", kind: "new", email: " a@b.co " })).toEqual({
+      property: "smshub.dev",
+      order_id: "o1",
+      user_id: "u1",
+      kind: "new",
+      email: "a@b.co",
+      customer_email: "a@b.co",
+    });
+    expect(paymentMetadata({ orderId: "o1", userId: "u1", kind: "renew", email: null })).not.toHaveProperty("email");
   });
 
   it("verifies t=..,v1=.. signatures over the raw body with a 5 minute window", () => {
