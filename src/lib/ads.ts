@@ -16,10 +16,10 @@ export const AD_HEIGHTS: Record<AdFormat, number> = {
 };
 
 /**
- * Public marketing/docs pages that carry the unit. Everything else (inbox,
- * numbers, settings, auth, checkout) stays ad-free.
+ * Public marketing/docs pages that carry the unit. The homepage and everything
+ * else (inbox, numbers, settings, auth, checkout) stays ad-free.
  */
-const AD_EXACT = new Set(["/", "/privacy", "/terms", "/sms", "/install", "/phonenumbers", "/verification-numbers"]);
+const AD_EXACT = new Set(["/privacy", "/terms", "/sms", "/install", "/phonenumbers", "/verification-numbers"]);
 const AD_PREFIXES = ["/docs"];
 
 export function isAdPage(pathname: string | null | undefined): boolean {
