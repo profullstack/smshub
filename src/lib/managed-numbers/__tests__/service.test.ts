@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { FakeDb } from "@/__tests__/fake-db";
-import { createOrder, settlePayment, sweep, orderingStatus, OrderError, GRACE_DAYS } from "../service";
-import { readWebhook } from "@/lib/coinpay/checkout";
+import { createOrder, settlePayment, sweep, orderingStatus, OrderError, GRACE_DAYS, reopenOrder } from "../service";
+import { readWebhook, resetSessionsProbe } from "@/lib/coinpay/checkout";
 import { MANAGED_TAG } from "@/lib/telnyx/numbers";
 
 const USER = "user-1";
@@ -71,6 +71,7 @@ describe("managed numbers", () => {
   let db: SupabaseClient;
 
   beforeEach(() => {
+    resetSessionsProbe();
     fdb = new FakeDb();
     db = fdb as unknown as SupabaseClient;
   });
@@ -254,5 +255,85 @@ describe("managed numbers", () => {
     await createOrder(deps, { userId: USER, email: EMAIL, siteUrl: "x" });
     fdb.rows("number_orders")[0].status = "expired";
     expect(await settlePayment(deps, settledEvent("pay-1"))).toMatchObject({ status: "active" });
+  });
+
+  it("tags every crypto and PayPal payment with property, user, order and email", async () => {
+    const f = fakeFetch();
+    const deps = { db, env: baseEnv("live"), fetchImpl: f.impl };
+    const a = await createOrder(deps, { userId: USER, email: EMAIL, siteUrl: "https://smshub.dev" });
+    const b = await createOrder(deps, { userId: USER, email: EMAIL, chain: "PAYPAL", siteUrl: "https://smshub.dev" });
+    const crypto = f.calls.find((c) => c.url.endsWith("/api/payments/create"))!.body as Record<string, unknown>;
+    expect(crypto.metadata).toEqual({
+      property: "smshub.dev", order_id: a.id, user_id: USER, kind: "new", email: EMAIL, customer_email: EMAIL,
+    });
+    expect(crypto.expires_in_minutes).toBe(60);
+    const pp = f.calls.find((c) => c.url.endsWith("/paypal/payments/create"))!.body as Record<string, unknown>;
+    expect(pp.customer_email).toBe(EMAIL);
+    expect(pp.metadata).toMatchObject({ property: "smshub.dev", order_id: b.id, user_id: USER, email: EMAIL });
+  });
+
+  it("prefers a CoinPay hosted checkout session when CoinPay has one, and settles it by metadata", async () => {
+    const f = fakeFetch();
+    const inner = f.impl;
+    const sessionCalls: Record<string, unknown>[] = [];
+    const impl = (async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (String(input).endsWith("/api/checkout/sessions")) {
+        sessionCalls.push(JSON.parse(String(init?.body)));
+        return new Response(JSON.stringify({ id: "cs_1", url: "https://coinpayportal.com/checkout/cs_1" }), {
+          status: 201,
+          headers: { "content-type": "application/json" },
+        });
+      }
+      return inner(input, init);
+    }) as unknown as typeof fetch;
+    const deps = { db, env: baseEnv("live"), fetchImpl: impl };
+    const order = await createOrder(deps, { userId: USER, email: EMAIL, chain: "DOGE", siteUrl: "https://smshub.dev" });
+    expect(order.pay_url).toBe("https://coinpayportal.com/checkout/cs_1");
+    expect(order.coinpay_payment_id).toBe("cs_1");
+    expect(sessionCalls[0]).toMatchObject({
+      amount: 5, currency: "USD", customer_email: EMAIL, account_id: USER, property: "smshub.dev",
+      expires_in_minutes: 60, cancel_url: "https://smshub.dev/numbers",
+    });
+    expect(f.calls.some((c) => c.url.endsWith("/api/payments/create"))).toBe(false);
+
+    // The payment made inside the session has its own id: mapped back by metadata.
+    const ev = readWebhook({
+      data: { payment_id: "pay-real", status: "confirmed", metadata: { order_id: order.id, user_id: USER } },
+    });
+    expect(await settlePayment(deps, ev)).toMatchObject({ settled: true, status: "active" });
+    expect(fdb.rows("number_orders")[0].coinpay_payment_id).toBe("pay-real");
+    // A forged user in otherwise valid metadata is refused.
+    const o2 = await createOrder(deps, { userId: USER, email: EMAIL, siteUrl: "x" });
+    const bad = readWebhook({ data: { payment_id: "pay-x", status: "confirmed", metadata: { order_id: o2.id, user_id: "someone" } } });
+    expect(await settlePayment(deps, bad)).toMatchObject({ settled: false });
+  });
+
+  it("falls back to the direct checkout when CoinPay has no sessions endpoint, and stops asking", async () => {
+    const f = fakeFetch(); // answers the sessions URL with a non-JSON 500, like CoinPay's HTML 404 page
+    const deps = { db, env: baseEnv("live"), fetchImpl: f.impl };
+    const order = await createOrder(deps, { userId: USER, email: EMAIL, siteUrl: "x" });
+    expect(order.coinpay_payment_id).toBe("pay-1");
+    await createOrder(deps, { userId: USER, email: EMAIL, siteUrl: "x" });
+    expect(f.calls.filter((c) => c.url.endsWith("/checkout/sessions")).length).toBe(1);
+  });
+
+  it("reopens an expired order in one click with the same terms, optionally on PayPal", async () => {
+    const f = fakeFetch();
+    const deps = { db, env: baseEnv("live"), fetchImpl: f.impl };
+    const old = await createOrder(deps, { userId: USER, email: EMAIL, areaCode: "415", months: 3, chain: "BTC", siteUrl: "x" });
+    const row = fdb.rows("number_orders")[0];
+    row.created_at = new Date(Date.now() - 61 * 60_000).toISOString();
+    // Still "pending" but its window closed: reopenable, and marked expired.
+    const fresh = await reopenOrder(deps, { userId: USER, email: EMAIL, orderId: old.id, chain: "PAYPAL", siteUrl: "x" });
+    expect(fresh.id).not.toBe(old.id);
+    expect(fresh).toMatchObject({ area_code: "415", months: 3, chain: "PAYPAL", status: "pending" });
+    expect(row.status).toBe("expired");
+    // A second click while that checkout is open returns it instead of another.
+    const again = await reopenOrder(deps, { userId: USER, email: EMAIL, orderId: old.id, siteUrl: "x" });
+    expect(again.id).toBe(fresh.id);
+    // Someone else's order, or a paid one, cannot be reopened.
+    await expect(reopenOrder(deps, { userId: "other", email: EMAIL, orderId: old.id, siteUrl: "x" })).rejects.toThrow(OrderError);
+    row.status = "active";
+    await expect(reopenOrder(deps, { userId: USER, email: EMAIL, orderId: old.id, siteUrl: "x" })).rejects.toThrow(/cannot be reopened/);
   });
 });

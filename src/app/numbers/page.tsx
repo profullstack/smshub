@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { LineNameEditor } from "@/components/line-name-editor";
 import { CHECKOUT_WINDOW_MINUTES, checkoutWindowOpen } from "@/lib/coinpay/window";
+import { safePayUrl, unfinishedOrder } from "@/lib/managed-numbers/recovery";
 
 interface NumberRow {
   id: string;
@@ -57,6 +58,13 @@ const CHAIN_LABELS: Record<string, string> = {
   SOL: "SOL",
   ETH: "ETH",
   BTC: "BTC",
+  USDC_BASE: "USDC (Base)",
+  USDT_TRON: "USDT (TRON)",
+  BCH: "Bitcoin Cash (BCH)",
+  DOGE: "Dogecoin (DOGE)",
+  XRP: "XRP",
+  ADA: "Cardano (ADA)",
+  BNB: "BNB (BNB Smart Chain)",
 };
 
 const STATUS_TEXT: Record<OrderRow["status"], string> = {
@@ -83,18 +91,6 @@ function minutesLeft(o: OrderRow, now: Date): number {
 function statusText(o: OrderRow, now: Date): string {
   if (o.status === "pending" && !payable(o, now)) return "Checkout window closed";
   return STATUS_TEXT[o.status];
-}
-
-/** Only ever send the browser to CoinPay's own payment page. */
-function safePayUrl(raw: unknown): string | null {
-  try {
-    const u = new URL(String(raw));
-    return u.protocol === "https:" && u.hostname === "coinpayportal.com" && u.pathname.startsWith("/pay/")
-      ? u.toString()
-      : null;
-  } catch {
-    return null;
-  }
 }
 
 function fmtDate(iso: string | null) {
@@ -199,10 +195,12 @@ export default function NumbersPage() {
   const rented = data.numbers.filter((n) => n.managed);
   // A checkout still inside its window: send people back to it instead of opening another.
   const openCheckout = data.orders.find((o) => payable(o, now) && safePayUrl(o.pay_url));
-  const retry = (o: OrderRow) =>
-    o.kind === "renew" && o.phone_number_id
-      ? checkout(`/api/numbers/${o.phone_number_id}/renew`, { months: o.months, chain: o.chain })
-      : checkout("/api/numbers/orders", { area_code: o.area_code ?? "", months: o.months, chain: o.chain });
+  // One click: the same number and months, a fresh checkout window.
+  const retry = (o: OrderRow, method?: string) =>
+    checkout(`/api/numbers/orders/${o.id}/reopen`, method ? { chain: method } : {});
+  const unfinished = !openCheckout && data.ordering.open ? unfinishedOrder(data.orders, now) : null;
+  const coins = data.pricing.chains.filter((c) => c !== "PAYPAL");
+  const payByPaypal = chain === "PAYPAL";
 
   return (
     <div className="min-h-screen max-w-3xl mx-auto px-4 py-8 space-y-8">
@@ -235,6 +233,36 @@ export default function NumbersPage() {
           <a href={safePayUrl(openCheckout.pay_url)!} className="font-semibold underline">
             Continue paying ({minutesLeft(openCheckout, now)} min left)
           </a>
+        </div>
+      )}
+
+      {unfinished && unfinished.id !== watched?.id && (
+        <div className="rounded-xl border border-yellow-500/30 bg-yellow-500/10 p-4 text-sm text-yellow-100 space-y-3">
+          <div>
+            Your order for {unfinished.kind === "renew" ? "a renewal" : unfinished.area_code ? `a ${unfinished.area_code} number` : "a US number"}{" "}
+            (${Number(unfinished.amount_usd).toFixed(2)}, {unfinished.months} mo) was not paid before the checkout closed.
+            Nothing was charged. Pick it up where you left off:
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => retry(unfinished)}
+              className="rounded-lg bg-green-600 px-4 py-2 font-semibold text-white hover:bg-green-700 disabled:opacity-50"
+            >
+              Finish your order ({CHAIN_LABELS[unfinished.chain] || unfinished.chain})
+            </button>
+            {unfinished.chain !== "PAYPAL" && (
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => retry(unfinished, "PAYPAL")}
+                className="rounded-lg bg-[#ffc439] px-4 py-2 font-semibold text-gray-900 hover:bg-[#f2b92f] disabled:opacity-50"
+              >
+                Pay with PayPal instead
+              </button>
+            )}
+          </div>
         </div>
       )}
 
@@ -320,8 +348,8 @@ export default function NumbersPage() {
       <section className="rounded-xl border border-gray-800 bg-gray-900 p-6 space-y-4">
         <h2 className="text-lg font-semibold">Rent a number</h2>
         <p className="text-sm text-gray-400">
-          A US number that receives texts and verification codes, ${price}/month, paid in crypto or with PayPal
-          through CoinPay.
+          A US number that receives texts and verification codes, ${price}/month, paid with PayPal or in
+          any of {coins.length} cryptocurrencies through CoinPay.
           It is set up as soon as the payment confirms. Rented numbers receive only; some services refuse
           virtual numbers.
         </p>
@@ -341,8 +369,8 @@ export default function NumbersPage() {
               PayPal&apos;s page. The number is set up once PayPal confirms the payment.
             </li>
             <li>
-              The payment page stays open for {CHECKOUT_WINDOW_MINUTES} minutes. If it closes before you pay, start
-              a new checkout. If you already sent the coins, do not pay again: a late payment is still credited,
+              The payment page stays open for {CHECKOUT_WINDOW_MINUTES} minutes. If it closes before you pay, press
+              Finish your order here and you get a fresh one in one click. If you already sent the coins, do not pay again: a late payment is still credited,
               it only takes longer.
             </li>
           </ol>
@@ -350,6 +378,31 @@ export default function NumbersPage() {
         {!data.ordering.open ? (
           <p className="text-sm text-yellow-300">{data.ordering.reason}</p>
         ) : (
+          <div className="space-y-3">
+          <div className="grid gap-2 sm:grid-cols-2" role="radiogroup" aria-label="How to pay">
+            <button
+              type="button"
+              role="radio"
+              aria-checked={payByPaypal}
+              onClick={() => setChain("PAYPAL")}
+              className={`rounded-lg border px-4 py-3 text-left ${payByPaypal ? "border-[#ffc439] bg-[#ffc439]/10" : "border-gray-700 bg-gray-950 hover:border-gray-500"}`}
+            >
+              <div className="font-semibold text-white">PayPal</div>
+              <div className="text-xs text-gray-400">No crypto needed. Pay on PayPal&apos;s own page.</div>
+            </button>
+            <button
+              type="button"
+              role="radio"
+              aria-checked={!payByPaypal}
+              onClick={() => setChain(data.pricing.default_chain)}
+              className={`rounded-lg border px-4 py-3 text-left ${!payByPaypal ? "border-green-500 bg-green-500/10" : "border-gray-700 bg-gray-950 hover:border-gray-500"}`}
+            >
+              <div className="font-semibold text-white">Crypto</div>
+              <div className="text-xs text-gray-400">
+                {coins.length} coins: USDC, USDT, BTC, ETH, SOL and more.
+              </div>
+            </button>
+          </div>
           <form
             onSubmit={(e) => {
               e.preventDefault();
@@ -375,25 +428,33 @@ export default function NumbersPage() {
                 </option>
               ))}
             </select>
-            <select
-              value={chain}
-              onChange={(e) => setChain(e.target.value)}
-              className="rounded-lg border border-gray-700 bg-gray-950 px-3 py-2"
-            >
-              {data.pricing.chains.map((c) => (
-                <option key={c} value={c}>
-                  {CHAIN_LABELS[c] || c}
-                </option>
-              ))}
-            </select>
+            {payByPaypal ? (
+              <div className="flex items-center rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-gray-300">
+                PayPal
+              </div>
+            ) : (
+              <select
+                value={chain}
+                onChange={(e) => setChain(e.target.value)}
+                aria-label="Coin"
+                className="rounded-lg border border-gray-700 bg-gray-950 px-3 py-2"
+              >
+                {coins.map((c) => (
+                  <option key={c} value={c}>
+                    {CHAIN_LABELS[c] || c}
+                  </option>
+                ))}
+              </select>
+            )}
             <button
               type="submit"
               disabled={busy}
               className="rounded-lg bg-green-600 px-4 py-2 font-semibold hover:bg-green-700 disabled:opacity-50"
             >
-              {busy ? "Opening..." : `Pay $${(price * months).toFixed(2)}`}
+              {busy ? "Opening..." : `Pay $${(price * months).toFixed(2)}${payByPaypal ? " with PayPal" : ""}`}
             </button>
           </form>
+          </div>
         )}
         <p className="text-xs text-gray-500">
           Plan: {data.plan.plan === "pro" ? "Pro" : "Free"}. Renting a number unlocks Pro limits while it is active.
@@ -429,7 +490,7 @@ export default function NumbersPage() {
                         onClick={() => retry(o)}
                         className="ml-2 underline disabled:opacity-50"
                       >
-                        Start a new checkout
+                        Finish this order
                       </button>
                     )}
                 </div>

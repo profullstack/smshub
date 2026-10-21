@@ -4,7 +4,7 @@
  */
 
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { CHECKOUT_METHODS, CHECKOUT_WINDOW_MINUTES, DEFAULT_CHAIN } from "@/lib/coinpay/checkout";
+import { availableChains, CHECKOUT_WINDOW_MINUTES, coinpayConfig, DEFAULT_CHAIN, methodsFor } from "@/lib/coinpay/checkout";
 import { getPlanUsage, priceUsdPerMonth } from "@/lib/plans";
 import { extractOtp } from "@/lib/otp";
 import { GRACE_DAYS, orderingStatus } from "./service";
@@ -61,17 +61,20 @@ export async function getOrder(db: SupabaseClient, userId: string, id: string) {
 }
 
 export async function overview(db: SupabaseClient, userId: string, email: string | null) {
-  const [plan, numbers, orders] = await Promise.all([
+  const [plan, numbers, orders, chains] = await Promise.all([
     getPlanUsage(db, userId),
     listNumbers(db, userId),
     listOrders(db, userId),
+    availableChains(coinpayConfig()),
   ]);
   return {
     ordering: orderingStatus(email),
     pricing: {
       usd_per_month: priceUsdPerMonth(),
-      chains: CHECKOUT_METHODS,
-      default_chain: DEFAULT_CHAIN,
+      // Every coin CoinPay has live for the business, plus PayPal.
+      chains: methodsFor(chains),
+      default_chain: chains.includes(DEFAULT_CHAIN) ? DEFAULT_CHAIN : chains[0] ?? DEFAULT_CHAIN,
+      paypal: true,
       grace_days: GRACE_DAYS,
       // CoinPay's pay page expires this long after the order is created.
       checkout_window_minutes: CHECKOUT_WINDOW_MINUTES,

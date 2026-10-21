@@ -4,6 +4,7 @@ import { InboxClient } from "@/components/inbox-client";
 import { StationInbox } from "@/components/station/station-inbox";
 import { getBrand } from "@/lib/brand-server";
 import { priceUsdPerMonth } from "@/lib/plans";
+import { unfinishedOrder } from "@/lib/managed-numbers/recovery";
 
 export default async function InboxPage() {
   const supabase = await createServerSupabaseClient();
@@ -36,6 +37,15 @@ export default async function InboxPage() {
     .eq("status", "active")
     .order("created_at", { ascending: true });
 
+  // An order that expired unpaid gets a one-click "Finish your order" here.
+  const { data: orders } = await supabase
+    .from("number_orders")
+    .select("id, kind, status, area_code, months, amount_usd, chain, error, created_at")
+    .eq("user_id", user.id)
+    .order("created_at", { ascending: false })
+    .limit(5);
+  const unfinished = unfinishedOrder(orders || []);
+
   if ((await getBrand()).id === "numberstation") {
     return <StationInbox conversations={conversations || []} numbers={numbers || []} />;
   }
@@ -46,6 +56,11 @@ export default async function InboxPage() {
       numbers={numbers || []}
       userId={user.id}
       rentPriceUsd={priceUsdPerMonth()}
+      unfinishedOrder={
+        unfinished
+          ? { id: unfinished.id, amountUsd: Number(unfinished.amount_usd), months: unfinished.months, chain: unfinished.chain }
+          : null
+      }
     />
   );
 }

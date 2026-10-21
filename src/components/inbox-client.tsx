@@ -7,6 +7,64 @@ import { NewMessageModal } from "./new-message-modal";
 import { ContactNameEditor } from "./contact-name-editor";
 import { Logo } from "./logo";
 import type { LineNumber } from "@/lib/inbox-lines";
+import { safePayUrl } from "@/lib/managed-numbers/recovery";
+
+interface UnfinishedOrder {
+  id: string;
+  amountUsd: number;
+  months: number;
+  chain: string;
+}
+
+/** One click back into an expired, unpaid number order. */
+function FinishOrderBanner({ order }: { order: UnfinishedOrder }) {
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const go = async (chain?: string) => {
+    setBusy(true);
+    setErr(null);
+    try {
+      const res = await fetch(`/api/numbers/orders/${order.id}/reopen`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(chain ? { chain } : {}),
+      });
+      const j = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(j.error || "Could not reopen the checkout");
+      const pay = safePayUrl(j.order?.pay_url);
+      window.location.href = pay || "/numbers";
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Could not reopen the checkout");
+      setBusy(false);
+    }
+  };
+  return (
+    <div className="border-b border-yellow-500/30 bg-yellow-500/10 px-4 py-2 text-sm text-yellow-100 flex flex-wrap items-center gap-2">
+      <span>
+        Your ${order.amountUsd.toFixed(2)} number order ({order.months} mo) was not paid before the checkout closed.
+      </span>
+      <button
+        type="button"
+        disabled={busy}
+        onClick={() => go()}
+        className="rounded bg-green-600 px-3 py-1 font-semibold text-white hover:bg-green-700 disabled:opacity-50"
+      >
+        {busy ? "Opening..." : "Finish your order"}
+      </button>
+      {order.chain !== "PAYPAL" && (
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => go("PAYPAL")}
+          className="rounded bg-[#ffc439] px-3 py-1 font-semibold text-gray-900 hover:bg-[#f2b92f] disabled:opacity-50"
+        >
+          Pay with PayPal
+        </button>
+      )}
+      {err && <span className="text-red-300">{err}</span>}
+    </div>
+  );
+}
 
 function MessageStatusIcon({ status, retryCount }: { status: string; retryCount?: number }) {
   if (status === "failed" && retryCount && retryCount > 0) {
@@ -31,12 +89,15 @@ export function InboxClient({
   numbers = [],
   userId: _userId,
   rentPriceUsd = 5,
+  unfinishedOrder = null,
 }: {
   conversations: Conversation[];
   numbers?: LineNumber[];
   userId: string;
   /** Monthly price of a rented number, shown to accounts with no number yet. */
   rentPriceUsd?: number;
+  /** An order that expired unpaid, offered back in one click. */
+  unfinishedOrder?: UnfinishedOrder | null;
 }) {
   const {
     filteredConversations,
@@ -132,7 +193,9 @@ export function InboxClient({
   }, [showNewMessage, searchQuery, filteredConversations]);
 
   return (
-    <div className="h-screen flex">
+    <div className="h-screen flex flex-col">
+      {unfinishedOrder && <FinishOrderBanner order={unfinishedOrder} />}
+      <div className="flex flex-1 min-h-0">
       {/* New Message Modal */}
       <NewMessageModal
         isOpen={showNewMessage}
@@ -426,7 +489,7 @@ export function InboxClient({
                 <div className="text-4xl">📱</div>
                 <h2 className="text-xl font-semibold text-white">Get a number for your verification codes</h2>
                 <p className="text-sm text-gray-300">
-                  Rent your own US number for ${rentPriceUsd}/month, paid in crypto through CoinPay. It is ready once
+                  Rent your own US number for ${rentPriceUsd}/month, paid with PayPal or crypto through CoinPay. It is ready once
                   the payment confirms, and every text and code lands right here.
                 </p>
                 <a
@@ -450,6 +513,7 @@ export function InboxClient({
             )}
           </div>
         )}
+      </div>
       </div>
     </div>
   );
