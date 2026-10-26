@@ -16,7 +16,7 @@
 # inside the container, answers /api/health, reads its secrets from app.env at run
 # time. The NEXT_PUBLIC_* values arrive as compose build args.
 
-FROM oven/bun:1.4.0-slim AS base
+FROM oven/bun:1.4.4-slim AS base
 WORKDIR /app
 RUN chown bun:bun /app
 USER bun
