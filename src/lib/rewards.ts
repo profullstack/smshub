@@ -177,8 +177,12 @@ export type InviteOutcome =
 
 /**
  * Spend an invite for a new account and credit both sides. Only called once the
- * account passes the signup checks. The invite itself is single use, so the
- * bonus can only be paid once per invite; an account redeems one invite.
+ * account passes the signup checks. The bonus rests on redeemInvite's answer
+ * alone: since @profullstack/affiliates 0.3 the database (aff_claim_invite plus
+ * the aff_invites_one_per_user unique index) lets an account take ONE invite,
+ * atomically, so two sign-ins racing with different invite cookies get one
+ * `ok` and one `already_invited` (no bonus, the second invite stays unused).
+ * A separate invitedBy() check first would only be a racy read, so there is none.
  */
 export async function acceptInvite(
   user: SignupUser,
@@ -189,7 +193,6 @@ export async function acceptInvite(
   if (!passesSignupChecks(user, hasProfile, deps.now)) return { accepted: false, reason: "checks" };
   const a = deps.affiliates ?? getAffiliates();
   const c = deps.credits ?? getCredits();
-  if (await a.invitedBy(user.id)) return { accepted: false, reason: "already_invited" };
   const r = await a.redeemInvite(code, user.id);
   if (!r.ok) return { accepted: false, reason: r.reason };
   const grant = { unit: CREDIT_UNIT, amount: INVITE_BONUS_CENTS };

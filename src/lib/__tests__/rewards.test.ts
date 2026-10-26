@@ -86,6 +86,35 @@ describe("invites", () => {
     expect((await acceptInvite(fresh("bob"), inv.code, true, deps())).accepted).toBe(true);
   });
 
+  it("two simultaneous sign-ins with different invites: one is accepted and paid, the other refused unused", async () => {
+    const a1 = await createInvite("alice", "x", "", aff);
+    const a2 = await createInvite("dan", "x", "", aff);
+    if (!a1.ok || !a2.ok) throw new Error("no invite");
+    const [r1, r2] = await Promise.all([
+      acceptInvite(fresh("bob"), a1.code, true, deps()),
+      acceptInvite(fresh("bob"), a2.code, true, deps()),
+    ]);
+    const outcomes = [r1, r2];
+    expect(outcomes.filter((r) => r.accepted)).toHaveLength(1);
+    expect(outcomes.find((r) => !r.accepted)).toEqual({ accepted: false, reason: "already_invited" });
+    // Bob and exactly one inviter are paid once; the losing invite is still unused and spendable.
+    expect(await credits.balance("bob", CREDIT_UNIT)).toBe(INVITE_BONUS_CENTS);
+    const paid = [await credits.balance("alice", CREDIT_UNIT), await credits.balance("dan", CREDIT_UNIT)].sort();
+    expect(paid).toEqual([0, INVITE_BONUS_CENTS]);
+    const loser = r1.accepted ? a2 : a1;
+    expect((await acceptInvite(fresh("erin"), loser.code, true, deps())).accepted).toBe(true);
+  });
+
+  it("an account that already took an invite is refused a second one later, which stays unused", async () => {
+    const a1 = await createInvite("alice", "x", "", aff);
+    const a2 = await createInvite("dan", "x", "", aff);
+    if (!a1.ok || !a2.ok) throw new Error("no invite");
+    expect((await acceptInvite(fresh("bob"), a1.code, true, deps())).accepted).toBe(true);
+    expect(await acceptInvite(fresh("bob"), a2.code, true, deps())).toEqual({ accepted: false, reason: "already_invited" });
+    expect(await credits.balance("dan", CREDIT_UNIT)).toBe(0);
+    expect((await invitesSummary("dan", "x", aff)).invites[0].used).toBe(false);
+  });
+
   it("takes the invite from the cookie, else from signup metadata", () => {
     expect(inviteCodeFor("INV-AAAA-BBBB-CCCC", fresh("b"))).toBe("INV-AAAA-BBBB-CCCC");
     expect(inviteCodeFor(null, fresh("b", { user_metadata: { invite_code: "INV-1111-2222-3333" } }))).toBe("INV-1111-2222-3333");
