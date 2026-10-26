@@ -15,6 +15,13 @@ describe("safeNextPath", () => {
     expect(safeNextPath("/\\evil.example")).toBe("/inbox");
   });
 
+  it("refuses tab/newline tricks the URL parser turns into //host", () => {
+    expect(safeNextPath("/\t/evil.example")).toBe("/inbox");
+    expect(safeNextPath("/\n/evil.example")).toBe("/inbox");
+    expect(safeNextPath("/\r\n/evil.example")).toBe("/inbox");
+    expect(safeNextPath("/numbers\u0000")).toBe("/inbox");
+  });
+
   it("honours a custom fallback", () => {
     expect(safeNextPath(undefined, "/numbers")).toBe("/numbers");
   });
