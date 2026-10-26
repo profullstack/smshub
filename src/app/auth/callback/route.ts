@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getBrandSiteUrl } from "@/lib/brand-server";
 import { safeNextPath } from "@/lib/safe-next";
+import { saveProfileFromMetadata } from "@/lib/profile";
 
 export { safeNextPath };
 
@@ -47,6 +48,8 @@ export async function GET(request: NextRequest) {
       data: { user },
     } = await supabase.auth.getUser();
     signedIn = Boolean(user);
+    // First confirmation: store the /register profile fields (never blocks).
+    if (user) await saveProfileFromMetadata(user);
   } catch (error) {
     console.error("Auth callback error:", error);
     signedIn = false;

@@ -6,11 +6,20 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Logo } from "@/components/logo";
 import { nextFromLocation } from "@/lib/safe-next";
+import { ProfileFields } from "@profullstack/profile/react";
+import type { ProfileField } from "@profullstack/profile";
+
+// Email has its own input; the shared @profullstack/profile component renders
+// the other five (first/last name required, the rest optional).
+const PROFILE_FIELDS: ProfileField[] = ["first_name", "last_name", "company_domain", "job_title", "linkedin_url"];
+type ProfileValues = Partial<Record<ProfileField, string | null>>;
 
 export default function RegisterPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [profile, setProfile] = useState<ProfileValues>({});
+  const [fieldErrors, setFieldErrors] = useState<Partial<Record<ProfileField, string>>>({});
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [confirmSent, setConfirmSent] = useState(false);
@@ -28,6 +37,7 @@ export default function RegisterPage() {
     e.preventDefault();
     setLoading(true);
     setError(null);
+    setFieldErrors({});
 
     if (password !== confirmPassword) {
       setError("Passwords do not match");
@@ -41,6 +51,23 @@ export default function RegisterPage() {
       return;
     }
 
+    // Validate the profile fields on the server before creating the account.
+    const fields = { ...Object.fromEntries(PROFILE_FIELDS.map((k) => [k, profile[k] ?? ""])), email };
+    const check = await fetch("/api/auth/signup-profile", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(fields),
+    })
+      .then((r) => r.json())
+      .catch(() => null);
+    if (!check?.ok) {
+      setFieldErrors(check?.errors ?? {});
+      setError(check?.error ?? "Could not check your details. Try again.");
+      setLoading(false);
+      return;
+    }
+    const p = check.profile as ProfileValues;
+
     const supabase = createClient();
     const { data, error } = await supabase.auth.signUp({
       email,
@@ -49,8 +76,20 @@ export default function RegisterPage() {
         emailRedirectTo: `${window.location.origin}/auth/callback${
           next === "/inbox" ? "" : `?next=${encodeURIComponent(next)}`
         }`,
+        // Also saved on /auth/callback if the call below never lands.
+        data: Object.fromEntries(PROFILE_FIELDS.map((k) => [k, p[k] ?? null])),
       },
     });
+
+    // An already-registered address comes back with no identities: never
+    // write a profile for it. Best effort; the account exists either way.
+    if (!error && data.user && (data.user.identities?.length ?? 0) > 0) {
+      await fetch("/api/auth/signup-profile", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...fields, user_id: data.user.id }),
+      }).catch(() => null);
+    }
 
     if (error) {
       setError(error.message);
@@ -111,6 +150,14 @@ export default function RegisterPage() {
               placeholder="you@example.com"
             />
           </div>
+
+          <ProfileFields
+            fields={PROFILE_FIELDS}
+            idPrefix="register-"
+            values={profile}
+            onChange={setProfile}
+            errors={fieldErrors}
+          />
 
           <div>
             <label htmlFor="password" className="block text-sm font-medium text-gray-300 mb-1">
