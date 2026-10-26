@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useToast } from "@/contexts/toast-context";
+import { ProfileCard } from "@/components/profile-card";
 import {
   ProviderTestPanel,
   SETUP_GUIDES,
@@ -205,6 +206,8 @@ export default function SettingsPage() {
             ← Back to Inbox
           </Link>
         </div>
+
+        <ProfileCard />
 
         {/* Rented numbers */}
         <section className="space-y-4">

@@ -114,3 +114,11 @@
    blocked slot leaves no hole. Low profile: one thin text_link line. */
 .cp-ad { height: 0; overflow: hidden; }
 .cp-ad[data-cp-filled] { height: auto; overflow: visible; margin: 0.5rem 0; }
+
+/* @profullstack/profile fields: same look as the register/settings inputs. */
+.pfs-profile { border: 0; margin: 0; padding: 0; min-width: 0; display: grid; gap: 1rem; }
+.pfs-profile__row label { display: block; margin-bottom: 0.25rem; font-size: 0.875rem; font-weight: 500; color: var(--color-gray-300); }
+.pfs-profile__row input { width: 100%; padding: 0.5rem 0.75rem; background: var(--color-gray-900); border: 1px solid var(--color-gray-700); border-radius: 0.5rem; }
+.pfs-profile__row input:focus { outline: none; border-color: transparent; box-shadow: 0 0 0 2px var(--color-blue-500); }
+.pfs-profile__optional { font-weight: 400; color: var(--color-gray-500); }
+.pfs-profile__error { margin-top: 0.25rem; font-size: 0.875rem; color: var(--color-red-400); }
