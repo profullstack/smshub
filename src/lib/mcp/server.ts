@@ -11,6 +11,7 @@ import { SendError, sendMessage } from "@/lib/messages/send";
 import type { RequestUser } from "@/lib/request-user";
 import { LINE_TOOLS, LineToolError } from "./line-tools";
 import { AlertError, listAlerts, sendAlert } from "@/lib/alerts/service";
+import { createInvite, creditSummary, invitesSummary, redeemCode } from "@/lib/rewards";
 
 export const PROTOCOL_VERSION = "2025-06-18";
 const MAX_WAIT_SECONDS = 55;
@@ -98,20 +99,44 @@ const TOOLS: Tool[] = [
     inputSchema: obj({
       area_code: { type: "string", description: "Preferred 3-digit US area code; nearest available if none." },
       months: { type: "integer", minimum: 1, maximum: 12, default: 1 },
-      chain: { type: "string", description: "How to pay: PAYPAL, or a coin such as USDC_POL (default), USDC_SOL, USDC_BASE, USDT_POL, BTC, ETH, SOL, DOGE, XRP, ADA, BNB, BCH. GET /api/v1/numbers lists what is live." },
+      chain: { type: "string", description: "How to pay: CREDIT (store credit, set up at once, no pay_url), PAYPAL, or a coin such as USDC_POL (default), USDC_SOL, USDC_BASE, USDT_POL, BTC, ETH, SOL, DOGE, XRP, ADA, BNB, BCH. GET /api/v1/numbers lists what is live." },
     }),
     run: (c, a) =>
       createOrder({ db: c.db }, { userId: c.user.userId, email: c.user.email, kind: "new", areaCode: a.area_code, months: a.months, chain: a.chain, siteUrl: c.siteUrl }),
   },
   {
     name: "renew_number",
-    description: "Extend a rented number. Returns an order with pay_url.",
+    description: "Extend a rented number. Returns an order with pay_url, or pass chain CREDIT to pay from store credit at once.",
     inputSchema: obj(
       { number_id: { type: "string" }, months: { type: "integer", minimum: 1, maximum: 12, default: 1 }, chain: { type: "string" } },
       ["number_id"]
     ),
     run: (c, a) =>
       createOrder({ db: c.db }, { userId: c.user.userId, email: c.user.email, kind: "renew", phoneNumberId: String(a.number_id), months: a.months, chain: a.chain, siteUrl: c.siteUrl }),
+  },
+  {
+    name: "redeem_code",
+    description: "Redeem a credit code (CR-XXXX-XXXX-XXXX-XXXX) for store credit in USD. Store credit pays for rent_number/renew_number with chain CREDIT.",
+    inputSchema: obj({ code: { type: "string" } }, ["code"]),
+    run: (c, a) => redeemCode(c.user.userId, a.code),
+  },
+  {
+    name: "credit_balance",
+    description: "Store credit balance in USD, with recent grants (codes, invites) and spends (orders).",
+    inputSchema: obj({}),
+    run: (c) => creditSummary(c.user.userId),
+  },
+  {
+    name: "list_invites",
+    description: "Invite quota (3 per account), invites made so far, and your ?ref= referral link. An accepted invite gives you and the new account $2.50 of store credit each.",
+    inputSchema: obj({}),
+    run: (c) => invitesSummary(c.user.userId, c.siteUrl),
+  },
+  {
+    name: "create_invite",
+    description: "Create one invite link (single use, 30 days). The code is returned only once.",
+    inputSchema: obj({ note: { type: "string", maxLength: 80, description: "Who it is for; only you see it." } }),
+    run: (c, a) => createInvite(c.user.userId, c.siteUrl, a.note),
   },
   {
     name: "order_status",

@@ -31,7 +31,7 @@ export const ENDPOINTS: Endpoint[] = [
     params: [
       { name: "area_code", in: "body", type: "string", description: "Preferred 3-digit area code." },
       { name: "months", in: "body", type: "integer", description: "1 to 12, default 1." },
-      { name: "chain", in: "body", type: "string", description: "Coin to pay with: USDC_POL (default), USDC_SOL, BTC, ETH..." },
+      { name: "chain", in: "body", type: "string", description: "How to pay: CREDIT (store credit, no pay_url), PAYPAL, or a coin: USDC_POL (default), USDC_SOL, BTC, ETH..." },
     ],
     cli: "rent",
     mcp: "rent_number",
@@ -52,10 +52,28 @@ export const ENDPOINTS: Endpoint[] = [
     params: [
       id("Number id."),
       { name: "months", in: "body", type: "integer", description: "1 to 12, default 1." },
-      { name: "chain", in: "body", type: "string", description: "Coin to pay with." },
+      { name: "chain", in: "body", type: "string", description: "CREDIT, PAYPAL or a coin." },
     ],
     cli: "renew",
     mcp: "renew_number",
+  },
+  {
+    method: "POST",
+    path: "/api/v1/redeem",
+    summary: "Redeem a credit code for store credit (USD). Store credit pays for rentals with chain CREDIT.",
+    params: [{ name: "code", in: "body", type: "string", required: true, description: "The code, e.g. CR-XXXX-XXXX-XXXX-XXXX." }],
+    cli: "redeem",
+    mcp: "redeem_code",
+  },
+  { method: "GET", path: "/api/v1/credits", summary: "Store credit balance and recent grants and spends.", cli: "credits", mcp: "credit_balance" },
+  { method: "GET", path: "/api/v1/invites", summary: "Invite quota (3), your invites and your ?ref= referral link.", cli: "invites", mcp: "list_invites" },
+  {
+    method: "POST",
+    path: "/api/v1/invites",
+    summary: "Create a single-use invite link. An accepted invite gives both people $2.50 of store credit.",
+    params: [{ name: "note", in: "body", type: "string", description: "Who it is for; only you see it." }],
+    cli: "invites new",
+    mcp: "create_invite",
   },
   {
     method: "GET",

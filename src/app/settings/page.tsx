@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useToast } from "@/contexts/toast-context";
 import { ProfileCard } from "@/components/profile-card";
+import { RedeemCard } from "@/components/redeem-card";
 import {
   ProviderTestPanel,
   SETUP_GUIDES,
@@ -208,6 +209,8 @@ export default function SettingsPage() {
         </div>
 
         <ProfileCard />
+
+        <RedeemCard />
 
         {/* Rented numbers */}
         <section className="space-y-4">

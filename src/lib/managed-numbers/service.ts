@@ -39,6 +39,19 @@ import {
 } from "@/lib/telnyx/numbers";
 import { getPlanUsage, orderAmountUsd } from "@/lib/plans";
 import { MANAGED_API_KEY } from "@/lib/providers";
+import type { Credits } from "@profullstack/redeem-credits";
+import { centsToUsd, CREDIT_UNIT, getCredits } from "@/lib/rewards";
+
+/**
+ * Store credit (from a redeemed code or an accepted invite) pays for an order
+ * when the buyer picks this as the method. It goes through the same order row
+ * and the same pending -> paid -> provision transition as a CoinPay payment.
+ */
+export const CREDIT_METHOD = "CREDIT" as const;
+
+export function isCreditMethod(method: unknown): boolean {
+  return String(method ?? "").trim().toUpperCase() === CREDIT_METHOD;
+}
 
 export const GRACE_DAYS = 3;
 /**
@@ -58,6 +71,8 @@ export interface Deps {
   env?: NodeJS.ProcessEnv;
   fetchImpl?: typeof fetch;
   now?: () => Date;
+  /** Store credit; defaults to the app's (lib/rewards). */
+  credits?: Credits;
 }
 
 export interface NumberOrder {
@@ -136,6 +151,7 @@ export async function createOrder(
   const cp = coinpayConfig(env) as CoinPayConfig;
   const kind = input.kind ?? "new";
   const months = clampMonths(input.months);
+  const payWithCredit = isCreditMethod(input.chain);
   const chain = normalizeMethod(input.chain);
   const areaCode = cleanAreaCode(input.areaCode);
   const { db } = deps;
@@ -161,6 +177,17 @@ export async function createOrder(
   }
 
   const amount = orderAmountUsd(months, env);
+  const amountCents = Math.round(amount * 100);
+  const credits = payWithCredit ? deps.credits ?? getCredits() : null;
+  if (credits) {
+    const have = Math.max(0, Math.floor(await credits.balance(input.userId, CREDIT_UNIT)));
+    if (have < amountCents) {
+      throw new OrderError(
+        `Not enough credit: you have $${centsToUsd(have).toFixed(2)} and this costs $${amount.toFixed(2)}.`,
+        402
+      );
+    }
+  }
   const { data: order, error } = await db
     .from("number_orders")
     .insert({
@@ -171,11 +198,13 @@ export async function createOrder(
       area_code: areaCode,
       months,
       amount_usd: amount,
-      chain,
+      chain: payWithCredit ? CREDIT_METHOD : chain,
     })
     .select()
     .single();
   if (error || !order) throw new OrderError("Could not create the order", 500);
+
+  if (credits) return payOrderWithCredit(deps, credits, order as NumberOrder, amountCents);
 
   try {
     const description = `smshub.dev: ${numberLabel}, ${months} month${months > 1 ? "s" : ""}`;
@@ -279,21 +308,59 @@ export async function settlePayment(deps: Deps, ev: WebhookEvent): Promise<Settl
   if (metaOrder && metaOrder !== order.id) return { settled: false, reason: "order mismatch" };
   if (metaUser && metaUser !== order.user_id) return { settled: false, reason: "user mismatch" };
 
-  // The one transition that grants anything. A late payment for a checkout we
-  // already expired is still honoured.
+  const result = await claimAndProvision(deps, order.id);
+  if (!result) return { settled: true, orderId: order.id, status: order.status, number: order.number };
+  return { settled: true, orderId: order.id, status: result.status, number: result.number };
+}
+
+/**
+ * The one transition that grants anything: pending (or expired) -> paid, then
+ * provision. A late payment for a checkout we already expired is still
+ * honoured. Null when the order was already claimed.
+ */
+async function claimAndProvision(
+  deps: Deps,
+  orderId: string
+): Promise<{ status: NumberOrder["status"]; number: string | null } | null> {
   const now = (deps.now?.() ?? new Date()).toISOString();
-  const { data: claimed } = await db
+  const { data: claimed } = await deps.db
     .from("number_orders")
     .update({ status: "paid", paid_at: now, updated_at: now })
-    .eq("id", order.id)
+    .eq("id", orderId)
     .in("status", ["pending", "expired"])
     .select()
     .maybeSingle();
-  if (!claimed) {
-    return { settled: true, orderId: order.id, status: order.status, number: order.number };
+  if (!claimed) return null;
+  return provision(deps, claimed as NumberOrder);
+}
+
+/**
+ * Pay a just-created order from store credit: spend it (a compare-and-swap in
+ * the credit ledger, so parallel orders cannot overdraw), then the same claim +
+ * provision a CoinPay webhook runs. If provisioning gives up for good, provision()
+ * gives the credit back.
+ */
+async function payOrderWithCredit(
+  deps: Deps,
+  credits: Credits,
+  order: NumberOrder,
+  amountCents: number
+): Promise<NumberOrder> {
+  const { db } = deps;
+  const spent = await credits.spend(order.user_id, CREDIT_UNIT, amountCents, `order:${order.id}`);
+  if (!spent.ok) {
+    await db
+      .from("number_orders")
+      .update({ status: "failed", error: "credit: not enough credit", updated_at: new Date().toISOString() })
+      .eq("id", order.id);
+    throw new OrderError(
+      `Not enough credit: you have $${centsToUsd(spent.balance).toFixed(2)} and this costs $${centsToUsd(amountCents).toFixed(2)}.`,
+      402
+    );
   }
-  const result = await provision(deps, claimed as NumberOrder);
-  return { settled: true, orderId: order.id, status: result.status, number: result.number };
+  await claimAndProvision(deps, order.id);
+  const { data: after } = await db.from("number_orders").select("*").eq("id", order.id).maybeSingle();
+  return (after ?? order) as NumberOrder;
 }
 
 async function managedProviderId(db: SupabaseClient, userId: string): Promise<string> {
@@ -342,6 +409,13 @@ export async function provision(
       .update({ status, error: msg, attempts, updated_at: now.toISOString() })
       .eq("id", order.id);
     console.error(`[managed-numbers] order ${order.id} attempt ${attempts}: ${msg}`);
+    if (status === "failed" && isCreditMethod(order.chain)) {
+      // Paid from credit and never delivered: the credit goes back.
+      const cents = Math.round(Number(order.amount_usd) * 100);
+      await (deps.credits ?? getCredits())
+        .grant(order.user_id, { unit: CREDIT_UNIT, amount: cents }, `refund:order:${order.id}`)
+        .catch((e) => console.error(`[managed-numbers] credit refund for order ${order.id} failed`, e));
+    }
     return { status: status as NumberOrder["status"], number: order.number };
   };
 

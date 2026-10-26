@@ -25,10 +25,14 @@ export default function RegisterPage() {
   const [confirmSent, setConfirmSent] = useState(false);
   // Where to land after signup, e.g. /numbers when they came to rent a number.
   const [next, setNext] = useState("/inbox");
+  // Set by /i/<code>: an invite gives both people store credit once this account is confirmed.
+  const [invite, setInvite] = useState<string | null>(null);
   const router = useRouter();
 
   useEffect(() => {
     setNext(nextFromLocation());
+    const code = new URLSearchParams(window.location.search).get("invite");
+    if (code && /^[A-Za-z0-9-]{4,40}$/.test(code)) setInvite(code);
   }, []);
 
   const renting = next.startsWith("/numbers");
@@ -77,7 +81,8 @@ export default function RegisterPage() {
           next === "/inbox" ? "" : `?next=${encodeURIComponent(next)}`
         }`,
         // Also saved on /auth/callback if the call below never lands.
-        data: Object.fromEntries(PROFILE_FIELDS.map((k) => [k, p[k] ?? null])),
+        // The invite rides along too, so it still counts when the link is opened in another browser.
+        data: { ...Object.fromEntries(PROFILE_FIELDS.map((k) => [k, p[k] ?? null])), ...(invite ? { invite_code: invite } : {}) },
       },
     });
 
@@ -116,6 +121,11 @@ export default function RegisterPage() {
             />
           </div>
           <p className="text-gray-400 mt-2">Create your account</p>
+          {invite && (
+            <p className="mt-3 rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm text-emerald-200">
+              You were invited. Confirm your email and you and your friend each get $2.50 of credit toward a rented number.
+            </p>
+          )}
           {renting && (
             <p className="text-sm text-gray-500 mt-2">
               Next you pick an area code and pay with crypto. Your number is ready once the payment confirms.

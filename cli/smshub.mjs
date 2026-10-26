@@ -3,9 +3,12 @@
 //
 //   smshub-cli login --key smshub_...      save an API key (Settings > API Keys)
 //   smshub-cli numbers                      your numbers
-//   smshub-cli rent [--area 415] [--months 1] [--chain USDC_POL]
+//   smshub-cli rent [--area 415] [--months 1] [--chain USDC_POL | --credit]   --credit pays from store credit
 //   smshub-cli order <order-id>
-//   smshub-cli renew <number> [--months 1]
+//   smshub-cli renew <number> [--months 1] [--credit]
+//   smshub-cli redeem <code>                redeem a credit code for store credit
+//   smshub-cli credits                      store credit balance and history
+//   smshub-cli invites [new [--note "for Kim"]]   your invites (3), make one, your ?ref= link
 //   smshub-cli messages <number> [--since ISO] [--limit 20]
 //   smshub-cli otp <number> [--wait 60]     print the next code, nothing else
 //   smshub-cli send <to> "<message>" [--from <number>] [--media <url>]   text someone from your own number
@@ -31,7 +34,7 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import { createInterface } from "node:readline";
 
-const VERSION = "1.6.0";
+const VERSION = "1.7.0";
 const CONFIG_DIR = join(process.env.XDG_CONFIG_HOME || join(homedir(), ".config"), "smshub");
 const CONFIG_FILE = join(CONFIG_DIR, "config.json");
 
@@ -143,12 +146,16 @@ const commands = {
   async rent(args) {
     const { order } = await api("/api/v1/numbers/orders", {
       method: "POST",
-      body: { area_code: args.area, months: Number(args.months || 1), chain: args.chain },
+      body: { area_code: args.area, months: Number(args.months || 1), chain: args.credit ? "CREDIT" : args.chain },
     });
     if (args.json && args["no-wait"]) return console.log(JSON.stringify(order, null, 2));
     if (!args.json) {
       console.log(`Order ${order.id}: $${Number(order.amount_usd).toFixed(2)} in ${order.chain}`);
-      console.log(`Pay here: ${order.pay_url}`);
+      if (order.pay_url) console.log(`Pay here: ${order.pay_url}`);
+    }
+    if (order.status === "active" || order.status === "failed") {
+      if (args.json) return console.log(JSON.stringify(order, null, 2));
+      return console.log(order.status === "active" ? `Your number: ${order.number}` : `${order.status}: ${order.error || ""}`);
     }
     if (args["no-wait"]) return;
     if (!args.json) process.stdout.write("Waiting for the payment to confirm (Ctrl+C to stop; check later with: smshub-cli order " + order.id + ")");
@@ -173,9 +180,37 @@ const commands = {
     const id = await resolveNumberId(args._[1]);
     const { order } = await api(`/api/v1/numbers/${id}/renew`, {
       method: "POST",
-      body: { months: Number(args.months || 1), chain: args.chain },
+      body: { months: Number(args.months || 1), chain: args.credit ? "CREDIT" : args.chain },
     });
-    print(args, order, (o) => console.log(`Pay here: ${o.pay_url}`));
+    print(args, order, (o) => console.log(o.pay_url ? `Pay here: ${o.pay_url}` : `${o.status}${o.number ? ": " + o.number : ""}`));
+  },
+
+  async redeem(args) {
+    const code = args._[1] || args.code;
+    if (!code) throw new ApiError("Usage: smshub-cli redeem <code>");
+    const r = await api("/api/v1/redeem", { method: "POST", body: { code } });
+    print(args, r, (r) => console.log(`Added $${Number(r.credit_usd).toFixed(2)}. Store credit: $${Number(r.balance_usd).toFixed(2)}`));
+  },
+
+  async credits(args) {
+    const d = await api("/api/v1/credits");
+    print(args, d, (d) => {
+      console.log(`Store credit: $${d.balance_usd.toFixed(2)}  (pay with it: smshub-cli rent --credit)`);
+      for (const h of d.history.slice(0, 10)) console.log(`${h.at.slice(0, 10)}  ${h.kind === "spend" ? "-" : "+"}$${h.amount_usd.toFixed(2)}  ${h.source}`);
+    });
+  },
+
+  async invites(args) {
+    if (args._[1] === "new") {
+      const r = await api("/api/v1/invites", { method: "POST", body: { note: args.note } });
+      return print(args, r, (r) => console.log(`Invite (shown once): ${r.url}`));
+    }
+    const d = await api("/api/v1/invites");
+    print(args, d, (d) => {
+      console.log(`${d.quota.left} of ${d.quota.total} invites left. Accepted invite: $${d.bonus_usd.toFixed(2)} credit each.`);
+      for (const i of d.invites) console.log(`${i.created_at.slice(0, 10)}  ${i.used ? "accepted" : "open"}  ${i.note || ""}`);
+      console.log(`Referral link: ${d.referral_link}`);
+    });
   },
 
   async lines(args) {

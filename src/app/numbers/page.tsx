@@ -36,6 +36,7 @@ interface Overview {
   plan: { plan: "free" | "pro"; limits: Record<string, number | boolean>; usage: Record<string, number> };
   numbers: NumberRow[];
   orders: OrderRow[];
+  credit?: { balance_usd: number };
 }
 
 interface Text {
@@ -47,6 +48,7 @@ interface Text {
 }
 
 const CHAIN_LABELS: Record<string, string> = {
+  CREDIT: "Store credit",
   PAYPAL: "PayPal",
   USDC_POL: "USDC (Polygon)",
   USDC_SOL: "USDC (Solana)",
@@ -201,6 +203,9 @@ export default function NumbersPage() {
   const unfinished = !openCheckout && data.ordering.open ? unfinishedOrder(data.orders, now) : null;
   const coins = data.pricing.chains.filter((c) => c !== "PAYPAL");
   const payByPaypal = chain === "PAYPAL";
+  // Store credit from a redeemed code or an accepted invite pays the whole order.
+  const credit = data.credit?.balance_usd ?? 0;
+  const creditCovers = (m: number) => credit + 1e-9 >= price * m;
 
   return (
     <div className="min-h-screen max-w-3xl mx-auto px-4 py-8 space-y-8">
@@ -318,6 +323,15 @@ export default function NumbersPage() {
                 >
                   Renew {months} mo (${(price * months).toFixed(2)})
                 </button>
+                {creditCovers(months) && (
+                  <button
+                    disabled={busy || !data.ordering.open}
+                    onClick={() => checkout(`/api/numbers/${n.id}/renew`, { months, chain: "CREDIT" })}
+                    className="rounded-lg bg-emerald-700 px-3 py-1.5 text-sm hover:bg-emerald-600 disabled:opacity-50"
+                  >
+                    Renew with credit
+                  </button>
+                )}
               </div>
             </div>
             <div className="space-y-1">
@@ -374,6 +388,16 @@ export default function NumbersPage() {
               it only takes longer.
             </li>
           </ol>
+        </div>
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/5 px-4 py-3 text-sm text-emerald-100">
+          <span>
+            Store credit: <strong>${credit.toFixed(2)}</strong>
+            {credit > 0 && !creditCovers(months) && ` (not enough for ${months} month${months > 1 ? "s" : ""})`}
+          </span>
+          <span className="flex gap-3">
+            <Link href="/settings#redeem" className="underline">Have a code?</Link>
+            <Link href="/invites" className="underline">Invite friends</Link>
+          </span>
         </div>
         {!data.ordering.open ? (
           <p className="text-sm text-yellow-300">{data.ordering.reason}</p>
@@ -454,6 +478,16 @@ export default function NumbersPage() {
               {busy ? "Opening..." : `Pay $${(price * months).toFixed(2)}${payByPaypal ? " with PayPal" : ""}`}
             </button>
           </form>
+          {creditCovers(months) && (
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => checkout("/api/numbers/orders", { area_code: areaCode, months, chain: "CREDIT" })}
+              className="w-full rounded-lg bg-emerald-700 px-4 py-2 font-semibold text-white hover:bg-emerald-600 disabled:opacity-50"
+            >
+              {busy ? "Setting up..." : `Pay $${(price * months).toFixed(2)} with store credit`}
+            </button>
+          )}
           </div>
         )}
         <p className="text-xs text-gray-500">
