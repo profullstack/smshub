@@ -7,7 +7,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { availableChains, CHECKOUT_WINDOW_MINUTES, coinpayConfig, DEFAULT_CHAIN, methodsFor } from "@/lib/coinpay/checkout";
 import { getPlanUsage, priceUsdPerMonth } from "@/lib/plans";
 import { extractOtp } from "@/lib/otp";
-import { GRACE_DAYS, orderingStatus } from "./service";
+import { CREDIT_METHOD, GRACE_DAYS, orderingStatus } from "./service";
+import { centsToUsd, creditBalanceCents } from "@/lib/rewards";
 
 // Lives in lib/otp so the browser can import it without the server side.
 export { extractOtp };
@@ -61,11 +62,12 @@ export async function getOrder(db: SupabaseClient, userId: string, id: string) {
 }
 
 export async function overview(db: SupabaseClient, userId: string, email: string | null) {
-  const [plan, numbers, orders, chains] = await Promise.all([
+  const [plan, numbers, orders, chains, creditCents] = await Promise.all([
     getPlanUsage(db, userId),
     listNumbers(db, userId),
     listOrders(db, userId),
     availableChains(coinpayConfig()),
+    creditBalanceCents(userId).catch(() => 0),
   ]);
   return {
     ordering: orderingStatus(email),
@@ -78,7 +80,10 @@ export async function overview(db: SupabaseClient, userId: string, email: string
       grace_days: GRACE_DAYS,
       // CoinPay's pay page expires this long after the order is created.
       checkout_window_minutes: CHECKOUT_WINDOW_MINUTES,
+      // Pass chain "CREDIT" to pay an order from store credit (redeemed codes, accepted invites).
+      credit_method: CREDIT_METHOD,
     },
+    credit: { balance_usd: centsToUsd(creditCents) },
     plan,
     numbers,
     orders,

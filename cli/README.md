@@ -28,7 +28,10 @@ Installed, the command is `smshub-cli` (`npm i -g @profullstack/smshub` works to
 | `numbers` | your numbers, with expiry for rented ones |
 | `rent [--area 415] [--months 1] [--chain USDC_POL] [--no-wait]` | open a checkout; waits until the number is ready |
 | `order <id>` | status of a rent/renew order |
-| `renew <number> [--months 1]` | extend a rented number |
+| `renew <number> [--months 1] [--credit]` | extend a rented number (`--credit` pays from store credit) |
+| `redeem <code>` | redeem a credit code for store credit (pays for rentals: `rent --credit`) |
+| `credits` | store credit balance and history |
+| `invites [new --note ..]` | your 3 invites (an accepted one gives you both $2.50 credit) and your `?ref=` link |
 | `messages <number> [--since ISO] [--limit 20]` | texts received, newest first, codes extracted |
 | `otp <number> [--wait 60] [--recent 300]` | print the next one-time code (exit 2 if none) |
 | `send <to> "<message>" [--from <number>] [--media <url>]` | text someone from your own Twilio/Telnyx number (rented numbers receive only) |
@@ -58,7 +61,7 @@ Local (stdio), e.g. for Claude Code:
 claude mcp add smshub -e SMSHUB_API_KEY=smshub_... -- npx -y @profullstack/smshub mcp
 ```
 
-Tools: `account_overview`, `list_numbers`, `list_conversations`, `get_conversation`, `send_message`, `list_lines`, `add_line_contact`, `update_line_contact`, `remove_line_contact`, `share_line_contacts`, `voice_menu`, `rent_number`, `renew_number`, `order_status`,
+Tools: `account_overview`, `list_numbers`, `list_conversations`, `get_conversation`, `send_message`, `list_lines`, `add_line_contact`, `update_line_contact`, `remove_line_contact`, `share_line_contacts`, `voice_menu`, `rent_number`, `renew_number`, `redeem_code`, `credit_balance`, `list_invites`, `create_invite`, `order_status`,
 `list_orders`, `get_messages`, `wait_for_code`.
 
 Rented numbers receive texts only. Some services refuse virtual numbers for sign-up codes.

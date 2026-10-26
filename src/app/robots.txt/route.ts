@@ -5,5 +5,5 @@ import { gateway } from "@/lib/crawl-gateway";
 // crawlers are refused everywhere but /crawl (where they can buy a pass),
 // retrieval crawlers are named as welcome, everyone else gets the rules below.
 export const GET = robotsRoute(gateway, {
-  disallow: ["/api/"],
+  disallow: ["/api/", "/i/", "/invites"],
 });

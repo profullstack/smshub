@@ -2,7 +2,8 @@ import { NextResponse, type NextRequest } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getBrandSiteUrl } from "@/lib/brand-server";
 import { safeNextPath } from "@/lib/safe-next";
-import { saveProfileFromMetadata } from "@/lib/profile";
+import { profileStore, saveProfileFromMetadata } from "@/lib/profile";
+import { INVITE_COOKIE, onConfirmedSignIn } from "@/lib/rewards";
 
 export { safeNextPath };
 
@@ -32,6 +33,7 @@ export async function GET(request: NextRequest) {
   const next = safeNextPath(url.searchParams.get("next"));
 
   let signedIn = false;
+  const inviteCookie = request.cookies.get(INVITE_COOKIE)?.value ?? null;
 
   try {
     const supabase = await createServerSupabaseClient();
@@ -49,14 +51,26 @@ export async function GET(request: NextRequest) {
     } = await supabase.auth.getUser();
     signedIn = Boolean(user);
     // First confirmation: store the /register profile fields (never blocks).
-    if (user) await saveProfileFromMetadata(user);
+    if (user) {
+      await saveProfileFromMetadata(user);
+      // A new, confirmed account: spend its invite (both people get credit) and
+      // record ?ref= first touch. Never blocks sign-in.
+      await onConfirmedSignIn(request, user, inviteCookie, () =>
+        profileStore()
+          .get(user.id)
+          .then(Boolean)
+          .catch(() => false)
+      );
+    }
   } catch (error) {
     console.error("Auth callback error:", error);
     signedIn = false;
   }
 
   if (signedIn) {
-    return NextResponse.redirect(new URL(next, site));
+    const res = NextResponse.redirect(new URL(next, site));
+    if (inviteCookie) res.cookies.delete(INVITE_COOKIE);
+    return res;
   }
 
   const failure = new URL("/login", site);
