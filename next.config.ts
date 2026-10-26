@@ -1,5 +1,5 @@
 import type { NextConfig } from "next";
-import { withSentryConfig } from "@sentry/nextjs";
+import { withSentryConfig } from "@sentry/nextjs/config";
 
 function getSupabaseRealtimeOrigin() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
