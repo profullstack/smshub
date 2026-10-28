@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
+import { emitDeliveryStatus } from "@/lib/webhooks/events";
 
 // Twilio status callback: updates message delivery status
 // Maps Twilio MessageStatus to our internal status enum
@@ -44,6 +45,8 @@ export async function POST(request: Request) {
 
     if (error) {
       console.error("Twilio status update error:", error);
+    } else {
+      await emitDeliveryStatus(supabase, "twilio", messageSid, mappedStatus);
     }
 
     return new Response("<Response></Response>", {

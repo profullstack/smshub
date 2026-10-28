@@ -13,7 +13,7 @@ import {
 } from "../contacts";
 import { recordInbound } from "@/lib/inbound";
 
-vi.mock("@/lib/webhooks/outbound", () => ({ fireWebhooks: vi.fn() }));
+vi.mock("@/lib/webhooks/hub", () => ({ emitEvent: vi.fn() }));
 
 const LINE_ID = "11111111-1111-4111-8111-111111111111";
 const line: Line = {

@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { getBrand, getBrandSiteUrl } from "@/lib/brand-server";
-import { ENDPOINTS, MCP_URL, NPM_PACKAGE } from "@/lib/developer-api";
+import { ENDPOINTS, MCP_URL, NPM_PACKAGE, WEBHOOK_GUIDE } from "@/lib/developer-api";
+import { WEBHOOK_EVENT_DOCS, WEBHOOK_EVENT_TYPES } from "@/lib/webhooks/catalog";
 import { MCP_TOOLS } from "@/lib/mcp/server";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -40,6 +41,7 @@ export default async function ApiDocsPage() {
           <a href="#api" className="rounded border border-gray-800 px-3 py-1 hover:border-blue-600">REST API</a>
           <a href="#cli" className="rounded border border-gray-800 px-3 py-1 hover:border-blue-600">CLI</a>
           <a href="#mcp" className="rounded border border-gray-800 px-3 py-1 hover:border-blue-600">MCP</a>
+          <a href="#webhooks" className="rounded border border-gray-800 px-3 py-1 hover:border-blue-600">Webhooks</a>
           <a href="/openapi.json" className="rounded border border-gray-800 px-3 py-1 hover:border-blue-600">openapi.json</a>
           <a href="/llms.txt" className="rounded border border-gray-800 px-3 py-1 hover:border-blue-600">llms.txt</a>
         </nav>
@@ -121,6 +123,52 @@ ${mcpConfig}`}</Code>
             </div>
           ))}
         </div>
+      </section>
+
+      <section id="webhooks" className="space-y-4 scroll-mt-20">
+        <h2 className="text-2xl font-semibold">Webhooks</h2>
+        <p className="text-sm text-gray-400">
+          Get a POST the moment a text lands on one of your numbers, instead of polling. Add an endpoint in{" "}
+          <Link href="/settings/webhooks" className="text-blue-400">Settings → Webhooks</Link>, with{" "}
+          <code>smshub-cli webhook add &lt;url&gt;</code>, the MCP tool <code>create_webhook</code> or{" "}
+          <code>POST /api/v1/webhooks</code>.
+        </p>
+        <div className="grid gap-2 sm:grid-cols-2">
+          {WEBHOOK_EVENT_TYPES.map((t) => (
+            <div key={t} className="rounded-lg border border-gray-800 bg-gray-900 p-3">
+              <div className="font-mono text-sm text-gray-100">{t}</div>
+              <div className="mt-1 text-xs text-gray-400">{WEBHOOK_EVENT_DOCS[t]}</div>
+            </div>
+          ))}
+        </div>
+        <ul className="list-disc pl-5 text-sm text-gray-400 space-y-1">
+          {WEBHOOK_GUIDE.map((g) => (
+            <li key={g}>{g}</li>
+          ))}
+        </ul>
+        <Code>{`// Node / Bun: verify and read a delivery
+import { verifyAndParse } from "@profullstack/webhooks";
+
+const r = verifyAndParse({ headers: req.headers, body: rawBody, secret: process.env.SMSHUB_WEBHOOK_SECRET });
+if (!r.ok) return new Response(r.reason, { status: r.status });
+if (r.event.type === "message.received") {
+  const { number, from, body, otp } = r.event.data;
+}`}</Code>
+        <Code>{`{
+  "specversion": "1.0",
+  "id": "8f0c2d1e-...",
+  "type": "message.received",
+  "source": "${site}",
+  "subject": "message:6a1f...",
+  "time": "2026-10-28T12:00:00.000Z",
+  "datacontenttype": "application/json",
+  "data": {
+    "message_id": "6a1f...", "conversation_id": "...", "phone_number_id": "...",
+    "number": "+14155550100", "from": "+14155551234",
+    "body": "Your code is 482913", "otp": "482913",
+    "media_url": null, "received_at": "2026-10-28T12:00:00.000Z"
+  }
+}`}</Code>
       </section>
     </div>
   );

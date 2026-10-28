@@ -1,6 +1,6 @@
 {
   "name": "@profullstack/smshub",
-  "version": "1.8.0",
+  "version": "1.9.0",
   "description": "Rent a phone number and receive SMS / verification codes from your terminal, scripts and AI agents (CLI, TUI, MCP) via smshub.dev",
   "type": "module",
   "bin": {
@@ -21,7 +21,8 @@
     "mcp",
     "cli",
     "tui",
-    "smshub"
+    "smshub",
+    "webhooks"
   ],
   "homepage": "https://smshub.dev/phonenumbers",
   "repository": {

@@ -1,3 +1,4 @@
+import { emitOutbound } from "@/lib/webhooks/events";
 import { NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { sendSMS } from "@/lib/providers";
@@ -155,14 +156,24 @@ export async function POST(request: Request) {
         });
 
         // Save message
-        await supabase.from("messages").insert({
-          conversation_id: conversation!.id,
-          direction: "outbound",
-          body: message,
-          status: result.success ? "sent" : "failed",
-          provider: providerData.type,
-          provider_message_id: result.messageId || null,
-          media_url: mediaUrl || null,
+        const { data: savedRow } = await supabase
+          .from("messages")
+          .insert({
+            conversation_id: conversation!.id,
+            direction: "outbound",
+            body: message,
+            status: result.success ? "sent" : "failed",
+            provider: providerData.type,
+            provider_message_id: result.messageId || null,
+            media_url: mediaUrl || null,
+          })
+          .select("id, conversation_id, body, status, provider_message_id, error_detail, created_at")
+          .single();
+        await emitOutbound(user.id, savedRow, {
+          number: phoneNumber.number,
+          phone_number_id: phoneNumberId,
+          to,
+          error: result.success ? null : result.error || "Send failed",
         });
 
         // Update conversation timestamp

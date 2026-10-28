@@ -8,6 +8,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { sendSMS, toE164 } from "@/lib/providers";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { isUuid } from "@/lib/conversations";
+import { emitOutbound } from "@/lib/webhooks/events";
 
 export const SEND_RATE_LIMIT = { limit: 10, windowMs: 60 * 1000 };
 export const MAX_BODY = 1600;
@@ -137,9 +138,10 @@ export async function sendFromNumber(
       media_url: mediaUrl || null,
       error_detail: result.success ? null : result.error || null,
     })
-    .select("id, conversation_id, direction, body, status, provider_message_id, created_at")
+    .select("id, conversation_id, direction, body, status, provider_message_id, error_detail, created_at")
     .single();
 
+  await emitOutbound(userId, saved, { number: number.number, phone_number_id: number.id, to: toE, error: result.success ? null : result.error || "Send failed" });
   if (!result.success) return { ok: false, error: result.error || "Send failed", to: toE };
   await db.from("conversations").update({ last_message_at: new Date().toISOString() }).eq("id", conversation!.id);
   return { ok: true, message: saved, to: toE };

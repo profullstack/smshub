@@ -45,6 +45,10 @@ Installed, the command is `smshub-cli` (`npm i -g @profullstack/smshub` works to
 | `recording <call-message-id> [--out call.mp3]` | save a recorded call as MP3 |
 | `alert "<message>" [--severity info\|warning\|critical] [--to +1...]` | alert your phone (Settings > Alerts): a text when your number can send one, otherwise a call that reads it; critical always calls; the same alert is sent once per 10 minutes |
 | `alerts [--limit 20]` | recent alerts and how each went out |
+| `webhooks` | your webhook endpoints and the event types smshub sends |
+| `webhook add <https-url> [--event message.received]... [--description ..]` | get a signed POST for every text (and other events); prints the signing secret once |
+| `webhook test\|secret\|rotate\|on\|off\|rm <id>` | send a test event, show or replace the secret, switch on/off, remove |
+| `webhook events <id> <pattern>...` / `webhook log [<id>]` / `webhook retry <delivery-id>` | change its events, see recent deliveries, send one again |
 | `tui` | full-screen live view |
 | `mcp` | MCP server on stdio, proxied to `https://smshub.dev/api/mcp` |
 
@@ -62,8 +66,13 @@ claude mcp add smshub -e SMSHUB_API_KEY=smshub_... -- npx -y @profullstack/smshu
 ```
 
 Tools: `account_overview`, `list_numbers`, `list_conversations`, `get_conversation`, `send_message`, `list_lines`, `add_line_contact`, `update_line_contact`, `remove_line_contact`, `share_line_contacts`, `voice_menu`, `rent_number`, `renew_number`, `redeem_code`, `credit_balance`, `list_invites`, `create_invite`, `order_status`,
-`list_orders`, `get_messages`, `wait_for_code`.
+`list_orders`, `get_messages`, `wait_for_code`, `list_groups`, `get_group`, `save_group`, `add_group_members`, `send_to_group`,
+`send_alert`, `list_alerts`, `list_webhooks`, `create_webhook`, `update_webhook`, `delete_webhook`, `test_webhook`,
+`rotate_webhook_secret`, `webhook_deliveries`.
 
 Rented numbers receive texts only. Some services refuse virtual numbers for sign-up codes.
+
+Webhooks are CloudEvents JSON signed per Standard Webhooks (`webhook-id`, `webhook-timestamp`,
+`webhook-signature`); verify with `verifyAndParse` from `@profullstack/webhooks` or any Standard Webhooks library.
 
 Full reference: https://smshub.dev/docs/api (OpenAPI: https://smshub.dev/openapi.json).

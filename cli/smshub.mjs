@@ -20,6 +20,14 @@
 //   smshub-cli group send <id> "<message>" [--from <number>]   text every member (STOPped ones skipped)
 //   smshub-cli group relay <id> on|off       members' replies go to the whole group (SMS group chat)
 //   smshub-cli group rm <id>                 delete a group
+//   smshub-cli webhooks                      your webhook endpoints and the event types
+//   smshub-cli webhook add <https-url> [--event message.received]... [--description ..]   prints the signing secret once
+//   smshub-cli webhook <id>                  one endpoint
+//   smshub-cli webhook test|secret|rotate|rm <id>   send a test event, show / replace the secret, remove
+//   smshub-cli webhook on|off <id>           switch an endpoint on (clears its failure count) or off
+//   smshub-cli webhook events <id> <pattern>...   which events it gets (message.*, *, ...)
+//   smshub-cli webhook log [<id>] [--limit 20]   recent deliveries
+//   smshub-cli webhook retry <delivery-id>   send one delivery again
 //   smshub-cli conversations [--line <number>] [--limit 20]   the inbox, optionally one line
 //   smshub-cli thread <conversation-id> [--limit 50]   messages in one conversation
 //   smshub-cli lines                        who shares each number (contacts book)
@@ -42,7 +50,7 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import { createInterface } from "node:readline";
 
-const VERSION = "1.8.0";
+const VERSION = "1.9.0";
 const CONFIG_DIR = join(process.env.XDG_CONFIG_HOME || join(homedir(), ".config"), "smshub");
 const CONFIG_FILE = join(CONFIG_DIR, "config.json");
 
@@ -129,6 +137,8 @@ const contactLine = (c) =>
   [c.name, c.forward_to, c.keypad_digit != null ? `press ${c.keypad_digit}` : "", c.sms_prefix ? `"${c.sms_prefix}:"` : "", c.forward_sms ? "forwards texts" : "", c.id]
     .filter(Boolean)
     .join("  ");
+const webhookLine = (e) =>
+  `${e.id}  ${e.enabled ? "on " : "OFF"}  ${e.url}  [${e.events.join(", ")}]${e.description ? `  ${e.description}` : ""}${e.failures ? `  ${e.failures} failures` : ""}${e.disabled_reason ? `  (${e.disabled_reason})` : ""}`;
 const date = (iso) => (iso ? new Date(iso).toISOString().slice(0, 10) : "");
 const print = (args, data, human) => (args.json ? console.log(JSON.stringify(data, null, 2)) : human(data));
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -465,6 +475,61 @@ const commands = {
     if (sub === "rm" || sub === "delete") return print(args, await api(`/api/v1/groups/${id()}`, { method: "DELETE" }), () => console.log("deleted"));
     if (!sub) throw new ApiError("Usage: smshub-cli group <id> | create | add | remove | send | relay | rm");
     return print(args, await api(`/api/v1/groups/${id(1)}`), show);
+  },
+
+  async webhooks(args) {
+    const d = await api("/api/v1/webhooks");
+    print(args, d, (d) => {
+      if (!d.endpoints.length) console.log("No webhooks. smshub-cli webhook add https://example.com/smshub --event message.received");
+      for (const e of d.endpoints) console.log(webhookLine(e));
+      console.log(`\nEvents: ${d.event_types.join(", ")}`);
+    });
+  },
+
+  async webhook(args) {
+    const sub = args._[1];
+    const base = "/api/v1/webhooks";
+    const need = (n = 2, what = "Which webhook? smshub-cli webhooks shows ids") => {
+      const v = args._[n];
+      if (!v) throw new ApiError(what);
+      return encodeURIComponent(v);
+    };
+    const showSecret = (r) => console.log(`Signing secret (keep it on your server): ${r.secret}`);
+    if (sub === "add") {
+      const url = args._[2] || (typeof args.url === "string" ? args.url : "");
+      if (!url) throw new ApiError("Usage: smshub-cli webhook add <https-url> [--event message.received]...");
+      const events = [].concat(args.event ?? [], args.events ?? []).filter((e) => e !== true).flatMap((e) => String(e).split(","));
+      const body = { url, ...(events.length ? { events } : {}), ...(typeof args.description === "string" ? { description: args.description } : {}) };
+      return print(args, await api(base, { method: "POST", body }), (r) => {
+        console.log(webhookLine(r.endpoint));
+        showSecret(r);
+      });
+    }
+    if (sub === "test") return print(args, await api(`${base}/${need()}/test`, { method: "POST" }), (r) => console.log(r.ok ? `ok (${r.status})` : `failed: ${r.status ?? ""} ${r.error ?? ""}`));
+    if (sub === "secret") return print(args, await api(`${base}/${need()}/secret`), showSecret);
+    if (sub === "rotate") return print(args, await api(`${base}/${need()}/rotate`, { method: "POST" }), showSecret);
+    if (sub === "rm" || sub === "delete") return print(args, await api(`${base}/${need()}`, { method: "DELETE" }), () => console.log("removed"));
+    if (sub === "on" || sub === "off") return print(args, await api(`${base}/${need()}`, { method: "PATCH", body: { enabled: sub === "on" } }), (e) => console.log(webhookLine(e)));
+    if (sub === "events") {
+      const id = need();
+      const events = args._.slice(3).flatMap((e) => String(e).split(",")).filter(Boolean);
+      if (!events.length) throw new ApiError("Usage: smshub-cli webhook events <id> message.received message.failed");
+      return print(args, await api(`${base}/${id}`, { method: "PATCH", body: { events } }), (e) => console.log(webhookLine(e)));
+    }
+    if (sub === "log") {
+      const limit = Number(args.limit) || 20;
+      const path = args._[2] ? `${base}/${encodeURIComponent(args._[2])}/deliveries?limit=${limit}` : `${base}/deliveries?limit=${limit}`;
+      const { deliveries } = await api(path);
+      return print(args, { deliveries }, () => {
+        if (!deliveries.length) console.log("No deliveries yet.");
+        for (const d of deliveries) {
+          console.log(`${d.created_at.slice(0, 19).replace("T", " ")}  ${d.status.padEnd(9)} ${String(d.last_status ?? "").padEnd(4)} ${d.event_type}  ${d.id}${d.status !== "delivered" && d.last_error ? `  (${d.last_error})` : ""}`);
+        }
+      });
+    }
+    if (sub === "retry") return print(args, await api(`${base}/deliveries/${need(2, "Usage: smshub-cli webhook retry <delivery-id>")}/retry`, { method: "POST" }), (d) => console.log(`queued again: ${d.id}`));
+    if (!sub) throw new ApiError("Usage: smshub-cli webhook add|<id>|test|secret|rotate|on|off|events|log|retry|rm");
+    return print(args, await api(`${base}/${need(1)}`), (e) => console.log(webhookLine(e)));
   },
 
   async thread(args) {

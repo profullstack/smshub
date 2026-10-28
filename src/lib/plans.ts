@@ -62,7 +62,7 @@ export async function getPlanUsage(db: SupabaseClient, userId: string): Promise<
     ),
     count(db.from("phone_numbers").select("id", head).eq("user_id", userId).eq("managed", false).eq("status", "active")),
     count(db.from("api_keys").select("id", head).eq("user_id", userId)),
-    count(db.from("user_webhooks").select("id", head).eq("user_id", userId)),
+    count(db.from("hub_webhook_endpoints").select("id", head).eq("owner", userId)),
   ]);
   const plan: PlanId = managedNumbers > 0 ? "pro" : "free";
   return { plan, limits: PLANS[plan], usage: { managedNumbers, openOrders, byoNumbers, apiKeys, webhooks } };

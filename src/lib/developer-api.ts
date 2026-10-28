@@ -3,6 +3,8 @@
  * generated from this list, so they cannot drift apart.
  */
 
+import { WEBHOOK_EVENT_DOCS, WEBHOOK_EVENT_TYPES } from "@/lib/webhooks/catalog";
+
 export interface Param {
   name: string;
   in: "path" | "query" | "body";
@@ -182,6 +184,40 @@ export const ENDPOINTS: Endpoint[] = [
     cli: "alerts",
     mcp: "list_alerts",
   },
+  { method: "GET", path: "/api/v1/webhooks", summary: "Your webhook endpoints and the event types smshub sends.", cli: "webhooks", mcp: "list_webhooks" },
+  {
+    method: "POST",
+    path: "/api/v1/webhooks",
+    summary: "Add a webhook endpoint. Returns { endpoint, secret }; the whsec_ secret signs every delivery (Standard Webhooks). Free plan 1 endpoint, Pro 10.",
+    params: [
+      { name: "url", in: "body", type: "string", required: true, description: "Public https:// URL that receives the POSTs." },
+      { name: "events", in: "body", type: "string", description: 'JSON list of patterns, e.g. ["message.received"] or ["message.*"]. All events when omitted.' },
+      { name: "description", in: "body", type: "string", description: "A note for yourself." },
+    ],
+    cli: "webhook add",
+    mcp: "create_webhook",
+  },
+  { method: "GET", path: "/api/v1/webhooks/{id}", summary: "One webhook endpoint.", params: [id("Endpoint id (wh_...).")], cli: "webhook <id>" },
+  {
+    method: "PATCH",
+    path: "/api/v1/webhooks/{id}",
+    summary: "Change url, events, description or enabled. enabled: true turns an endpoint that was switched off after 20 failures back on.",
+    params: [
+      id("Endpoint id."),
+      { name: "url", in: "body", type: "string", description: "New URL." },
+      { name: "events", in: "body", type: "string", description: "JSON list of patterns." },
+      { name: "enabled", in: "body", type: "boolean", description: "On or off." },
+    ],
+    cli: "webhook on|off|events",
+    mcp: "update_webhook",
+  },
+  { method: "DELETE", path: "/api/v1/webhooks/{id}", summary: "Remove an endpoint and its delivery log.", params: [id("Endpoint id.")], cli: "webhook rm", mcp: "delete_webhook" },
+  { method: "GET", path: "/api/v1/webhooks/{id}/secret", summary: "Show the endpoint's signing secret.", params: [id("Endpoint id.")], cli: "webhook secret" },
+  { method: "POST", path: "/api/v1/webhooks/{id}/rotate", summary: "Replace the signing secret; the old one stops working at once.", params: [id("Endpoint id.")], cli: "webhook rotate", mcp: "rotate_webhook_secret" },
+  { method: "POST", path: "/api/v1/webhooks/{id}/test", summary: "Send a webhook.test event now and report the status your server answered.", params: [id("Endpoint id.")], cli: "webhook test", mcp: "test_webhook" },
+  { method: "GET", path: "/api/v1/webhooks/{id}/deliveries", summary: "Recent deliveries to one endpoint, with payloads.", params: [id("Endpoint id."), { name: "limit", in: "query", type: "integer", description: "Default 50." }], cli: "webhook log", mcp: "webhook_deliveries" },
+  { method: "GET", path: "/api/v1/webhooks/deliveries", summary: "Recent deliveries across all your endpoints.", params: [{ name: "limit", in: "query", type: "integer", description: "Default 50." }], cli: "webhook log", mcp: "webhook_deliveries" },
+  { method: "POST", path: "/api/v1/webhooks/deliveries/{id}/retry", summary: "Send one delivery again.", params: [id("Delivery id (dlv_...).")], cli: "webhook retry" },
   { method: "GET", path: "/api/lines", summary: "Your lines and who shares each one (contacts book).", cli: "lines", mcp: "list_lines" },
   {
     method: "POST",
@@ -201,6 +237,15 @@ export const ENDPOINTS: Endpoint[] = [
 ];
 
 export const MCP_URL = "/api/mcp";
+
+/** How a webhook delivery looks and how to check it, for the docs page and llms.txt. */
+export const WEBHOOK_GUIDE = [
+  "Each event is POSTed as CloudEvents 1.0 JSON: { specversion, id, type, source, subject, time, data }.",
+  "Headers follow Standard Webhooks: webhook-id (same on every retry: dedupe on it), webhook-timestamp (unix seconds) and webhook-signature (v1,<base64 HMAC-SHA256 of `${webhook-id}.${webhook-timestamp}.${body}`, keyed with the base64 after whsec_).",
+  "Verify with any Standard Webhooks library, or `verifyAndParse({ headers, body, secret })` from @profullstack/webhooks. Use the raw body.",
+  "Answer 2xx within 10 seconds. Anything else is retried after 30s, 2m, 10m, 1h, 6h, 24h and 48h; 20 failures in a row switch the endpoint off.",
+  "Redirects are not followed, and the URL must be public https.",
+];
 export const NPM_PACKAGE = "@profullstack/smshub";
 
 const schemaOf = (p: Param) => ({ type: p.type, description: p.description });
@@ -268,6 +313,12 @@ export function llmsTxt(siteUrl: string, name: string) {
     "## Endpoints",
     "",
     ...ENDPOINTS.map((e) => `- ${e.method} ${e.path}: ${e.summary}${e.mcp ? ` (MCP: ${e.mcp})` : ""}`),
+    "",
+    "## Webhooks",
+    "",
+    ...WEBHOOK_EVENT_TYPES.map((t) => `- ${t}: ${WEBHOOK_EVENT_DOCS[t]}`),
+    "",
+    ...WEBHOOK_GUIDE.map((g) => `- ${g}`),
     "",
   ];
   return lines.join("\n");
