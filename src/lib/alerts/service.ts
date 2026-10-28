@@ -129,8 +129,10 @@ export const resetSmsCache = () => smsCache.clear();
 
 /**
  * Whether US carriers will take a text from this Telnyx number: a toll-free
- * number needs a Verified toll-free verification, a local one a 10DLC
- * campaign. Unregistered numbers fail with 40010, so they are not tried.
+ * number needs a Verified toll-free verification or proof that it delivers
+ * (a text Telnyx marked delivered in the last 30 days: some unverified
+ * toll-free numbers still do), a local one a 10DLC campaign. Unregistered
+ * local numbers fail with 40010, so they are not tried.
  */
 export async function smsDeliverable(telnyx: Telnyx, apiKey: string, number: string, now = Date.now()): Promise<boolean> {
   const hit = smsCache.get(number);
@@ -147,6 +149,14 @@ export async function smsDeliverable(telnyx: Telnyx, apiKey: string, number: str
       (res.data.records ?? []).some(
         (r) => r.verificationStatus === "Verified" && (r.phoneNumbers ?? []).some((p) => p.phoneNumber === number)
       );
+    if (!ok) {
+      const recent = await telnyx<{ data?: Array<{ cli?: string; direction?: string; status?: string }> }>(
+        apiKey,
+        "GET",
+        "/detail_records?filter[record_type]=messaging&filter[date_range]=last_30_days&page[size]=500"
+      );
+      ok = recent.ok && (recent.data.data ?? []).some((d) => d.cli === number && d.direction === "outbound" && d.status === "delivered");
+    }
   } else if (number.startsWith("+1")) {
     const res = await telnyx<{ assignmentStatus?: string; campaignId?: string }>(
       apiKey,

@@ -22,7 +22,7 @@ const TELNYX = { type: "telnyx", api_key: "KEY", metadata: null };
 const FAMILY = { id: "11111111-1111-4111-8111-111111111111", number: "+19165550100" };
 const TOLLFREE = { id: "22222222-2222-4222-8222-222222222222", number: "+18885550100" };
 
-function setup(opts: { verified?: string[]; smsFails?: boolean; callFails?: boolean } = {}) {
+function setup(opts: { verified?: string[]; delivered?: string[]; smsFails?: boolean; callFails?: boolean } = {}) {
   const fdb = new FakeDb();
   fdb.tables.alert_settings = [{ user_id: USER, phone: ME, consent: true, consent_text: CONSENT_TEXT, consented_at: "2026-10-17T00:00:00Z", opted_out_at: null }];
   fdb.tables.phone_numbers = [
@@ -37,6 +37,12 @@ function setup(opts: { verified?: string[]; smsFails?: boolean; callFails?: bool
       return {
         ok: true as const,
         data: { records: (opts.verified ?? []).map((n) => ({ verificationStatus: "Verified", phoneNumbers: [{ phoneNumber: n }] })) },
+      };
+    }
+    if (path.startsWith("/detail_records")) {
+      return {
+        ok: true as const,
+        data: { data: (opts.delivered ?? []).map((n) => ({ cli: n, direction: "outbound", status: "delivered" })) },
       };
     }
     if (path.startsWith("/10dlc/")) return { ok: false as const, error: { status: 404, code: null, message: "not found" } };
@@ -92,6 +98,21 @@ describe("sendAlert", () => {
 
     const c = await sendAlert(deps, USER, { message: "db down", severity: "critical" });
     expect(c.alert.channels).toEqual(["sms", "call"]);
+  });
+
+  it("texts from an unverified toll-free number that Telnyx shows delivering", async () => {
+    const { calls, sendSms, deps } = setup({ delivered: [TOLLFREE.number] });
+    const r = await sendAlert(deps, USER, { message: "disk 92%" });
+    expect(r.alert.channels).toEqual(["sms"]);
+    expect(sendSms).toHaveBeenCalledWith(expect.objectContaining({ from: TOLLFREE.number }));
+    expect(calls.some((c) => c.path === "/calls")).toBe(false);
+  });
+
+  it("does not text from a toll-free number with no verification and no deliveries", async () => {
+    const { sendSms, deps } = setup({ delivered: ["+18885559999"] });
+    const r = await sendAlert(deps, USER, { message: "disk 93%" });
+    expect(r.alert.channels).toEqual(["call"]);
+    expect(sendSms).not.toHaveBeenCalled();
   });
 
   it("falls back to a call when the text is refused", async () => {
