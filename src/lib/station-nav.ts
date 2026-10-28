@@ -15,10 +15,11 @@ export const STATION_TABS: StationTab[] = [
   { href: "/inbox", label: "Receiver", icon: "receiver" },
   { href: "/numbers", label: "Numbers", icon: "numbers" },
   { href: "/settings/lines", label: "Lines", icon: "lines" },
+  { href: "/groups", label: "Groups", icon: "lines" },
   { href: "/settings", label: "Settings", icon: "settings" },
 ];
 
-const APP_PREFIXES = ["/inbox", "/numbers", "/settings", "/contacts", "/campaigns", "/analytics", "/org"];
+const APP_PREFIXES = ["/inbox", "/numbers", "/settings", "/contacts", "/groups", "/campaigns", "/analytics", "/org"];
 const AUTH_PREFIXES = ["/login", "/register", "/forgot-password", "/reset-password"];
 
 function under(pathname: string, prefix: string): boolean {

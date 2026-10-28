@@ -12,6 +12,14 @@
 //   smshub-cli messages <number> [--since ISO] [--limit 20]
 //   smshub-cli otp <number> [--wait 60]     print the next code, nothing else
 //   smshub-cli send <to> "<message>" [--from <number>] [--media <url>]   text someone from your own number
+//   smshub-cli groups                        your contact groups
+//   smshub-cli group create "<name>" [--from <number>] [--relay] [--member +1415...[=Kim]]...   a group (members repeatable)
+//   smshub-cli group <id>                    one group and its members (id or external_ref)
+//   smshub-cli group add <id> +1415...[=Kim] [...]   add members
+//   smshub-cli group remove <id> <phone>     remove a member
+//   smshub-cli group send <id> "<message>" [--from <number>]   text every member (STOPped ones skipped)
+//   smshub-cli group relay <id> on|off       members' replies go to the whole group (SMS group chat)
+//   smshub-cli group rm <id>                 delete a group
 //   smshub-cli conversations [--line <number>] [--limit 20]   the inbox, optionally one line
 //   smshub-cli thread <conversation-id> [--limit 50]   messages in one conversation
 //   smshub-cli lines                        who shares each number (contacts book)
@@ -43,10 +51,12 @@ function parseArgs(argv) {
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a.startsWith("--")) {
-      const [k, v] = a.slice(2).split("=", 2);
-      if (v !== undefined) out[k] = v;
-      else if (argv[i + 1] !== undefined && !argv[i + 1].startsWith("--")) out[k] = argv[++i];
-      else out[k] = true;
+      const eq = a.indexOf("=");
+      const k = eq === -1 ? a.slice(2) : a.slice(2, eq);
+      let v = eq === -1 ? undefined : a.slice(eq + 1);
+      if (v === undefined) v = argv[i + 1] !== undefined && !argv[i + 1].startsWith("--") ? argv[++i] : true;
+      // A flag given twice (--member a --member b) keeps both.
+      out[k] = out[k] === undefined ? v : [].concat(out[k], v);
     } else out._.push(a);
   }
   return out;
@@ -402,6 +412,59 @@ const commands = {
     if (args.media && args.media !== true) body.media_url = args.media;
     const res = await api("/api/v1/messages/send", { method: "POST", body });
     print(args, res, (r) => console.log(`sent ${r.from} -> ${r.to}  ${r.message?.id ?? ""}`));
+  },
+
+  async groups(args) {
+    const { groups } = await api("/api/v1/groups");
+    print(args, { groups }, () => {
+      if (!groups.length) console.log('No groups. smshub-cli group create "Team" --member +14155550123=Kim');
+      for (const g of groups) console.log(`${g.id}  ${g.name.padEnd(24)} ${String(g.member_count).padStart(3)} members  ${g.from ?? "(no number)"}${g.relay ? "  relay" : ""}${g.external_ref ? `  ${g.external_ref}` : ""}`);
+    });
+  },
+
+  async group(args) {
+    const sub = args._[1];
+    const members = (list) =>
+      list.filter(Boolean).map((m) => {
+        const [phone, ...name] = String(m).split("=");
+        return { phone, ...(name.length ? { name: name.join("=") } : {}) };
+      });
+    const show = (g) => {
+      console.log(`${g.name}  (${g.id})${g.relay ? "  relay on" : ""}`);
+      console.log(`from ${g.from ?? "(none: pass --from when sending)"}${g.external_ref ? `  ref ${g.external_ref}` : ""}`);
+      for (const m of g.members ?? []) console.log(`  ${m.phone}  ${m.name ?? ""}${m.opted_out ? "  (STOPped)" : ""}`);
+    };
+    const id = (n = 2) => {
+      const v = args._[n];
+      if (!v) throw new ApiError("Which group? smshub-cli groups shows ids");
+      return encodeURIComponent(v);
+    };
+    if (sub === "create") {
+      const name = args._.slice(2).join(" ").trim();
+      if (!name) throw new ApiError('Usage: smshub-cli group create "Team" [--from <number>] [--relay] [--member +1415...=Kim]');
+      const list = [].concat(args.member ?? []).filter((m) => m !== true);
+      const body = { name, members: members(list), relay: args.relay === true };
+      if (args.from && args.from !== true) body.from = await resolveLine(String(args.from));
+      return print(args, await api("/api/v1/groups", { method: "POST", body }), show);
+    }
+    if (sub === "add") return print(args, await api(`/api/v1/groups/${id()}/members`, { method: "POST", body: { members: members(args._.slice(3)) } }), show);
+    if (sub === "remove") {
+      if (!args._[3]) throw new ApiError("Usage: smshub-cli group remove <id> <phone>");
+      return print(args, await api(`/api/v1/groups/${id()}/members/${encodeURIComponent(args._[3])}`, { method: "DELETE" }), show);
+    }
+    if (sub === "send") {
+      const message = args._.slice(3).join(" ").trim();
+      if (!message) throw new ApiError('Usage: smshub-cli group send <id> "message"');
+      const body = { message };
+      if (args.from && args.from !== true) body.from = await resolveLine(String(args.from));
+      return print(args, await api(`/api/v1/groups/${id()}/send`, { method: "POST", body }), (r) =>
+        console.log(`sent ${r.sent} from ${r.from}${r.failed ? `, ${r.failed} failed (${r.errors?.[0]?.error ?? ""})` : ""}${r.skipped ? `, ${r.skipped} skipped` : ""}`)
+      );
+    }
+    if (sub === "relay") return print(args, await api(`/api/v1/groups/${id()}`, { method: "PATCH", body: { relay: args._[3] !== "off" } }), show);
+    if (sub === "rm" || sub === "delete") return print(args, await api(`/api/v1/groups/${id()}`, { method: "DELETE" }), () => console.log("deleted"));
+    if (!sub) throw new ApiError("Usage: smshub-cli group <id> | create | add | remove | send | relay | rm");
+    return print(args, await api(`/api/v1/groups/${id(1)}`), show);
   },
 
   async thread(args) {

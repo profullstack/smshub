@@ -7,6 +7,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { getOrder, listNumbers, listOrders, numberMessages, overview } from "@/lib/managed-numbers/api";
 import { createOrder, OrderError } from "@/lib/managed-numbers/service";
 import { conversationMessages, isUuid, listConversations } from "@/lib/conversations";
+import { addMembers, getGroup, listGroups, saveGroup, sendToGroup } from "@/lib/groups";
 import { SendError, sendMessage } from "@/lib/messages/send";
 import type { RequestUser } from "@/lib/request-user";
 import { LINE_TOOLS, LineToolError } from "./line-tools";
@@ -91,6 +92,53 @@ const TOOLS: Tool[] = [
       ["to", "message"]
     ),
     run: (c, a) => sendMessage(c.db, c.user.userId, a),
+  },
+  {
+    name: "list_groups",
+    description: "Your contact groups (named lists you text together), with member counts.",
+    inputSchema: obj({}),
+    run: (c) => listGroups(c.db, c.user.userId),
+  },
+  {
+    name: "get_group",
+    description: "One group with its members. id is the group id or its external_ref.",
+    inputSchema: obj({ id: { type: "string" } }, ["id"]),
+    run: (c, a) => getGroup(c.db, c.user.userId, String(a.id ?? "")),
+  },
+  {
+    name: "save_group",
+    description:
+      "Make a contact group, or update the one with this external_ref (its members are then replaced). from = the number it texts from; relay = members' replies go to the whole group (group chat over SMS).",
+    inputSchema: obj(
+      {
+        name: { type: "string" },
+        description: { type: "string" },
+        from: { type: "string", description: "Your own number (E.164) or its id." },
+        relay: { type: "boolean" },
+        external_ref: { type: "string", description: "Your own key for this group, e.g. groupcall:4821." },
+        members: { type: "array", items: { type: "object", properties: { phone: { type: "string" }, name: { type: "string" } }, required: ["phone"] } },
+      },
+      ["name"]
+    ),
+    run: (c, a) => saveGroup(c.db, c.user.userId, a),
+  },
+  {
+    name: "add_group_members",
+    description: "Add people to a group: members = [{ phone, name? }].",
+    inputSchema: obj(
+      { id: { type: "string" }, members: { type: "array", items: { type: "object", properties: { phone: { type: "string" }, name: { type: "string" } }, required: ["phone"] } } },
+      ["id", "members"]
+    ),
+    run: (c, a) => addMembers(c.db, c.user.userId, String(a.id ?? ""), a.members),
+  },
+  {
+    name: "send_to_group",
+    description: "Text every member of a group from your own number (members who said STOP are skipped). Counts as one send against the 10/min limit.",
+    inputSchema: obj(
+      { id: { type: "string" }, message: { type: "string", maxLength: 1600 }, from: { type: "string" }, media_url: { type: "string" } },
+      ["id", "message"]
+    ),
+    run: (c, a) => sendToGroup(c.db, c.user.userId, String(a.id ?? ""), a),
   },
   {
     name: "rent_number",

@@ -7,6 +7,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { InboundMessage } from "@/lib/providers/types";
 import { fireWebhooks, type UserWebhook } from "@/lib/webhooks/outbound";
 import { extractOtp } from "@/lib/managed-numbers/api";
+import { onGroupInbound } from "@/lib/groups";
 import { bookLineId, matchPrefix, type LineContact } from "@/lib/lines/contacts";
 import { sendSMS } from "@/lib/providers";
 import { noteAlertOptOut } from "@/lib/alerts/opt-out";
@@ -100,6 +101,8 @@ export async function recordInbound(
   if (routed?.contact.forward_sms && routed.contact.forward_to !== inbound.from) {
     await forwardRouted(db, phoneNumber, conversation.id, routed.contact.forward_to, inbound.from, routed.text);
   }
+  // Groups: STOP opts out of them; a member's text to a relay group's number goes on to the group.
+  if (!routed) await onGroupInbound(db, phoneNumber, inbound.from, inbound.body).catch((e) => console.error("group relay:", e));
   return { messageId: message?.id ?? null, duplicate: false };
 }
 
