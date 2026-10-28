@@ -1,6 +1,6 @@
 {
   "name": "smshub-mobile",
-  "version": "0.1.159",
+  "version": "0.1.160",
   "private": true,
   "main": "expo-router/entry",
   "scripts": {
