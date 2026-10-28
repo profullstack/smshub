@@ -5,6 +5,7 @@ export async function generateMetadata(): Promise<Metadata> {
   const { name } = await getBrand();
   return {
     title: `Terms of Service — ${name}`,
+    alternates: { canonical: "/terms" },
     description: `${name} terms of service. Rules and conditions for using our platform.`,
   };
 }

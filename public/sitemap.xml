@@ -5,14 +5,6 @@
     <priority>1.0</priority>
   </url>
   <url>
-    <loc>https://smshub.dev/login</loc>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://smshub.dev/register</loc>
-    <priority>0.8</priority>
-  </url>
-  <url>
     <loc>https://smshub.dev/install</loc>
     <priority>0.7</priority>
   </url>
@@ -23,6 +15,14 @@
   <url>
     <loc>https://smshub.dev/phonenumbers</loc>
     <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://smshub.dev/docs</loc>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://smshub.dev/docs/api</loc>
+    <priority>0.6</priority>
   </url>
   <url>
     <loc>https://smshub.dev/privacy</loc>

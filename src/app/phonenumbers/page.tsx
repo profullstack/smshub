@@ -9,6 +9,7 @@ export const dynamic = "force-dynamic";
 
 export const metadata = {
   title: "Rent a phone number for SMS and verification codes | SMSHub",
+  alternates: { canonical: "/phonenumbers" },
   description:
     "Rent a US phone number, receive SMS and one-time codes in your inbox, by API, CLI or MCP. Pay with crypto through CoinPay.",
 };

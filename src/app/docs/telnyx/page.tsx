@@ -6,6 +6,7 @@ import { Note, Step, Steps } from "../steps";
 
 export const metadata: Metadata = {
   title: "Set up Telnyx for SMS — SMSHub",
+  alternates: { canonical: "/docs/telnyx" },
   description: "Step-by-step: connect your Telnyx account to SMSHub to send and receive text messages.",
 };
 

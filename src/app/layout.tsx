@@ -81,9 +81,9 @@ const smshubMetadata: Metadata = {
       `Rent a real US phone number for $${price}/month and receive SMS verification codes in your inbox, by API, CLI or MCP. Pay with crypto.`,
     images: ["/icons/icon-512x512.png"],
   },
-  alternates: {
-    canonical: "/",
-  },
+  // No canonical here: a layout-level one is inherited by every page, the
+  // 404 included, and tells a crawler each of them is the homepage. Each
+  // page names its own (page.tsx, /docs, ...).
 };
 
 function brandMetadata(brand: Brand): Metadata {
@@ -121,8 +121,7 @@ function brandMetadata(brand: Brand): Metadata {
       description: brand.description,
       images: [`${brand.assetBase}/og.png`],
     },
-    // Each brand is its own site, so no canonical pointing at another host.
-    alternates: { canonical: "/" },
+    // No canonical here either; see smshubMetadata.
   };
 }
 

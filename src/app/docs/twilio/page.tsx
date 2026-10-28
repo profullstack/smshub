@@ -6,6 +6,7 @@ import { Note, Step, Steps } from "../steps";
 
 export const metadata: Metadata = {
   title: "Set up Twilio for SMS — SMSHub",
+  alternates: { canonical: "/docs/twilio" },
   description: "Step-by-step: connect your Twilio account to SMSHub to send and receive text messages.",
 };
 

@@ -6,6 +6,8 @@ import { StationHome } from "@/components/station/station-home";
 
 export const dynamic = "force-dynamic";
 
+export const metadata = { alternates: { canonical: "/" } };
+
 export default async function LandingPage() {
   if ((await getBrand()).id === "numberstation") return <StationHome />;
   const price = priceUsdPerMonth();

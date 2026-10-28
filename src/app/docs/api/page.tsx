@@ -8,6 +8,7 @@ export async function generateMetadata(): Promise<Metadata> {
   const { name } = await getBrand();
   return {
     title: `API, CLI and MCP — ${name}`,
+    alternates: { canonical: "/docs/api" },
     description: `Rent numbers, read texts and codes, send SMS and alert people from code, the terminal or an AI agent with ${name}.`,
   };
 }

@@ -6,6 +6,7 @@ export async function generateMetadata(): Promise<Metadata> {
   const { name } = await getBrand();
   return {
     title: `Setup guides — ${name}`,
+    alternates: { canonical: "/docs" },
     description: `Connect Telnyx or Twilio to ${name}.`,
   };
 }

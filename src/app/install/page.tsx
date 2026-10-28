@@ -3,6 +3,7 @@ import Link from "next/link";
 
 export const metadata: Metadata = {
   title: "Install SMSHub Desktop — smshub.dev",
+  alternates: { canonical: "/install" },
   description: "Download and install SMSHub desktop app for Linux, macOS, and Windows.",
 };
 

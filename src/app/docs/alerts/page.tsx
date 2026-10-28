@@ -7,6 +7,7 @@ export async function generateMetadata(): Promise<Metadata> {
   const { name } = await getBrand();
   return {
     title: `Alerts by text and call — ${name}`,
+    alternates: { canonical: "/docs/alerts" },
     description: `How ${name} account alerts work, how you opt in, and how to stop them.`,
   };
 }

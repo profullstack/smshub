@@ -5,6 +5,7 @@ export async function generateMetadata(): Promise<Metadata> {
   const { name } = await getBrand();
   return {
     title: `Privacy Policy — ${name}`,
+    alternates: { canonical: "/privacy" },
     description: `${name} privacy policy. How we collect, use, and protect your data.`,
   };
 }
