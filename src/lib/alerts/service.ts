@@ -130,8 +130,8 @@ export const resetSmsCache = () => smsCache.clear();
 /**
  * Whether US carriers will take a text from this Telnyx number: a toll-free
  * number needs a Verified toll-free verification or proof that it delivers
- * (a text Telnyx marked delivered in the last 30 days: some unverified
- * toll-free numbers still do), a local one a 10DLC campaign. Unregistered
+ * (its latest text in the last 30 days was delivered, not failed: some
+ * unverified toll-free numbers still do), a local one a 10DLC campaign. Unregistered
  * local numbers fail with 40010, so they are not tried.
  */
 export async function smsDeliverable(telnyx: Telnyx, apiKey: string, number: string, now = Date.now()): Promise<boolean> {
@@ -150,12 +150,15 @@ export async function smsDeliverable(telnyx: Telnyx, apiKey: string, number: str
         (r) => r.verificationStatus === "Verified" && (r.phoneNumbers ?? []).some((p) => p.phoneNumber === number)
       );
     if (!ok) {
-      const recent = await telnyx<{ data?: Array<{ cli?: string; direction?: string; status?: string }> }>(
+      const recent = await telnyx<{ data?: Array<{ cli?: string; direction?: string; status?: string; created_at?: string }> }>(
         apiKey,
         "GET",
         "/detail_records?filter[record_type]=messaging&filter[date_range]=last_30_days&page[size]=500"
       );
-      ok = recent.ok && (recent.data.data ?? []).some((d) => d.cli === number && d.direction === "outbound" && d.status === "delivered");
+      const last = (recent.ok ? (recent.data.data ?? []) : [])
+        .filter((d) => d.cli === number && d.direction === "outbound" && (d.status === "delivered" || d.status === "failed"))
+        .sort((a, b) => String(b.created_at ?? "").localeCompare(String(a.created_at ?? "")))[0];
+      ok = last?.status === "delivered";
     }
   } else if (number.startsWith("+1")) {
     const res = await telnyx<{ assignmentStatus?: string; campaignId?: string }>(
@@ -222,6 +225,109 @@ async function findVoiceApp(telnyx: Telnyx, apiKey: string): Promise<TelnyxResul
   if (!res.ok) return res;
   const url = voiceWebhookUrl().toLowerCase();
   return { ok: true, data: (res.data.data ?? []).find((a) => (a.webhook_event_url ?? "").toLowerCase().replace(/\/+$/, "") === url) ?? null };
+}
+
+/** Ring `to` and read the alert, from a line on the voice app. Logs the call in that line's thread. */
+async function placeAlertCall(
+  db: SupabaseClient,
+  telnyx: Telnyx,
+  userId: string,
+  alertId: string,
+  to: string,
+  message: string,
+  lines: Line[],
+  nowIso: string
+): Promise<{ ok: boolean; note: string; messageId: string | null }> {
+  const target = await callLine(telnyx, lines);
+  if (!target) {
+    return { ok: false, messageId: null, note: 'call: none of your numbers is on the "smshub voice menu" app (Settings > Lines > Set up the voice menu)' };
+  }
+  const { line, appId } = target;
+  const thread = await findOrCreateThread(db, userId, line.id, to, nowIso);
+  const { data: msg } = await db
+    .from("messages")
+    .insert({
+      conversation_id: thread.id,
+      direction: "outbound",
+      kind: "call",
+      body: `Alert call: ${message}`,
+      status: "queued",
+      provider: "telnyx",
+    })
+    .select("id")
+    .single();
+  const messageId = (msg as { id?: string } | null)?.id ?? null;
+  await db.from("conversations").update({ last_message_at: nowIso, archived: false }).eq("id", thread.id);
+  const res = await telnyx<{ data?: { call_session_id?: string; call_control_id?: string } }>(line.apiKey, "POST", "/calls", {
+    connection_id: appId,
+    to,
+    from: line.number,
+    timeout_secs: 30,
+    client_state: encodeState({ l: line.id, m: messageId ?? undefined, al: alertId }),
+  });
+  if (res.ok) {
+    const session = res.data.data?.call_session_id || res.data.data?.call_control_id;
+    if (messageId) {
+      await db
+        .from("messages")
+        .update({ status: "sent", provider_message_id: session ? `alert:${session}` : null, status_updated_at: nowIso })
+        .eq("id", messageId);
+    }
+    return { ok: true, messageId, note: `calling from ${line.number}` };
+  }
+  if (messageId) {
+    await db.from("messages").update({ status: "failed", error_detail: res.error.message, status_updated_at: nowIso }).eq("id", messageId);
+  }
+  return { ok: false, messageId, note: `call: ${res.error.message}` };
+}
+
+/**
+ * Telnyx accepted an alert text and later reported it failed (spam filter,
+ * 40010, ...): the person heard nothing, so ring them now. Called from the
+ * delivery-status webhook with the Telnyx message id; a no-op for texts that
+ * are not alerts or alerts that already called.
+ */
+export async function callAfterFailedAlertText(
+  deps: Pick<AlertDeps, "db" | "telnyx" | "now">,
+  providerMessageId: string
+): Promise<boolean> {
+  const { db } = deps;
+  const telnyx = deps.telnyx ?? telnyxRequest;
+  const nowMs = (deps.now ?? Date.now)();
+  const { data: msg } = await db
+    .from("messages")
+    .select("id")
+    .eq("provider_message_id", providerMessageId)
+    .eq("provider", "telnyx")
+    .maybeSingle();
+  const smsId = (msg as { id?: string } | null)?.id;
+  if (!smsId) return false;
+  const { data: row } = await db.from("alerts").select(`${ALERT_COLUMNS}, user_id`).eq("sms_message_id", smsId).maybeSingle();
+  const alert = row as (AlertRow & { user_id: string }) | null;
+  if (!alert || alert.call_message_id || (alert.channels ?? []).includes("call")) return false;
+
+  const { data: lastHour } = await db
+    .from("alerts")
+    .select("channels")
+    .eq("user_id", alert.user_id)
+    .gt("created_at", new Date(nowMs - 60 * 60 * 1000).toISOString())
+    .limit(MAX_PER_HOUR + 1);
+  const calls = ((lastHour ?? []) as Array<{ channels: string[] | null }>).filter((a) => (a.channels ?? []).includes("call")).length;
+  if (calls >= MAX_CALLS_PER_HOUR) return false;
+
+  const lines = await telnyxLines(db, alert.user_id);
+  const call = await placeAlertCall(db, telnyx, alert.user_id, alert.id, alert.to_phone, alert.message, lines, new Date(nowMs).toISOString());
+  const channels = call.ok ? ["call"] : [];
+  await db
+    .from("alerts")
+    .update({
+      call_message_id: call.messageId,
+      channels,
+      status: call.ok ? "sent" : "failed",
+      error: ["text: delivery failed", call.ok ? null : call.note].filter(Boolean).join("; "),
+    })
+    .eq("id", alert.id);
+  return call.ok;
 }
 
 const clean = (s: string) =>
@@ -346,53 +452,13 @@ export async function sendAlert(
   }
 
   if (wantCall) {
-    const target = await callLine(telnyx, lines);
-    if (!target) {
-      errors.push('call: none of your numbers is on the "smshub voice menu" app (Settings > Lines > Set up the voice menu)');
+    const call = await placeAlertCall(db, telnyx, userId, alert.id, to, message, lines, nowIso);
+    patch.call_message_id = call.messageId;
+    if (call.ok) {
+      channels.push("call");
+      notes.push(call.note);
     } else {
-      const { line, appId } = target;
-      const thread = await findOrCreateThread(db, userId, line.id, to, nowIso);
-      const { data: msg } = await db
-        .from("messages")
-        .insert({
-          conversation_id: thread.id,
-          direction: "outbound",
-          kind: "call",
-          body: `Alert call: ${message}`,
-          status: "queued",
-          provider: "telnyx",
-        })
-        .select("id")
-        .single();
-      const messageId = (msg as { id?: string } | null)?.id;
-      await db.from("conversations").update({ last_message_at: nowIso, archived: false }).eq("id", thread.id);
-      patch.call_message_id = messageId ?? null;
-      const res = await telnyx<{ data?: { call_session_id?: string; call_control_id?: string } }>(line.apiKey, "POST", "/calls", {
-        connection_id: appId,
-        to,
-        from: line.number,
-        timeout_secs: 30,
-        client_state: encodeState({ l: line.id, m: messageId, al: alert.id }),
-      });
-      if (res.ok) {
-        channels.push("call");
-        notes.push(`calling from ${line.number}`);
-        const session = res.data.data?.call_session_id || res.data.data?.call_control_id;
-        if (messageId) {
-          await db
-            .from("messages")
-            .update({ status: "sent", provider_message_id: session ? `alert:${session}` : null, status_updated_at: nowIso })
-            .eq("id", messageId);
-        }
-      } else {
-        errors.push(`call: ${res.error.message}`);
-        if (messageId) {
-          await db
-            .from("messages")
-            .update({ status: "failed", error_detail: res.error.message, status_updated_at: nowIso })
-            .eq("id", messageId);
-        }
-      }
+      errors.push(call.note);
     }
   }
 

@@ -3,6 +3,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { FakeDb } from "@/__tests__/fake-db";
 import {
   AlertError,
+  callAfterFailedAlertText,
   CONSENT_TEXT,
   MAX_CALLS_PER_HOUR,
   resetSmsCache,
@@ -22,7 +23,7 @@ const TELNYX = { type: "telnyx", api_key: "KEY", metadata: null };
 const FAMILY = { id: "11111111-1111-4111-8111-111111111111", number: "+19165550100" };
 const TOLLFREE = { id: "22222222-2222-4222-8222-222222222222", number: "+18885550100" };
 
-function setup(opts: { verified?: string[]; delivered?: string[]; smsFails?: boolean; callFails?: boolean } = {}) {
+function setup(opts: { verified?: string[]; delivered?: string[]; failedSince?: string[]; smsFails?: boolean; callFails?: boolean } = {}) {
   const fdb = new FakeDb();
   fdb.tables.alert_settings = [{ user_id: USER, phone: ME, consent: true, consent_text: CONSENT_TEXT, consented_at: "2026-10-17T00:00:00Z", opted_out_at: null }];
   fdb.tables.phone_numbers = [
@@ -42,7 +43,12 @@ function setup(opts: { verified?: string[]; delivered?: string[]; smsFails?: boo
     if (path.startsWith("/detail_records")) {
       return {
         ok: true as const,
-        data: { data: (opts.delivered ?? []).map((n) => ({ cli: n, direction: "outbound", status: "delivered" })) },
+        data: {
+          data: [
+            ...(opts.delivered ?? []).map((n) => ({ cli: n, direction: "outbound", status: "delivered", created_at: "2026-10-21T13:24:00Z" })),
+            ...(opts.failedSince ?? []).map((n) => ({ cli: n, direction: "outbound", status: "failed", created_at: "2026-10-28T18:50:49Z" })),
+          ],
+        },
       };
     }
     if (path.startsWith("/10dlc/")) return { ok: false as const, error: { status: 404, code: null, message: "not found" } };
@@ -113,6 +119,31 @@ describe("sendAlert", () => {
     const r = await sendAlert(deps, USER, { message: "disk 93%" });
     expect(r.alert.channels).toEqual(["call"]);
     expect(sendSms).not.toHaveBeenCalled();
+  });
+
+  it("stops texting from a toll-free number whose latest text failed", async () => {
+    const { sendSms, deps } = setup({ delivered: [TOLLFREE.number], failedSince: [TOLLFREE.number] });
+    const r = await sendAlert(deps, USER, { message: "disk 94%" });
+    expect(r.alert.channels).toEqual(["call"]);
+    expect(sendSms).not.toHaveBeenCalled();
+  });
+
+  it("rings the phone when an alert text fails after Telnyx took it", async () => {
+    const { fdb, calls, deps } = setup({ verified: [TOLLFREE.number] });
+    const r = await sendAlert(deps, USER, { message: "disk 95%" });
+    expect(r.alert.channels).toEqual(["sms"]);
+    const sms = fdb.tables.messages.find((m) => m.id === r.alert.sms_message_id)!;
+    expect(sms.provider_message_id).toBe("sms-1");
+
+    expect(await callAfterFailedAlertText(deps, "sms-1")).toBe(true);
+    expect(calls.filter((c) => c.path === "/calls")).toHaveLength(1);
+    const after = fdb.tables.alerts.find((a) => a.id === r.alert.id)!;
+    expect(after.channels).toEqual(["call"]);
+    expect(after.call_message_id).toBeTruthy();
+    // Once only, and never for a text that is not an alert.
+    expect(await callAfterFailedAlertText(deps, "sms-1")).toBe(false);
+    expect(await callAfterFailedAlertText(deps, "not-an-alert")).toBe(false);
+    expect(calls.filter((c) => c.path === "/calls")).toHaveLength(1);
   });
 
   it("falls back to a call when the text is refused", async () => {

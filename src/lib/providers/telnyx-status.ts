@@ -90,5 +90,10 @@ export async function applyTelnyxStatus(supabase: SupabaseClient, update: Telnyx
   const result = await query;
   // The owner's webhooks hear about final outcomes (message.delivered / message.failed).
   if (!result.error) await emitDeliveryStatus(supabase, "telnyx", update.messageId, update.status);
+  // An alert text that failed after Telnyx took it: ring the person instead.
+  if (!result.error && update.status === "failed") {
+    const { callAfterFailedAlertText } = await import("@/lib/alerts/service");
+    await callAfterFailedAlertText({ db: supabase }, update.messageId).catch((e) => console.error("alert call fallback:", e));
+  }
   return result;
 }
