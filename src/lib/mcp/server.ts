@@ -13,6 +13,8 @@ import type { RequestUser } from "@/lib/request-user";
 import { LINE_TOOLS, LineToolError } from "./line-tools";
 import { AlertError, listAlerts, sendAlert } from "@/lib/alerts/service";
 import { createInvite, creditSummary, invitesSummary, redeemCode } from "@/lib/rewards";
+import { WebhookError } from "@profullstack/webhooks";
+import { createWebhook, getHooks, WEBHOOK_EVENT_TYPES } from "@/lib/webhooks/hub";
 
 export const PROTOCOL_VERSION = "2025-06-18";
 const MAX_WAIT_SECONDS = 55;
@@ -259,6 +261,71 @@ const TOOLS: Tool[] = [
     inputSchema: obj({ limit: { type: "integer", minimum: 1, maximum: 100, default: 20 } }),
     run: async (c, a) => ({ alerts: await listAlerts(c.db, c.user.userId, Number(a.limit) || 20) }),
   },
+  {
+    name: "list_webhooks",
+    description:
+      "Your webhook endpoints and the events smshub sends (message.received for every inbound text, message.sent/failed/delivered, number.provisioned/renewed/expiring/released, group.sent).",
+    inputSchema: obj({}),
+    run: async (c) => ({ endpoints: await getHooks().listEndpoints(c.user.userId), event_types: [...WEBHOOK_EVENT_TYPES] }),
+  },
+  {
+    name: "create_webhook",
+    description:
+      "Add a webhook endpoint (public https URL). Returns the signing secret (whsec_...) once. Deliveries are CloudEvents JSON signed per Standard Webhooks (webhook-id, webhook-timestamp, webhook-signature), retried with backoff for about three days.",
+    inputSchema: obj(
+      {
+        url: { type: "string", description: "https:// URL that will receive POSTs." },
+        events: { type: "array", items: { type: "string" }, description: 'Event patterns, e.g. ["message.received"] or ["message.*"]; all events when omitted.' },
+        description: { type: "string" },
+      },
+      ["url"]
+    ),
+    run: (c, a) => createWebhook(c.user.userId, a),
+  },
+  {
+    name: "update_webhook",
+    description: "Change a webhook endpoint: url, events, description, or enabled (true turns a switched-off endpoint back on).",
+    inputSchema: obj(
+      {
+        id: { type: "string" },
+        url: { type: "string" },
+        events: { type: "array", items: { type: "string" } },
+        description: { type: "string" },
+        enabled: { type: "boolean" },
+      },
+      ["id"]
+    ),
+    run: (c, a) => {
+      const { id, ...patch } = a;
+      return getHooks().updateEndpoint(c.user.userId, String(id ?? ""), patch as { url?: string; events?: string[]; description?: string; enabled?: boolean });
+    },
+  },
+  {
+    name: "delete_webhook",
+    description: "Remove a webhook endpoint and its delivery log.",
+    inputSchema: obj({ id: { type: "string" } }, ["id"]),
+    run: (c, a) => getHooks().deleteEndpoint(c.user.userId, String(a.id ?? "")),
+  },
+  {
+    name: "test_webhook",
+    description: "Send a webhook.test event to one endpoint now and report the HTTP status it answered.",
+    inputSchema: obj({ id: { type: "string" } }, ["id"]),
+    run: (c, a) => getHooks().test(c.user.userId, String(a.id ?? "")),
+  },
+  {
+    name: "rotate_webhook_secret",
+    description: "Replace an endpoint's signing secret; the old one stops working at once. Returns the new secret.",
+    inputSchema: obj({ id: { type: "string" } }, ["id"]),
+    run: (c, a) => getHooks().rotateSecret(c.user.userId, String(a.id ?? "")),
+  },
+  {
+    name: "webhook_deliveries",
+    description: "Recent webhook deliveries (all endpoints, or one with id): event, status, attempts, last HTTP status and error.",
+    inputSchema: obj({ id: { type: "string", description: "Endpoint id; all endpoints when omitted." }, limit: { type: "integer", minimum: 1, maximum: 200, default: 50 } }),
+    run: async (c, a) => ({
+      deliveries: await getHooks().deliveries(c.user.userId, { endpointId: a.id ? String(a.id) : undefined, limit: Number(a.limit) || 50 }),
+    }),
+  },
 ];
 
 const ALL_TOOLS: Tool[] = [...TOOLS, ...LINE_TOOLS];
@@ -306,7 +373,7 @@ export async function handleRpc(ctx: Ctx, msg: RpcRequest): Promise<unknown | nu
           structuredContent: Array.isArray(result) ? { items: result } : result,
         });
       } catch (e) {
-        const known = e instanceof OrderError || e instanceof LineToolError || e instanceof AlertError || e instanceof SendError;
+        const known = e instanceof OrderError || e instanceof LineToolError || e instanceof AlertError || e instanceof SendError || e instanceof WebhookError;
         const message = known ? (e as Error).message : "Tool failed";
         if (!known) console.error("mcp tool error:", { tool: name.replace(/[^\w-]/g, "").slice(0, 64) }, e);
         return ok(msg.id, { content: [{ type: "text", text: message }], isError: true });

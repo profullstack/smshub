@@ -5,7 +5,7 @@
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { InboundMessage } from "@/lib/providers/types";
-import { fireWebhooks, type UserWebhook } from "@/lib/webhooks/outbound";
+import { emitEvent } from "@/lib/webhooks/hub";
 import { extractOtp } from "@/lib/managed-numbers/api";
 import { onGroupInbound } from "@/lib/groups";
 import { bookLineId, matchPrefix, type LineContact } from "@/lib/lines/contacts";
@@ -79,25 +79,23 @@ export async function recordInbound(
     .eq("id", conversation.id);
   await noteAlertOptOut(db, inbound.from, inbound.body, now);
 
-  const { data: hooks } = await db
-    .from("user_webhooks")
-    .select("*")
-    .eq("user_id", userId)
-    .eq("active", true);
-  if (hooks?.length) {
-    await fireWebhooks(hooks as UserWebhook[], "message.received", {
+  await emitEvent(
+    userId,
+    "message.received",
+    {
       message_id: message?.id ?? null,
       conversation_id: conversation.id,
       phone_number_id: phoneNumber.id,
-      to: phoneNumber.number,
+      number: phoneNumber.number,
       from: inbound.from,
       body: inbound.body,
       otp: extractOtp(inbound.body),
       media_url: inbound.mediaUrl ?? null,
       received_at: message?.created_at ?? now,
       ...(routed ? { routed_to: { name: routed.contact.name, phone: routed.contact.forward_to } } : {}),
-    });
-  }
+    },
+    message?.id ? `message:${message.id}` : undefined
+  );
   if (routed?.contact.forward_sms && routed.contact.forward_to !== inbound.from) {
     await forwardRouted(db, phoneNumber, conversation.id, routed.contact.forward_to, inbound.from, routed.text);
   }

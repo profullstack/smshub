@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { emitDeliveryStatus } from "@/lib/webhooks/events";
 
 export type DeliveryStatus = "sent" | "delivered" | "failed";
 
@@ -86,5 +87,8 @@ export async function applyTelnyxStatus(supabase: SupabaseClient, update: Telnyx
     query = query.in("status", ["queued", "sent"]);
   }
 
-  return query;
+  const result = await query;
+  // The owner's webhooks hear about final outcomes (message.delivered / message.failed).
+  if (!result.error) await emitDeliveryStatus(supabase, "telnyx", update.messageId, update.status);
+  return result;
 }

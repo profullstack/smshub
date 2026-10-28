@@ -1,3 +1,4 @@
+import { emitOutbound } from "@/lib/webhooks/events";
 import { NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { sendSMS } from "@/lib/providers";
@@ -135,16 +136,21 @@ export async function POST(request: Request) {
 
     if (!retryResult.success) {
       // Save as failed with retry count
-      await supabase.from("messages").insert({
-        conversation_id: conversation!.id,
-        direction: "outbound",
-        body: message,
-        status: "failed",
-        provider: providerData.type,
-        retry_count: retryResult.attempts,
-        media_url: mediaUrl || null,
-        error_detail: retryResult.error || null,
-      });
+      const { data: failedRow } = await supabase
+        .from("messages")
+        .insert({
+          conversation_id: conversation!.id,
+          direction: "outbound",
+          body: message,
+          status: "failed",
+          provider: providerData.type,
+          retry_count: retryResult.attempts,
+          media_url: mediaUrl || null,
+          error_detail: retryResult.error || null,
+        })
+        .select("id, conversation_id, body, status, provider_message_id, error_detail, created_at")
+        .single();
+      await emitOutbound(user.id, failedRow, { number: phoneNumber.number, phone_number_id: phoneNumber.id, to, error: retryResult.error || "Send failed" });
 
       return NextResponse.json(
         { error: retryResult.error || "Send failed", retryAttempts: retryResult.attempts },
@@ -169,6 +175,7 @@ export async function POST(request: Request) {
       .single();
 
     if (msgError) throw msgError;
+    await emitOutbound(user.id, savedMessage, { number: phoneNumber.number, phone_number_id: phoneNumber.id, to });
 
     // Update conversation timestamp
     await supabase

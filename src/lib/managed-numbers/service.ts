@@ -41,6 +41,7 @@ import { getPlanUsage, orderAmountUsd } from "@/lib/plans";
 import { MANAGED_API_KEY } from "@/lib/providers";
 import type { Credits } from "@profullstack/redeem-credits";
 import { centsToUsd, CREDIT_UNIT, getCredits } from "@/lib/rewards";
+import { emitEvent } from "@/lib/webhooks/hub";
 
 /**
  * Store credit (from a redeemed code or an accepted invite) pays for an order
@@ -428,14 +429,21 @@ export async function provision(
         .maybeSingle();
       if (!pn || pn.status !== "active") return await fail("the number was already released");
       const base = pn.expires_at && new Date(pn.expires_at) > now ? new Date(pn.expires_at) : now;
+      const expiresAt = addMonths(base, order.months).toISOString();
       await db
         .from("phone_numbers")
-        .update({ expires_at: addMonths(base, order.months).toISOString() })
+        .update({ expires_at: expiresAt })
         .eq("id", pn.id);
       await db
         .from("number_orders")
         .update({ status: "active", number: pn.number, error: null, updated_at: now.toISOString() })
         .eq("id", order.id);
+      await emitEvent(
+        order.user_id,
+        "number.renewed",
+        { phone_number_id: pn.id, number: pn.number, order_id: order.id, months: order.months, expires_at: expiresAt },
+        `number:${pn.id}`
+      );
       return { status: "active", number: pn.number };
     }
 
@@ -490,6 +498,7 @@ export async function provision(
     }
 
     const providerId = await managedProviderId(db, order.user_id);
+    const expiresAt = addMonths(now, order.months).toISOString();
     const { data: pn, error } = await db
       .from("phone_numbers")
       .insert({
@@ -499,7 +508,7 @@ export async function provision(
         friendly_name: `Rented ${number}`,
         managed: true,
         status: "active",
-        expires_at: addMonths(now, order.months).toISOString(),
+        expires_at: expiresAt,
         telnyx_number_id: mode === "live" ? numberId : null,
       })
       .select("id")
@@ -510,6 +519,12 @@ export async function provision(
       .from("number_orders")
       .update({ status: "active", phone_number_id: pn.id, number, error: null, updated_at: now.toISOString() })
       .eq("id", order.id);
+    await emitEvent(
+      order.user_id,
+      "number.provisioned",
+      { phone_number_id: pn.id, number, order_id: order.id, months: order.months, expires_at: expiresAt },
+      `number:${pn.id}`
+    );
     return { status: "active", number };
   } catch (e) {
     return await fail(e instanceof Error ? e.message : String(e));
@@ -550,10 +565,12 @@ export async function sweep(deps: Deps): Promise<SweepReport> {
     .select("id");
   report.expiredCheckouts = expired?.length ?? 0;
 
+  await notifyExpiring(db, now, report);
+
   const releaseBefore = new Date(now.getTime() - GRACE_DAYS * 86400_000).toISOString();
   const { data: due } = await db
     .from("phone_numbers")
-    .select("id, number, telnyx_number_id")
+    .select("id, user_id, number, telnyx_number_id, expires_at")
     .eq("managed", true)
     .eq("status", "active")
     .lt("expires_at", releaseBefore)
@@ -570,11 +587,57 @@ export async function sweep(deps: Deps): Promise<SweepReport> {
         .update({ status: "released", released_at: now.toISOString() })
         .eq("id", n.id);
       report.released++;
+      await emitEvent(
+        n.user_id,
+        "number.released",
+        { phone_number_id: n.id, number: n.number, expired_at: n.expires_at ?? null, released_at: now.toISOString() },
+        `number:${n.id}`
+      );
     } catch (e) {
       report.errors.push(`release ${n.number}: ${e instanceof Error ? e.message : String(e)}`);
     }
   }
   return report;
+}
+
+/** Rented numbers whose paid time ends within this many days get one number.expiring event. */
+export const EXPIRING_NOTICE_DAYS = 3;
+
+/**
+ * number.expiring, once per paid-until date: expiry_notified_for remembers the
+ * expires_at that was reported, so a renewal (a new expires_at) is reported again
+ * next time round, and the 5-minute sweep never repeats itself.
+ */
+async function notifyExpiring(db: SupabaseClient, now: Date, report: SweepReport) {
+  try {
+    const { data, error } = await db
+      .from("phone_numbers")
+      .select("id, user_id, number, expires_at, expiry_notified_for")
+      .eq("managed", true)
+      .eq("status", "active")
+      .gt("expires_at", now.toISOString())
+      .lt("expires_at", new Date(now.getTime() + EXPIRING_NOTICE_DAYS * 86400_000).toISOString())
+      .limit(100);
+    if (error) throw error;
+    for (const n of (data ?? []) as { id: string; user_id: string; number: string; expires_at: string; expiry_notified_for: string | null }[]) {
+      if (n.expiry_notified_for && new Date(n.expiry_notified_for).getTime() === new Date(n.expires_at).getTime()) continue;
+      await db.from("phone_numbers").update({ expiry_notified_for: n.expires_at }).eq("id", n.id);
+      await emitEvent(
+        n.user_id,
+        "number.expiring",
+        {
+          phone_number_id: n.id,
+          number: n.number,
+          expires_at: n.expires_at,
+          released_after: new Date(new Date(n.expires_at).getTime() + GRACE_DAYS * 86400_000).toISOString(),
+        },
+        `number:${n.id}`,
+        `evt_expiring_${n.id}_${new Date(n.expires_at).getTime()}`
+      );
+    }
+  } catch (e) {
+    report.errors.push(`expiring notices: ${e instanceof Error ? e.message : String(e)}`);
+  }
 }
 
 /**

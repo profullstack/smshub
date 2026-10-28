@@ -11,6 +11,7 @@
  */
 
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { emitEvent } from "@/lib/webhooks/hub";
 import { toE164 } from "@/lib/providers";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { isUuid } from "@/lib/conversations";
@@ -312,8 +313,25 @@ export async function sendToGroup(db: SupabaseClient, userId: string, ref: strin
     const r = await sendFromNumber(db, userId, number, m.phone, message, mediaUrl);
     results.push(r.ok ? { to: r.to, ok: true } : { to: r.to, ok: false, error: r.error });
   }
-  await db.from("contact_groups").update({ last_sent_at: new Date().toISOString() }).eq("id", row.id);
+  const sentAt = new Date().toISOString();
+  await db.from("contact_groups").update({ last_sent_at: sentAt }).eq("id", row.id);
   const failed = results.filter((r) => !r.ok);
+  await emitEvent(
+    userId,
+    "group.sent",
+    {
+      group_id: row.id,
+      name: row.name ?? null,
+      external_ref: row.external_ref ?? null,
+      number: number.number,
+      body: message,
+      sent: results.length - failed.length,
+      failed: failed.length,
+      skipped,
+      sent_at: sentAt,
+    },
+    `group:${row.id}`
+  );
   return {
     group_id: row.id,
     from: number.number,

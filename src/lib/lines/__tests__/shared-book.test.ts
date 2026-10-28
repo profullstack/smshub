@@ -6,7 +6,7 @@ import { handleCallEvent, type CallState } from "@/lib/voice/ivr";
 import { decodeState } from "@/lib/voice/telnyx-voice";
 import { recordInbound } from "@/lib/inbound";
 
-vi.mock("@/lib/webhooks/outbound", () => ({ fireWebhooks: vi.fn() }));
+vi.mock("@/lib/webhooks/hub", () => ({ emitEvent: vi.fn() }));
 
 const LOCAL = "11111111-1111-4111-8111-111111111111";
 const TOLLFREE = "22222222-2222-4222-8222-222222222222";

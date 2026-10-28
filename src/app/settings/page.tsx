@@ -353,6 +353,9 @@ export default function SettingsPage() {
               <Link href="/settings/alerts" className="text-sm text-blue-400 hover:text-blue-300">
                 Alerts to your phone (text or call) →
               </Link>
+              <Link href="/settings/webhooks" className="text-sm text-blue-400 hover:text-blue-300">
+                Webhooks (texts and events to your server) →
+              </Link>
             </div>
           </div>
 
