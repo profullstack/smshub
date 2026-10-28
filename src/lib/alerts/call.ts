@@ -14,9 +14,29 @@ import { callLength, type CallEvent, type CallState } from "@/lib/voice/ivr";
 
 const VOICE = { voice: "female", language: "en-US" };
 
+const UNITS: Record<string, string> = {
+  ms: "millisecond", s: "second", sec: "second", secs: "second",
+  m: "minute", min: "minute", mins: "minute", h: "hour", hr: "hour", hrs: "hour", d: "day", w: "week",
+};
+
+/**
+ * Duration shorthand read as words: text-to-speech says "1m" as "1 meter".
+ * "1m" -> "1 minute", "5m" -> "5 minutes", "2h30m" -> "2 hours 30 minutes".
+ * Money ("$1m") is left alone.
+ */
+export function spokenDurations(text: string): string {
+  return text.replace(/(^|[^$\w.])((?:\d+(?:\.\d+)?(?:ms|secs?|mins?|hrs?|[smhdw])){1,3})(?![\w])/g, (_all, lead: string, run: string) => {
+    const parts = [...run.matchAll(/(\d+(?:\.\d+)?)(ms|secs?|mins?|hrs?|[smhdw])/g)].map(([, n, u]) => {
+      const word = UNITS[u]!;
+      return `${n} ${Number(n) === 1 ? word : `${word}s`}`;
+    });
+    return lead + parts.join(" ");
+  });
+}
+
 /** What the call says: the alert, then once more, then goodbye. */
 export function alertSpeech(message: string): string {
-  const text = message.replace(/[^\p{L}\p{N}\s'.,:;!?%$@#&()+=\/-]/gu, " ").replace(/\s+/g, " ").trim();
+  const text = spokenDurations(message).replace(/[^\p{L}\p{N}\s'.,:;!?%$@#&()+=\/-]/gu, " ").replace(/\s+/g, " ").trim();
   const said = /[.!?]$/.test(text) ? text : `${text}.`;
   return `This is an alert from SMS Hub. ${said} Again: ${said} Goodbye.`;
 }
