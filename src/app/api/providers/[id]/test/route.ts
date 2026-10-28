@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createServerSupabaseClient, createServiceClient } from "@/lib/supabase/server";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { testProvider } from "@/lib/providers/provider-check";
+import { VaultLockedError } from "@/lib/vault/provider-credentials";
 import { loadOwnedProvider, savePublicKey } from "@/lib/providers/owned-provider";
 
 // A test can send a real SMS, so keep it to a few a minute per user.
@@ -40,6 +41,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
     return NextResponse.json({ ok: result.ok, checks: result.checks });
   } catch (error) {
+    if (error instanceof VaultLockedError) {
+      return NextResponse.json({ error: error.message, code: error.code }, { status: error.status });
+    }
     console.error("Test provider error:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }

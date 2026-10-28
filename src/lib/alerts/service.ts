@@ -16,7 +16,8 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { sendSMS, toE164 } from "@/lib/providers";
 import { telnyxRequest, type TelnyxResult } from "@/lib/providers/telnyx-api";
-import { lineApiKey } from "@/lib/lines/credentials";
+import { lineApiKey, lineLocked } from "@/lib/lines/credentials";
+import { LOCKED_MESSAGE, PROVIDER_COLS, type ProviderRowLike } from "@/lib/vault/provider-credentials";
 import { findOrCreateThread } from "@/lib/inbound";
 import { encodeState, voiceWebhookUrl } from "@/lib/voice/telnyx-voice";
 import { CONSENT_TEXT } from "./consent";
@@ -180,10 +181,10 @@ interface Line {
   apiKey: string;
 }
 
-async function telnyxLines(db: SupabaseClient, userId: string): Promise<Line[]> {
+async function telnyxLines(db: SupabaseClient, userId: string, seen: { locked: number } = { locked: 0 }): Promise<Line[]> {
   const { data } = await db
     .from("phone_numbers")
-    .select("id, number, managed, created_at, providers(type, api_key, metadata)")
+    .select(`id, number, managed, created_at, providers(${PROVIDER_COLS})`)
     .eq("user_id", userId)
     .eq("status", "active")
     .order("created_at", { ascending: true });
@@ -191,8 +192,9 @@ async function telnyxLines(db: SupabaseClient, userId: string): Promise<Line[]> 
   for (const row of (data ?? []) as Array<Record<string, unknown>>) {
     // Rented numbers run on smshub's own Telnyx account: never billed for an alert.
     if (row.managed) continue;
-    const provider = row.providers as { type?: string; api_key?: string | null; metadata?: unknown } | null;
+    const provider = row.providers as ProviderRowLike | null;
     const apiKey = lineApiKey(provider, false);
+    if (!apiKey && lineLocked(provider, false)) seen.locked += 1;
     if (apiKey) out.push({ id: String(row.id), number: String(row.number), apiKey });
   }
   return out;
@@ -315,7 +317,9 @@ export async function callAfterFailedAlertText(
   const calls = ((lastHour ?? []) as Array<{ channels: string[] | null }>).filter((a) => (a.channels ?? []).includes("call")).length;
   if (calls >= MAX_CALLS_PER_HOUR) return false;
 
-  const lines = await telnyxLines(db, alert.user_id);
+  const seen = { locked: 0 };
+  const lines = await telnyxLines(db, alert.user_id, seen);
+  if (!lines.length && seen.locked) console.warn(`smshub alerts: alert ${alert.id} not called, owner's key vault is locked`);
   const call = await placeAlertCall(db, telnyx, alert.user_id, alert.id, alert.to_phone, alert.message, lines, new Date(nowMs).toISOString());
   const channels = call.ok ? ["call"] : [];
   await db
@@ -393,7 +397,9 @@ export async function sendAlert(
   if (hour.length >= MAX_PER_HOUR) throw new AlertError(429, `At most ${MAX_PER_HOUR} alerts an hour`);
   const callsLeft = MAX_CALLS_PER_HOUR - hour.filter((a) => (a.channels ?? []).includes("call")).length;
 
-  const lines = await telnyxLines(db, userId);
+  const seen = { locked: 0 };
+  const lines = await telnyxLines(db, userId, seen);
+  if (!lines.length && seen.locked) throw new AlertError(423, LOCKED_MESSAGE);
   if (!lines.length) throw new AlertError(409, "Alerts need a Telnyx number of your own on this account (Settings > Providers)");
   let smsLine: Line | null = null;
   for (const line of lines) {

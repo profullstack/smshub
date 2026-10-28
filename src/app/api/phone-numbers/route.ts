@@ -1,3 +1,4 @@
+import { LOCKED_MESSAGE, PROVIDER_COLS, tryOpenProvider } from "@/lib/vault/provider-credentials";
 import { NextResponse } from "next/server";
 import { createServerSupabaseClient, createServiceClient } from "@/lib/supabase/server";
 import { isManagedProvider } from "@/lib/managed-numbers/service";
@@ -59,13 +60,18 @@ export async function POST(request: Request) {
     const serviceClient = createServiceClient();
     const { data: provider } = await serviceClient
       .from("providers")
-      .select("id, type, api_key, metadata")
+      .select(PROVIDER_COLS)
       .eq("id", provider_id)
       .eq("user_id", user.id)
       .single();
 
     if (!provider || isManagedProvider(provider)) {
       return NextResponse.json({ error: "Provider not found" }, { status: 404 });
+    }
+    // Telnyx numbers get their webhook pointed here with the provider's key, sealed under the vault.
+    const opened = provider.type === "telnyx" ? tryOpenProvider(provider) : provider;
+    if (!opened) {
+      return NextResponse.json({ error: LOCKED_MESSAGE, code: "vault_locked" }, { status: 423 });
     }
 
     const plan = await getPlanUsage(serviceClient, user.id);
@@ -101,7 +107,7 @@ export async function POST(request: Request) {
     // Telnyx: make sure this number's messaging profile sends webhooks here.
     // A profile already pointing elsewhere is reported, not overwritten.
     if (provider.type === "telnyx") {
-      const webhook = await configureTelnyxWebhooks(provider.api_key, telnyxWebhookUrl(), { onlyNumbers: [number] });
+      const webhook = await configureTelnyxWebhooks(opened.api_key!, telnyxWebhookUrl(), { onlyNumbers: [number] });
       return NextResponse.json({ phone_number: data, webhook }, { status: 201 });
     }
 

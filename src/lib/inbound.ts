@@ -3,6 +3,7 @@
  * owner's webhooks. Shared by the Telnyx and Twilio inbound routes.
  */
 
+import { openProvider, PROVIDER_COLS, VaultLockedError } from "@/lib/vault/provider-credentials";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { InboundMessage } from "@/lib/providers/types";
 import { emitEvent } from "@/lib/webhooks/hub";
@@ -174,17 +175,35 @@ async function forwardRouted(
   try {
     const { data: provider } = await db
       .from("providers")
-      .select("type, api_key, api_secret")
+      .select(PROVIDER_COLS)
       .eq("id", line.provider_id)
       .maybeSingle();
     if (!provider) return;
+    // Sealed keys open only while the owner's vault is unlocked; when locked the
+    // routed text is logged as failed with the reason, the inbound copy is kept.
+    let creds: { apiKey: string; apiSecret: string | null };
+    try {
+      const opened = openProvider(provider);
+      creds = { apiKey: opened.api_key, apiSecret: opened.api_secret };
+    } catch (e) {
+      if (!(e instanceof VaultLockedError)) throw e;
+      await db.from("messages").insert({
+        conversation_id: conversationId,
+        direction: "outbound",
+        body,
+        status: "failed",
+        provider: provider.type,
+        error_detail: e.message.slice(0, 500),
+      });
+      return;
+    }
     // Rented numbers carry the managed placeholder key, which sendSMS refuses.
     const result = await sendSMS({
       to,
       from: line.number,
       body,
       provider: provider.type,
-      credentials: { apiKey: provider.api_key, apiSecret: provider.api_secret },
+      credentials: creds,
     });
     await db.from("messages").insert({
       conversation_id: conversationId,

@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { sendSMS } from "@/lib/providers";
+import { openProvider, VaultLockedError, type ProviderRowLike } from "@/lib/vault/provider-credentials";
 
 export async function POST(
   _request: NextRequest,
@@ -44,17 +45,24 @@ export async function POST(
       );
     }
 
+    const phoneNumber = campaign.phone_numbers as {
+      number: string;
+      providers: ProviderRowLike & { type: string; api_key: string; api_secret: string | null };
+    };
+    // Sealed keys open only while the vault is unlocked: a locked campaign stays a draft.
+    let provider = phoneNumber?.providers;
+    try {
+      if (provider) provider = openProvider(provider);
+    } catch (e) {
+      if (e instanceof VaultLockedError) return NextResponse.json({ error: e.message, code: e.code, status: "locked" }, { status: e.status });
+      throw e;
+    }
+
     // Update status to sending
     await supabase
       .from("campaigns")
       .update({ status: "sending" })
       .eq("id", id);
-
-    const phoneNumber = campaign.phone_numbers as {
-      number: string;
-      providers: { type: string; api_key: string; api_secret: string | null };
-    };
-    const provider = phoneNumber?.providers;
 
     if (!provider) {
       await supabase

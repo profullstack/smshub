@@ -4,9 +4,22 @@ import { isManagedProvider } from "@/lib/managed-numbers/service";
 import { MANAGED_API_KEY } from "@/lib/providers";
 import { configureTelnyxWebhooks, fetchTelnyxPublicKey, type ConfigureWebhooksResult } from "@/lib/providers/telnyx-api";
 import { telnyxWebhookUrl } from "@/lib/providers/provider-check";
+import { isSealedProvider, LOCKED_MESSAGE, maskSecret, sealedProviderColumns } from "@/lib/vault/provider-credentials";
+import { getSessionKey } from "@/lib/vault/unlock-store";
+import { loadSeal } from "@/lib/vault/service";
 
-function maskSecret(s: string): string {
-  return s.length > 12 ? `${s.slice(0, 8)}…${s.slice(-4)}` : `${s.slice(0, 4)}…`;
+/** What the browser may see of a provider row: masks only, never a key or a sealed blob. */
+function publicProvider(p: Record<string, unknown>) {
+  const { sealed_credentials: _sealed, ...rest } = p;
+  void _sealed;
+  const sealed = isSealedProvider(p);
+  return {
+    ...rest,
+    api_key: sealed ? String(p.api_key_hint ?? "sealed") : maskSecret(String(p.api_key ?? "")),
+    api_secret: p.api_secret || (sealed && p.sealed_credentials) ? "set" : null,
+    sealed,
+    needs_reentry: sealed && !p.sealed_credentials,
+  };
 }
 
 export async function GET() {
@@ -30,7 +43,7 @@ export async function GET() {
     // The row that holds rented numbers is internal; secrets never go back to the browser.
     const providers = (data ?? [])
       .filter((p) => !isManagedProvider(p))
-      .map((p) => ({ ...p, api_key: maskSecret(p.api_key), api_secret: p.api_secret ? "set" : null }));
+      .map((p) => publicProvider(p));
 
     return NextResponse.json({ providers });
   } catch (error) {
@@ -61,6 +74,19 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Invalid api_key" }, { status: 400 });
     }
 
+    // New keys are stored sealed under the user's vault, never in plaintext,
+    // so adding one needs an unlocked vault.
+    const serviceClient = createServiceClient();
+    if (!(await loadSeal(serviceClient, user.id))) {
+      return NextResponse.json(
+        { error: "Create your key vault first (Settings > Key vault): provider keys are stored sealed under your passphrase.", code: "no_vault" },
+        { status: 423 }
+      );
+    }
+    if (!getSessionKey(user.id)) {
+      return NextResponse.json({ error: LOCKED_MESSAGE, code: "vault_locked" }, { status: 423 });
+    }
+
     // Telnyx: check the key, fetch the account's webhook signing key (kept as
     // api_secret) and point its messaging profiles at smshub, so nobody has
     // to copy a public key or a webhook URL by hand.
@@ -84,25 +110,28 @@ export async function POST(request: Request) {
       };
     }
 
-    const serviceClient = createServiceClient();
+    const dek = getSessionKey(user.id);
+    if (!dek) return NextResponse.json({ error: LOCKED_MESSAGE, code: "vault_locked" }, { status: 423 });
+    const id = crypto.randomUUID();
+    const plainKey = String(api_key).trim();
     const { data, error } = await serviceClient
       .from("providers")
       .insert({
+        id,
         user_id: user.id,
         type,
-        api_key: String(api_key).trim(),
-        api_secret: secret,
+        ...sealedProviderColumns(dek, user.id, id, type, { api_key: plainKey, api_secret: secret }),
       })
       .select()
       .single();
 
     if (error) throw error;
 
-    if (setup) setup.webhooks = await configureTelnyxWebhooks(data.api_key, telnyxWebhookUrl());
+    if (setup) setup.webhooks = await configureTelnyxWebhooks(plainKey, telnyxWebhookUrl());
 
     return NextResponse.json(
       {
-        provider: { ...data, api_key: maskSecret(data.api_key), api_secret: data.api_secret ? "set" : null },
+        provider: publicProvider(data),
         ...(setup ? { setup } : {}),
       },
       { status: 201 }

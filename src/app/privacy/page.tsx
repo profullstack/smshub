@@ -15,7 +15,7 @@ export default async function PrivacyPage() {
   return (
     <div className="max-w-3xl mx-auto px-4 py-16 space-y-8">
       <h1 className="text-4xl font-bold">Privacy Policy</h1>
-      <p className="text-gray-400">Last updated: March 19, 2026</p>
+      <p className="text-gray-400">Last updated: October 28, 2026</p>
 
       <Section title="1. Information We Collect">
         <p>When you use {name}, we collect the following information:</p>
@@ -23,7 +23,7 @@ export default async function PrivacyPage() {
           <li><strong>Account data:</strong> Email address and password when you register</li>
           <li><strong>SMS data:</strong> Messages sent and received through your connected providers (Twilio, Telnyx, phonenumbers.bot)</li>
           <li><strong>Contact data:</strong> Phone numbers and names you add or that are auto-created from inbound messages</li>
-          <li><strong>Provider credentials:</strong> API keys you provide to connect SMS providers (stored encrypted)</li>
+          <li><strong>Provider credentials:</strong> API keys you provide to connect SMS providers (sealed under your key-vault passphrase; see section 3)</li>
           <li><strong>Usage data:</strong> Analytics on how you use the platform (message counts, feature usage)</li>
           <li><strong>Device data:</strong> Browser type, OS, and device info for mobile/desktop apps</li>
         </ul>
@@ -42,9 +42,21 @@ export default async function PrivacyPage() {
 
       <Section title="3. Data Storage & Security">
         <p>
-          Your data is stored in Supabase (hosted on AWS) with row-level security policies.
-          All data is encrypted in transit (TLS) and at rest. Provider API keys are stored
-          encrypted and never exposed to client-side code.
+          Your data is stored in a Supabase (Postgres) database we run on our own servers, with
+          row-level security policies. Connections to smshub use TLS. Messages, contacts and the
+          rest of your account data are not end-to-end encrypted: smshub can read them in order to
+          deliver your texts.
+        </p>
+        <p>
+          Provider API keys (Twilio, Telnyx, phonenumbers.bot) are sealed with AES-256-GCM under a
+          key derived in your browser from your key-vault passphrase. We store only the sealed copy;
+          nothing on our servers can open it. To send while you are away (campaigns, the API, the
+          CLI), you unlock a session: your browser sends the derived key, which we keep in server
+          memory only, until the time you chose (at most 7 days), until you press Lock, or until the
+          server restarts. While locked, sends fail with a &ldquo;locked&rdquo; error. If you lose
+          both your passphrase and your recovery key, the sealed keys cannot be recovered and you
+          re-enter them. Keys saved before October 28, 2026 were stored unencrypted; they are sealed
+          the next time you unlock your vault in Settings.
         </p>
         <p>
           We do not sell, rent, or share your personal data or message content with third parties,

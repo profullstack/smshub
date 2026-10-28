@@ -94,8 +94,10 @@ export async function GET(request: NextRequest) {
       coinpay_user_id: userInfo.sub || null,
       email: userInfo.email || null,
       name: userInfo.name || null,
-      access_token: token.access_token,
-      refresh_token: token.refresh_token || null,
+      // smshub only needs who connected. The OAuth tokens are used once, above,
+      // and never stored: a stored refresh token is a standing credential.
+      access_token: null,
+      refresh_token: null,
       expires_at: expiresAt,
       updated_at: new Date().toISOString(),
     },

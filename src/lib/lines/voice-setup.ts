@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Line } from "./contacts";
-import { lineApiKey } from "./credentials";
+import { lineApiKey, lineLocked } from "./credentials";
+import { LOCKED_MESSAGE, PROVIDER_COLS } from "@/lib/vault/provider-credentials";
 import { configureVoice, type VoiceStatus } from "@/lib/voice/telnyx-voice";
 
 export type LineVoice = VoiceStatus | { ok: false; state: "unsupported"; message: string };
@@ -14,8 +15,9 @@ export async function lineVoice(
   if (line.provider_type !== "telnyx") {
     return { ok: false, state: "unsupported", message: "The voice menu needs a Telnyx number." };
   }
-  const { data: provider } = await db.from("providers").select("type, api_key, metadata").eq("id", line.provider_id).maybeSingle();
+  const { data: provider } = await db.from("providers").select(PROVIDER_COLS).eq("id", line.provider_id).maybeSingle();
   const apiKey = lineApiKey(provider, line.managed);
+  if (!apiKey && lineLocked(provider, line.managed)) return { ok: false, state: "unsupported", message: LOCKED_MESSAGE };
   if (!apiKey) return { ok: false, state: "unsupported", message: "No Telnyx API key for this number." };
   return configureVoice(apiKey, line.number, options);
 }

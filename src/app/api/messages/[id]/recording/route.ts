@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { resolveUser } from "@/lib/request-user";
 import { createServiceClient } from "@/lib/supabase/server";
 import { isUuid } from "@/lib/lines/contacts";
-import { lineApiKey } from "@/lib/lines/credentials";
+import { lineApiKey, lineLocked } from "@/lib/lines/credentials";
+import { LOCKED_MESSAGE, PROVIDER_COLS, type ProviderRowLike } from "@/lib/vault/provider-credentials";
 import { recordingMp3Url } from "@/lib/voice/telnyx-voice";
 
 type Params = { params: Promise<{ id: string }> };
@@ -31,11 +32,14 @@ export async function GET(request: Request, { params }: Params) {
 
   const { data: line } = await db
     .from("phone_numbers")
-    .select("managed, providers(type, api_key, metadata)")
+    .select(`managed, providers(${PROVIDER_COLS})`)
     .eq("id", convo.phone_number_id)
     .maybeSingle();
-  const row = line as { managed?: boolean; providers?: { type: string; api_key: string | null; metadata: unknown } } | null;
+  const row = line as { managed?: boolean; providers?: ProviderRowLike & { type: string; api_key: string | null; metadata: unknown } } | null;
   const apiKey = lineApiKey(row?.providers ?? null, Boolean(row?.managed));
+  if (!apiKey && lineLocked(row?.providers ?? null, Boolean(row?.managed))) {
+    return NextResponse.json({ error: LOCKED_MESSAGE, code: "vault_locked" }, { status: 423 });
+  }
   const url = apiKey && session ? await recordingMp3Url(apiKey, session) : null;
   if (!url) return NextResponse.json({ error: "Telnyx no longer has this recording" }, { status: 404 });
 

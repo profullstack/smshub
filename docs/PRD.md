@@ -173,7 +173,7 @@ All calls go through:
 * id
 * user_id
 * type (twilio | telnyx)
-* api_key (encrypted)
+* api_key (sealed under the user's key-vault passphrase; see src/lib/vault)
 * metadata
 
 ### phone_numbers
@@ -350,7 +350,7 @@ GET /api/messages?conversation_id=
 
 # 13. Security
 
-* API keys encrypted at rest
+* Provider API keys sealed under a user-held passphrase (unlock-on-use, in-memory TTL)
 * Server-only provider calls
 * Rate limiting
 * Webhook signature validation (Twilio/Telnyx)

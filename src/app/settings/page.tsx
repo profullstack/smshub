@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useToast } from "@/contexts/toast-context";
 import { ProfileCard } from "@/components/profile-card";
 import { RedeemCard } from "@/components/redeem-card";
+import { KeyVaultCard } from "@/components/key-vault-card";
 import {
   ProviderTestPanel,
   SETUP_GUIDES,
@@ -20,6 +21,8 @@ interface ProviderRow {
   api_key: string;
   api_secret: string | null;
   created_at: string;
+  sealed?: boolean;
+  needs_reentry?: boolean;
 }
 
 interface PhoneNumberRow {
@@ -231,6 +234,8 @@ export default function SettingsPage() {
           </div>
         </section>
 
+        <KeyVaultCard onChange={() => loadData()} />
+
         {/* Providers */}
         <section className="space-y-4">
           <div>
@@ -281,8 +286,9 @@ export default function SettingsPage() {
                 </div>
               </div>
               <div className="text-sm text-gray-400 mt-1">
-                API Key: {p.api_key.slice(0, 8)}...
+                API Key: {p.api_key.slice(0, 8)}... {p.sealed ? <span className="text-green-500">sealed</span> : <span className="text-yellow-500">not sealed yet</span>}
               </div>
+              {p.needs_reentry && <ReenterKeys providerId={p.id} type={p.type} onDone={loadData} />}
               {testingProvider === p.id && <ProviderTestPanel providerId={p.id} type={p.type} />}
             </div>
           ))}
@@ -609,5 +615,40 @@ export default function SettingsPage() {
         </section>
       </div>
     </div>
+  );
+}
+
+/** Keys that can no longer be opened (vault reset, or the legacy cutoff): type them again, sealed under the vault. */
+function ReenterKeys({ providerId, type, onDone }: { providerId: string; type: string; onDone: () => void }) {
+  const [apiKey, setApiKey] = useState("");
+  const [apiSecret, setApiSecret] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const save = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    const r = await fetch(`/api/providers/${providerId}/credentials`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ api_key: apiKey, api_secret: apiSecret || null }),
+    }).catch(() => null);
+    if (r?.ok) {
+      setApiKey("");
+      setApiSecret("");
+      onDone();
+    } else {
+      const j = await r?.json().catch(() => null);
+      setError(j?.error || "Could not save");
+    }
+  };
+  return (
+    <form onSubmit={save} className="mt-2 space-y-2">
+      <p className="text-sm text-yellow-400">These keys can no longer be opened. Re-enter them (unlock your vault first).</p>
+      <input type="password" placeholder={type === "twilio" ? "Account SID" : "API key"} value={apiKey} onChange={(e) => setApiKey(e.target.value)} className="w-full bg-gray-800 rounded px-3 py-2 text-sm" />
+      {type !== "telnyx" && (
+        <input type="password" placeholder={type === "twilio" ? "Auth token" : "API secret"} value={apiSecret} onChange={(e) => setApiSecret(e.target.value)} className="w-full bg-gray-800 rounded px-3 py-2 text-sm" />
+      )}
+      <button className="bg-blue-600 hover:bg-blue-500 rounded px-3 py-1 text-sm">Save sealed</button>
+      {error && <p className="text-sm text-red-400">{error}</p>}
+    </form>
   );
 }
