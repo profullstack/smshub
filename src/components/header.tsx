@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Logo } from "@/components/logo";
 
-const APP_ROUTES = ["/inbox", "/settings", "/campaigns", "/contacts", "/analytics", "/org"];
+const APP_ROUTES = ["/inbox", "/settings", "/campaigns", "/contacts", "/groups", "/analytics", "/org"];
 
 const NAV_LINKS = [
   { href: "/#features", label: "Features" },

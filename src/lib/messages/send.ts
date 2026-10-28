@@ -31,14 +31,14 @@ export interface SendInput {
   media_url?: unknown;
 }
 
-interface NumberRow {
+export interface NumberRow {
   id: string;
   number: string;
   managed: boolean | null;
   providers: { type: string; api_key: string; api_secret: string | null } | null;
 }
 
-async function pickNumber(db: SupabaseClient, userId: string, ref: string | null): Promise<NumberRow> {
+export async function pickNumber(db: SupabaseClient, userId: string, ref: string | null): Promise<NumberRow> {
   let q = db
     .from("phone_numbers")
     .select("id, number, managed, providers(type, api_key, api_secret)")
@@ -75,9 +75,27 @@ export async function sendMessage(db: SupabaseClient, userId: string, input: Sen
   if (!rl.allowed) throw new SendError("Rate limit exceeded", 429, rl.retryAfterMs);
 
   const number = await pickNumber(db, userId, ref?.trim() ?? null);
+  const sent = await sendFromNumber(db, userId, number, toE164(to)!, message, mediaUrl);
+  if (!sent.ok) throw new SendError(sent.error, 502);
+  return { message: sent.message, from: number.number, to: sent.to, remaining: rl.remaining };
+}
+
+/**
+ * One text from one of the user's numbers, filed in the inbox like any other: the
+ * contact and conversation are created when new, and the message is saved sent or
+ * failed. No rate limit here; callers apply their own (one send, or one group send).
+ */
+export async function sendFromNumber(
+  db: SupabaseClient,
+  userId: string,
+  number: NumberRow,
+  toE: string,
+  message: string,
+  mediaUrl?: string
+): Promise<{ ok: true; message: unknown; to: string } | { ok: false; error: string; to: string }> {
   const provider = number.providers;
-  if (!provider) throw new SendError("This number has no provider", 400);
-  const toE = toE164(to)!;
+  if (!provider) return { ok: false, error: "This number has no provider", to: toE };
+  if (number.managed) return { ok: false, error: "Rented numbers receive only; send from your own Twilio or Telnyx number", to: toE };
 
   let { data: contact } = await db.from("contacts").select("id").eq("user_id", userId).eq("phone", toE).maybeSingle();
   if (!contact) {
@@ -122,7 +140,7 @@ export async function sendMessage(db: SupabaseClient, userId: string, input: Sen
     .select("id, conversation_id, direction, body, status, provider_message_id, created_at")
     .single();
 
-  if (!result.success) throw new SendError(result.error || "Send failed", 502);
+  if (!result.success) return { ok: false, error: result.error || "Send failed", to: toE };
   await db.from("conversations").update({ last_message_at: new Date().toISOString() }).eq("id", conversation!.id);
-  return { message: saved, from: number.number, to: toE, remaining: rl.remaining };
+  return { ok: true, message: saved, to: toE };
 }

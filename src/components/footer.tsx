@@ -2,7 +2,7 @@
 
 import { usePathname } from "next/navigation";
 
-const APP_ROUTES = ["/inbox", "/settings", "/campaigns", "/contacts", "/analytics", "/org"];
+const APP_ROUTES = ["/inbox", "/settings", "/campaigns", "/contacts", "/groups", "/analytics", "/org"];
 
 /**
  * One footer row: links, copyright and the Profullstack ring, from
