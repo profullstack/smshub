@@ -15,7 +15,7 @@ export default async function TermsPage() {
   return (
     <div className="max-w-3xl mx-auto px-4 py-16 space-y-8">
       <h1 className="text-4xl font-bold">Terms of Service</h1>
-      <p className="text-gray-400">Last updated: March 19, 2026</p>
+      <p className="text-gray-400">Last updated: October 28, 2026</p>
 
       <Section title="1. Acceptance of Terms">
         <p>
@@ -93,7 +93,7 @@ export default async function TermsPage() {
           <a href="/privacy" className="text-blue-400 hover:text-blue-300">
             Privacy Policy
           </a>
-          . We take data security seriously and store all data with encryption at rest and in transit.
+          , which explains what we encrypt and what we do not. Connections use TLS, and the provider keys you add are sealed under your own key-vault passphrase.
         </p>
       </Section>
 

@@ -55,6 +55,20 @@ Installed, the command is `smshub-cli` (`npm i -g @profullstack/smshub` works to
 `<number>` is a number id or the number itself. Every command takes `--json`.
 `SMSHUB_API_KEY` and `SMSHUB_URL` override the saved config.
 
+## Key vault
+
+Your own Twilio / Telnyx keys are sealed under a passphrase only you know. To send
+from them (CLI, API, MCP, campaigns), unlock a session first:
+
+```sh
+smshub-cli vault                 # locked / unlocked until ..., sealed key counts
+smshub-cli vault unlock --ttl 3d # asks for the passphrase; sends only the derived key (max 7d)
+smshub-cli vault lock            # sends fail with "locked: ..." until the next unlock
+```
+
+A server restart also locks. Create the vault (and get your recovery key) at
+https://smshub.dev/settings.
+
 ## MCP
 
 Remote (streamable HTTP): `https://smshub.dev/api/mcp` with header `X-API-Key: smshub_...`.

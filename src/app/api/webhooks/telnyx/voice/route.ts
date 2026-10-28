@@ -3,7 +3,8 @@ import { createServiceClient } from "@/lib/supabase/server";
 import { getProvider } from "@/lib/providers";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { telnyxProviderPublicKey } from "@/lib/providers/telnyx-webhook-auth";
-import { lineApiKey } from "@/lib/lines/credentials";
+import { lineApiKey, lineLocked } from "@/lib/lines/credentials";
+import { PROVIDER_COLS, type ProviderRowLike } from "@/lib/vault/provider-credentials";
 import { decodeState, telnyxCallCommand } from "@/lib/voice/telnyx-voice";
 import { handleCallEvent, type CallState } from "@/lib/voice/ivr";
 
@@ -16,10 +17,10 @@ type LineRow = {
   provider_id: string;
   managed: boolean | null;
   record_calls?: boolean | null;
-  providers: { type: string; api_key: string | null; metadata: unknown } | null;
+  providers: (ProviderRowLike & { type: string; api_key: string | null; metadata: unknown }) | null;
 };
 
-const LINE_COLUMNS = "id, user_id, number, provider_id, managed, record_calls, providers(type, api_key, metadata)";
+const LINE_COLUMNS = `id, user_id, number, provider_id, managed, record_calls, providers(${PROVIDER_COLS})`;
 
 /**
  * Telnyx Call Control events for numbers whose voice connection is the
@@ -73,6 +74,11 @@ export async function POST(request: Request) {
     if (!line) return NextResponse.json({ ok: true, result: "no line" });
 
     const apiKey = lineApiKey(line.providers, Boolean(line.managed));
+    if (!apiKey && lineLocked(line.providers, Boolean(line.managed))) {
+      // The owner's sealed Telnyx key is locked: smshub cannot answer, Telnyx falls back.
+      console.warn(`smshub voice: line ${line.id} skipped, owner's key vault is locked`);
+      return NextResponse.json({ ok: true, result: "locked" });
+    }
     if (!apiKey) return NextResponse.json({ ok: true, result: "no Telnyx key for this line" });
 
     const result = await handleCallEvent(

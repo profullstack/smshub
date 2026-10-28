@@ -18,14 +18,17 @@ export function looksLikeEd25519Key(value: string | null | undefined): value is 
 export async function telnyxProviderPublicKey(db: SupabaseClient, providerId: string): Promise<string | null> {
   const { data: prov } = await db
     .from("providers")
-    .select("type, api_key, api_secret")
+    .select("id, user_id, type, api_key, api_secret, metadata, seal_version, sealed_credentials")
     .eq("id", providerId)
     .maybeSingle();
   if (!prov || prov.type !== "telnyx") return null;
   if (looksLikeEd25519Key(prov.api_secret)) return prov.api_secret;
-  if (!prov.api_key) return null;
+  // Fetching needs the API key; a sealed one opens only while its owner is unlocked.
+  const { tryOpenProvider } = await import("@/lib/vault/provider-credentials");
+  const apiKey = tryOpenProvider(prov)?.api_key;
+  if (!apiKey || apiKey === "__managed__") return null;
 
-  const fetched = await fetchTelnyxPublicKey(prov.api_key);
+  const fetched = await fetchTelnyxPublicKey(apiKey);
   if (!fetched.ok) return null;
   await db.from("providers").update({ api_secret: fetched.data }).eq("id", providerId);
   return fetched.data;

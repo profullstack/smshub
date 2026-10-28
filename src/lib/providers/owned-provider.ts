@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { isManagedProvider } from "@/lib/managed-numbers/service";
+import { openProvider, PROVIDER_COLS } from "@/lib/vault/provider-credentials";
 
 export interface OwnedProvider {
   id: string;
@@ -10,7 +11,10 @@ export interface OwnedProvider {
   numbers: string[];
 }
 
-/** A provider the user owns, with the numbers saved under it; null if not theirs. */
+/**
+ * A provider the user owns, with the numbers saved under it and its keys opened;
+ * null if not theirs. Throws VaultLockedError when its keys are sealed and locked.
+ */
 export async function loadOwnedProvider(
   serviceClient: SupabaseClient,
   userId: string,
@@ -18,11 +22,12 @@ export async function loadOwnedProvider(
 ): Promise<OwnedProvider | null> {
   const { data: provider } = await serviceClient
     .from("providers")
-    .select("id, type, api_key, api_secret, metadata")
+    .select(PROVIDER_COLS)
     .eq("id", providerId)
     .eq("user_id", userId)
     .single();
   if (!provider || isManagedProvider(provider)) return null;
+  const opened = openProvider(provider);
 
   const { data: numbers } = await serviceClient
     .from("phone_numbers")
@@ -30,7 +35,7 @@ export async function loadOwnedProvider(
     .eq("provider_id", providerId)
     .eq("status", "active");
 
-  return { ...provider, numbers: (numbers ?? []).map((n: { number: string }) => n.number) } as OwnedProvider;
+  return { ...opened, numbers: (numbers ?? []).map((n: { number: string }) => n.number) } as OwnedProvider;
 }
 
 /** Telnyx: keep the account's webhook signing key, which lives in api_secret. */

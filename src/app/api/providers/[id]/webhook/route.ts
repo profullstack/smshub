@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createServerSupabaseClient, createServiceClient } from "@/lib/supabase/server";
 import { configureTelnyxWebhooks } from "@/lib/providers/telnyx-api";
 import { configureTwilioWebhooks, telnyxWebhookUrl } from "@/lib/providers/provider-check";
+import { VaultLockedError } from "@/lib/vault/provider-credentials";
 import { loadOwnedProvider } from "@/lib/providers/owned-provider";
 import { toE164 } from "@/lib/providers/phone";
 
@@ -44,6 +45,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     }
     return NextResponse.json({ error: "Nothing to configure for this provider" }, { status: 400 });
   } catch (error) {
+    if (error instanceof VaultLockedError) {
+      return NextResponse.json({ error: error.message, code: error.code }, { status: error.status });
+    }
     console.error("Configure webhook error:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }

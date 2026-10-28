@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { sendSMS } from "@/lib/providers";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { openProvider, VaultLockedError } from "@/lib/vault/provider-credentials";
 
 const SEND_RATE_LIMIT = { limit: 10, windowMs: 60 * 1000 };
 
@@ -81,17 +82,26 @@ export async function POST(request: Request) {
     }
 
     // Get provider
-    const { data: providerData, error: providerError } = await supabase
+    const { data: providerRow, error: providerError } = await supabase
       .from("providers")
       .select("*")
       .eq("id", phoneNumber.provider_id)
       .single();
 
-    if (providerError || !providerData) {
+    if (providerError || !providerRow) {
       return NextResponse.json(
         { error: "Provider not found" },
         { status: 404 }
       );
+    }
+
+    // Sealed keys open only while the vault is unlocked: refuse the whole batch up front.
+    let providerData: typeof providerRow;
+    try {
+      providerData = openProvider(providerRow);
+    } catch (e) {
+      if (e instanceof VaultLockedError) return NextResponse.json({ error: e.message, code: e.code }, { status: e.status });
+      throw e;
     }
 
     const results: BulkResult[] = [];

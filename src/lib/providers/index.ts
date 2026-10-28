@@ -30,6 +30,10 @@ export const MANAGED_API_KEY = "__managed__";
 export async function sendSMS(params: SendSMSParams): Promise<SendSMSResult> {
   // Rented numbers are receive-only: plain SMS from our unregistered (non-10DLC)
   // numbers is refused by US carriers anyway.
+  // A sealed row that was never opened (see src/lib/vault): never send the placeholder.
+  if (params.credentials.apiKey === "__sealed__") {
+    return { success: false, error: "locked: your smshub key vault is locked. Unlock it to resume sending." };
+  }
   if (params.credentials.apiKey === MANAGED_API_KEY) {
     return {
       success: false,

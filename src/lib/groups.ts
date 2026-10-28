@@ -16,6 +16,7 @@ import { toE164 } from "@/lib/providers";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { isUuid } from "@/lib/conversations";
 import { MAX_BODY, SendError, pickNumber, sendFromNumber, type NumberRow } from "@/lib/messages/send";
+import { PROVIDER_COLS } from "@/lib/vault/provider-credentials";
 
 /** Group sends a user may start in a minute (each one texts every member). */
 export const GROUP_SEND_RATE_LIMIT = { limit: 10, windowMs: 60 * 1000 };
@@ -311,6 +312,8 @@ export async function sendToGroup(db: SupabaseClient, userId: string, ref: strin
       continue;
     }
     const r = await sendFromNumber(db, userId, number, m.phone, message, mediaUrl);
+    // Locked vault: nothing can go out, so stop before recording a failure per member.
+    if (!r.ok && r.locked) throw new SendError(r.error, 423);
     results.push(r.ok ? { to: r.to, ok: true } : { to: r.to, ok: false, error: r.error });
   }
   const sentAt = new Date().toISOString();
@@ -378,7 +381,7 @@ export async function onGroupInbound(
     .filter((r) => r.contact_groups.relay && r.contact_groups.phone_number_id === line.id && !r.opted_out)
     .sort((a, b) => String(b.contact_groups.last_sent_at ?? "").localeCompare(String(a.contact_groups.last_sent_at ?? "")))[0];
   if (!relay) return { relayed: 0 };
-  const { data: num } = await db.from("phone_numbers").select("id, number, managed, providers(type, api_key, api_secret)").eq("id", line.id).single();
+  const { data: num } = await db.from("phone_numbers").select(`id, number, managed, providers(${PROVIDER_COLS})`).eq("id", line.id).single();
   if (!num) return { relayed: 0 };
   const members = await memberRows(db, relay.group_id);
   const who = contact.name || `${phone.slice(0, -4).replace(/\d/g, "•")}${phone.slice(-4)}`;
@@ -386,6 +389,10 @@ export async function onGroupInbound(
   for (const m of members) {
     if (m.opted_out || m.phone === phone) continue;
     const r = await sendFromNumber(db, line.user_id, num as unknown as NumberRow, m.phone, `${who}: ${body}`.slice(0, MAX_BODY));
+    if (!r.ok && r.locked) {
+      console.warn("group relay skipped: owner's key vault is locked");
+      break;
+    }
     if (r.ok) relayed += 1;
   }
   await db.from("contact_groups").update({ last_sent_at: new Date().toISOString() }).eq("id", relay.group_id);

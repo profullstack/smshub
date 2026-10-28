@@ -39,6 +39,9 @@
 //   smshub-cli recording <call-message-id> [--out call.mp3]   save a recorded call as MP3
 //   smshub-cli alert "<message>" [--severity info|warning|critical] [--to +1...]   text or call you (Settings > Alerts)
 //   smshub-cli alerts [--limit 20]           recent alerts and how each went out
+//   smshub-cli vault                         key vault state: locked / unlocked (until), sealed provider keys
+//   smshub-cli vault unlock [--ttl 8h]       unlock sending for 1h..7d (asks for your passphrase; only the derived key is sent)
+//   smshub-cli vault lock                    lock now: sends fail as "locked" until the next unlock
 //   smshub-cli tui                          live view of numbers and texts
 //   smshub-cli mcp                          MCP over stdio, proxied to smshub.dev
 //
@@ -49,8 +52,9 @@ import { readFileSync, writeFileSync, mkdirSync, chmodSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { createInterface } from "node:readline";
+import { webcrypto } from "node:crypto";
 
-const VERSION = "1.9.0";
+const VERSION = "1.10.0";
 const CONFIG_DIR = join(process.env.XDG_CONFIG_HOME || join(homedir(), ".config"), "smshub");
 const CONFIG_FILE = join(CONFIG_DIR, "config.json");
 
@@ -559,6 +563,34 @@ const commands = {
     });
   },
 
+  async vault(args) {
+    const sub = args._[1] || "status";
+    const show = (v) =>
+      print(args, v, () => {
+        const when = v.expires_at ? ` until ${v.expires_at.slice(0, 16).replace("T", " ")} UTC` : "";
+        console.log(`vault: ${v.state === "no_vault" ? "not set up (create it at smshub.dev/settings)" : v.state + when}`);
+        console.log(`provider keys: ${v.providers.sealed} sealed, ${v.providers.legacy_plaintext} not sealed yet, ${v.providers.needs_reentry} to re-enter`);
+      });
+    if (sub === "status") return show(await api("/api/vault"));
+    if (sub === "lock") return show(await api("/api/vault/lock", { method: "POST" }));
+    if (sub === "unlock") {
+      const v = await api("/api/vault");
+      if (!v.seal) throw new ApiError("No key vault yet: create one at https://smshub.dev/settings");
+      const ttl = parseTtl(args.ttl);
+      const passphrase = await askHidden("Vault passphrase: ");
+      const dek = await openVaultDek(v.user_id, passphrase, v.seal);
+      try {
+        await api("/api/vault/unlock", { method: "POST", body: { dek: Buffer.from(dek).toString("base64"), ttl_seconds: ttl } });
+      } finally {
+        dek.fill(0);
+      }
+      const migrated = await api("/api/vault/migrate", { method: "POST" }).catch(() => null);
+      if (migrated?.sealed && !args.json) console.log(`sealed ${migrated.sealed} provider key(s) that were stored unencrypted`);
+      return show(await api("/api/vault"));
+    }
+    throw new ApiError("Usage: smshub-cli vault [status|unlock [--ttl 8h]|lock]");
+  },
+
   // stdio MCP server: each JSON-RPC line goes to smshub.dev/api/mcp, replies come back as lines.
   async mcp() {
     const rl = createInterface({ input: process.stdin });
@@ -610,4 +642,63 @@ try {
 } catch (e) {
   console.error(e instanceof ApiError ? e.message : e);
   process.exit(1);
+}
+
+// ---- key vault (same format as src/lib/vault/client-seal.ts) ---------------
+
+function parseTtl(v) {
+  if (v === undefined || v === true) return 8 * 3600;
+  const m = /^(\d+)\s*([mhd]?)$/i.exec(String(v).trim());
+  if (!m) throw new ApiError("--ttl takes e.g. 30m, 8h, 3d (max 7d)");
+  const n = Number(m[1]) * ({ m: 60, h: 3600, d: 86400 }[m[2].toLowerCase()] ?? 3600);
+  return Math.min(n, 7 * 86400);
+}
+
+function askHidden(prompt) {
+  return new Promise((resolve, reject) => {
+    if (!process.stdin.isTTY) return reject(new ApiError("vault unlock needs a terminal to ask for the passphrase"));
+    process.stdout.write(prompt);
+    const stdin = process.stdin;
+    stdin.setRawMode(true);
+    stdin.resume();
+    let out = "";
+    const onData = (buf) => {
+      for (const ch of buf.toString("utf8")) {
+        if (ch === "\r" || ch === "\n") {
+          stdin.setRawMode(false);
+          stdin.pause();
+          stdin.off("data", onData);
+          process.stdout.write("\n");
+          return resolve(out);
+        }
+        if (ch === "\u0003") {
+          stdin.setRawMode(false);
+          process.exit(130);
+        }
+        if (ch === "\u007f" || ch === "\b") out = out.slice(0, -1);
+        else out += ch;
+      }
+    };
+    stdin.on("data", onData);
+  });
+}
+
+async function openVaultDek(userId, passphrase, seal) {
+  const subtle = webcrypto.subtle;
+  const enc = new TextEncoder();
+  const b64 = (s) => Uint8Array.from(Buffer.from(s, "base64"));
+  if (seal.kdf.alg !== "PBKDF2-SHA256" || seal.kdf.iterations < 600000) throw new ApiError("Unsupported vault KDF");
+  const salt = b64(seal.kdf.salt);
+  const pw = await subtle.importKey("raw", enc.encode(passphrase.normalize("NFKC")), "PBKDF2", false, ["deriveBits"]);
+  const bits = new Uint8Array(await subtle.deriveBits({ name: "PBKDF2", hash: "SHA-256", salt, iterations: seal.kdf.iterations }, pw, 256));
+  const base = await subtle.importKey("raw", bits, "HKDF", false, ["deriveKey"]);
+  bits.fill(0);
+  const kek = await subtle.deriveKey({ name: "HKDF", hash: "SHA-256", salt, info: enc.encode("smshub/kek/v2") }, base, { name: "AES-GCM", length: 256 }, false, ["decrypt"]);
+  const w = seal.wrapped_dek;
+  const joined = new Uint8Array([...b64(w.ciphertext), ...b64(w.tag)]);
+  try {
+    return new Uint8Array(await subtle.decrypt({ name: "AES-GCM", iv: b64(w.iv), additionalData: enc.encode(`smshub:vault:${userId}:wrapped_dek`), tagLength: 128 }, kek, joined));
+  } catch {
+    throw new ApiError("Wrong passphrase");
+  }
 }

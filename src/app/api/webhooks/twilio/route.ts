@@ -1,3 +1,4 @@
+import { PROVIDER_COLS, tryOpenProvider } from "@/lib/vault/provider-credentials";
 import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 import { getProvider } from "@/lib/providers";
@@ -44,11 +45,19 @@ export async function POST(request: Request) {
     // Our account's token first, then the bring-your-own account's own token.
     let valid = provider.validateWebhook(rawBody, headers, url);
     if (!valid && phoneNumber) {
-      const { data: owner } = await supabase
+      const { data: ownerRow } = await supabase
         .from("providers")
-        .select("api_secret")
+        .select(PROVIDER_COLS)
         .eq("id", phoneNumber.provider_id)
         .maybeSingle();
+      // A sealed auth token opens only while the owner's vault is unlocked. Locked:
+      // the signature cannot be checked, so refuse with 503 (Twilio logs it) rather
+      // than accept an unverified text.
+      const owner = tryOpenProvider(ownerRow);
+      if (ownerRow && !owner) {
+        console.warn(`smshub twilio: inbound for ${phoneNumber.id} refused, owner's key vault is locked`);
+        return NextResponse.json({ error: "locked: the number owner's key vault is locked" }, { status: 503 });
+      }
       if (owner?.api_secret) valid = provider.validateWebhook(rawBody, headers, url, owner.api_secret);
     }
     if (!valid) {

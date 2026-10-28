@@ -9,6 +9,7 @@ import { sendSMS, toE164 } from "@/lib/providers";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { isUuid } from "@/lib/conversations";
 import { emitOutbound } from "@/lib/webhooks/events";
+import { openProvider, PROVIDER_COLS, VaultLockedError, type ProviderRowLike } from "@/lib/vault/provider-credentials";
 
 export const SEND_RATE_LIMIT = { limit: 10, windowMs: 60 * 1000 };
 export const MAX_BODY = 1600;
@@ -36,13 +37,13 @@ export interface NumberRow {
   id: string;
   number: string;
   managed: boolean | null;
-  providers: { type: string; api_key: string; api_secret: string | null } | null;
+  providers: (ProviderRowLike & { type: string; api_key: string; api_secret: string | null }) | null;
 }
 
 export async function pickNumber(db: SupabaseClient, userId: string, ref: string | null): Promise<NumberRow> {
   let q = db
     .from("phone_numbers")
-    .select("id, number, managed, providers(type, api_key, api_secret)")
+    .select(`id, number, managed, providers(${PROVIDER_COLS})`)
     .eq("user_id", userId)
     .eq("status", "active");
   if (ref) q = isUuid(ref) ? q.eq("id", ref) : q.eq("number", toE164(ref) ?? ref);
@@ -77,7 +78,7 @@ export async function sendMessage(db: SupabaseClient, userId: string, input: Sen
 
   const number = await pickNumber(db, userId, ref?.trim() ?? null);
   const sent = await sendFromNumber(db, userId, number, toE164(to)!, message, mediaUrl);
-  if (!sent.ok) throw new SendError(sent.error, 502);
+  if (!sent.ok) throw new SendError(sent.error, sent.locked ? 423 : 502);
   return { message: sent.message, from: number.number, to: sent.to, remaining: rl.remaining };
 }
 
@@ -93,10 +94,17 @@ export async function sendFromNumber(
   toE: string,
   message: string,
   mediaUrl?: string
-): Promise<{ ok: true; message: unknown; to: string } | { ok: false; error: string; to: string }> {
-  const provider = number.providers;
-  if (!provider) return { ok: false, error: "This number has no provider", to: toE };
+): Promise<{ ok: true; message: unknown; to: string } | { ok: false; error: string; to: string; locked?: boolean }> {
+  if (!number.providers) return { ok: false, error: "This number has no provider", to: toE };
   if (number.managed) return { ok: false, error: "Rented numbers receive only; send from your own Twilio or Telnyx number", to: toE };
+  // Sealed keys open only while the owner has an unlocked vault session; nothing is saved when locked.
+  let provider: NonNullable<NumberRow["providers"]>;
+  try {
+    provider = openProvider(number.providers);
+  } catch (e) {
+    if (e instanceof VaultLockedError) return { ok: false, error: e.message, to: toE, locked: true };
+    throw e;
+  }
 
   let { data: contact } = await db.from("contacts").select("id").eq("user_id", userId).eq("phone", toE).maybeSingle();
   if (!contact) {
