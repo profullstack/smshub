@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useToast } from "@/contexts/toast-context";
 import { ProfileCard } from "@/components/profile-card";
 import { RedeemCard } from "@/components/redeem-card";
+import { CoinpayCard } from "@/components/coinpay-card";
 import { KeyVaultCard } from "@/components/key-vault-card";
 import {
   ProviderTestPanel,
@@ -212,6 +213,8 @@ export default function SettingsPage() {
         </div>
 
         <ProfileCard />
+
+        <CoinpayCard />
 
         <RedeemCard />
 

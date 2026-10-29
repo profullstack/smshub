@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Logo } from "@/components/logo";
 import { nextFromLocation } from "@/lib/safe-next";
+import { CoinpaySignInButton } from "@/components/coinpay-sign-in";
 import { ProfileFields } from "@profullstack/profile/react";
 import type { ProfileField } from "@profullstack/profile";
 
@@ -139,6 +140,9 @@ export default function RegisterPage() {
             {renting && " The link brings you straight back to renting your number."}
           </div>
         ) : (
+        <>
+        <CoinpaySignInButton next={next} label="Sign up with CoinPay" />
+
         <form onSubmit={handleRegister} className="space-y-4">
           {error && (
             <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-3 text-red-400 text-sm">
@@ -211,6 +215,7 @@ export default function RegisterPage() {
             {loading ? "Creating account..." : "Create account"}
           </button>
         </form>
+        </>
         )}
 
         <p className="text-center text-sm text-gray-400">
