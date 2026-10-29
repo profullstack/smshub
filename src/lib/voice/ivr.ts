@@ -15,6 +15,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { bookLineId, type LineContact } from "@/lib/lines/contacts";
 import { findOrCreateThread } from "@/lib/inbound";
+import { dropIfBlocked } from "@/lib/blocking";
 import { encodeState, type CallCommand } from "./telnyx-voice";
 import { handleAlertCall } from "@/lib/alerts/call";
 
@@ -114,6 +115,10 @@ export async function handleCallEvent(
       const { data: seen } = await db.from("messages").select("id").eq("provider_message_id", logId).limit(1);
       if (seen?.length) return "ignored: retry";
       const caller = String(p.from ?? "") || "unknown";
+      if (await dropIfBlocked(db, line.user_id, caller)) {
+        await command(callId, "hangup", {});
+        return "rejected: blocked";
+      }
       const now = new Date().toISOString();
       const thread = await findOrCreateThread(db, line.user_id, line.id, caller, now);
       const contacts = await menuContacts(db, line.id);

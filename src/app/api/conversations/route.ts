@@ -26,7 +26,7 @@ export async function GET(request: Request) {
         `
         *,
         unread_count,
-        contacts (id, phone, name),
+        contacts (id, phone, name, blocked_at, block_reason),
         phone_numbers (id, number, friendly_name),
         messages (id, body, direction, status, created_at)
       `

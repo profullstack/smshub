@@ -9,6 +9,7 @@ import { createOrder, OrderError } from "@/lib/managed-numbers/service";
 import { conversationMessages, isUuid, listConversations } from "@/lib/conversations";
 import { addMembers, getGroup, listGroups, saveGroup, sendToGroup } from "@/lib/groups";
 import { SendError, sendMessage } from "@/lib/messages/send";
+import { isBlockReason, listBlocked, setBlocked } from "@/lib/blocking";
 import type { RequestUser } from "@/lib/request-user";
 import { LINE_TOOLS, LineToolError } from "./line-tools";
 import { AlertError, listAlerts, sendAlert } from "@/lib/alerts/service";
@@ -94,6 +95,37 @@ const TOOLS: Tool[] = [
       ["to", "message"]
     ),
     run: (c, a) => sendMessage(c.db, c.user.userId, a),
+  },
+  {
+    name: "list_blocked",
+    description: "Numbers you blocked as spam, scam or other, with how many texts and calls from each were dropped since.",
+    inputSchema: obj({}),
+    run: async (c) => ({ blocked: await listBlocked(c.db, c.user.userId) }),
+  },
+  {
+    name: "block_number",
+    description:
+      "Block a sender on every one of your lines: its texts are dropped unstored, its calls hung up, its threads archived. Flag it spam, scam or other.",
+    inputSchema: obj(
+      {
+        phone: { type: "string", description: "The sender, E.164, e.g. +14155551234." },
+        reason: { type: "string", enum: ["spam", "scam", "other"], default: "spam" },
+      },
+      ["phone"]
+    ),
+    run: async (c, a) => {
+      const r = await setBlocked(c.db, c.user.userId, { phone: String(a.phone) }, isBlockReason(a.reason) ? a.reason : "spam");
+      return "error" in r ? { error: r.error } : r;
+    },
+  },
+  {
+    name: "unblock_number",
+    description: "Stop blocking a number blocked with block_number.",
+    inputSchema: obj({ phone: { type: "string", description: "E.164." } }, ["phone"]),
+    run: async (c, a) => {
+      const r = await setBlocked(c.db, c.user.userId, { phone: String(a.phone) }, null);
+      return "error" in r ? { error: r.error } : r;
+    },
   },
   {
     name: "list_groups",

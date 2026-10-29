@@ -37,6 +37,9 @@ Installed, the command is `smshub-cli` (`npm i -g @profullstack/smshub` works to
 | `send <to> "<message>" [--from <number>] [--media <url>]` | text someone from your own Twilio/Telnyx number (rented numbers receive only) |
 | `conversations [--line <number>] [--limit 20]` | the inbox, newest first; `--line` takes a number, id or line name ("Mom") |
 | `thread <conversation-id> [--limit 50]` | messages in one conversation, oldest first |
+| `block <number> [--reason spam\|scam\|other]` | drop that sender's texts and calls on every line and archive its threads |
+| `unblock <number>` | stop blocking it |
+| `blocked` | numbers you blocked, with how many texts and calls were dropped |
 | `lines` | your numbers and who shares each one (name, cell, keypad digit, text prefix) |
 | `contacts <number> add --name Kim --cell +14155550123 [--digit 1] [--prefix K] [--forward-sms]` | add someone to a number; a digit also turns on the voice menu |
 | `contacts <number> edit <id> [--digit none] [--prefix none] ...` / `rm <id>` | change or remove them |

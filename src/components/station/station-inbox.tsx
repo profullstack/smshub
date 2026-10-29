@@ -393,6 +393,31 @@ export function StationInbox({
                   <path strokeLinecap="round" strokeLinejoin="round" d="M5 9v9a2 2 0 002 2h10a2 2 0 002-2V9M10 13h4" />
                 </svg>
               </button>
+              {selectedConvo.contacts?.blocked_at ? (
+                <button
+                  type="button"
+                  onClick={() => inbox.handleBlock(null)}
+                  className="rounded-full px-3 py-2 font-mono text-[11px] text-orange-300 hover:bg-gray-900"
+                  title="Blocked; click to unblock"
+                >
+                  BLOCKED · UNBLOCK
+                </button>
+              ) : (
+                <select
+                  value=""
+                  onChange={(e) => inbox.handleBlock(e.target.value as "spam" | "scam" | "other")}
+                  className="rounded-full bg-transparent px-2 py-2 font-mono text-[11px] text-orange-300 hover:bg-gray-900"
+                  title="Flag this number and drop its texts and calls on every line"
+                  aria-label="Block this number"
+                >
+                  <option value="" disabled>
+                    BLOCK…
+                  </option>
+                  <option value="spam">Spam</option>
+                  <option value="scam">Scam</option>
+                  <option value="other">Other</option>
+                </select>
+              )}
               <button
                 type="button"
                 onClick={inbox.handleDelete}
