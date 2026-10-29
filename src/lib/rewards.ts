@@ -19,6 +19,7 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { Credits, supabaseStore as creditStore, type RedeemResult } from "@profullstack/redeem-credits";
 import { Affiliates, supabaseStore as affStore, refFromRequest } from "@profullstack/affiliates";
+import { isPlaceholderEmail } from "@/lib/coinpay/signin";
 
 export const CREDIT_UNIT = "usd_cents";
 /** What an accepted invite gives each side: $2.50, so two accepted invites pay for a $5 month. */
@@ -146,6 +147,7 @@ export async function createInvite(userId: string, siteUrl: string, note: unknow
 
 export interface SignupUser {
   id: string;
+  email?: string | null;
   created_at?: string | null;
   email_confirmed_at?: string | null;
   user_metadata?: Record<string, unknown> | null;
@@ -159,6 +161,9 @@ export interface SignupUser {
  */
 export function passesSignupChecks(user: SignupUser, hasProfile: boolean, now = Date.now()): boolean {
   if (!user.email_confirmed_at) return false;
+  // An account a CoinPay login made sits on a placeholder address (confirmed
+  // only because it is ours): it has proven no mailbox, so it earns nothing.
+  if (isPlaceholderEmail(user.email)) return false;
   const created = user.created_at ? new Date(user.created_at).getTime() : NaN;
   if (!Number.isFinite(created) || now - created > INVITE_NEW_ACCOUNT_MS) return false;
   return hasProfile;

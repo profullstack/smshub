@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Logo } from "@/components/logo";
 import { nextFromLocation } from "@/lib/safe-next";
+import { CoinpaySignInButton, coinpayLoginError } from "@/components/coinpay-sign-in";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -21,6 +22,8 @@ export default function LoginPage() {
   // app, where the signup confirmation still went through.
   useEffect(() => {
     setNext(nextFromLocation());
+    const coinpayError = coinpayLoginError(new URLSearchParams(window.location.search).get("error"));
+    if (coinpayError) setError(coinpayError);
     if (new URLSearchParams(window.location.search).get("error") === "link") {
       setNotice(
         "If you just confirmed your email, it is confirmed: sign in below. If the link was for a password reset, it expired or was opened in another browser, so request a new one."
@@ -61,6 +64,8 @@ export default function LoginPage() {
           </div>
           <p className="text-gray-400 mt-2">Sign in to your account</p>
         </div>
+
+        <CoinpaySignInButton next={next} />
 
         <form onSubmit={handleLogin} className="space-y-4">
           {notice && !error && (

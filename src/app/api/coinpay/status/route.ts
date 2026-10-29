@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getEntitlements } from "@/lib/entitlements";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { isPlaceholderEmail } from "@/lib/coinpay/signin";
 
 export async function GET() {
   const supabase = await createServerSupabaseClient();
@@ -27,6 +28,8 @@ export async function GET() {
   return NextResponse.json({
     connected: Boolean(data),
     connection: data,
+    // An account a CoinPay login made has no other way in, so it cannot disconnect.
+    canDisconnect: Boolean(data) && !isPlaceholderEmail(user.email),
     configured: entitlements.integrations.coinpay.oauth.configured,
   });
 }
