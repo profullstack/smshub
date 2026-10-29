@@ -72,3 +72,24 @@ export function __resetUnlockStore() {
 export function __setClock(fn: (() => number) | null) {
   now = fn ?? (() => Date.now());
 }
+
+/**
+ * Deploy handoff (see ./handoff.ts): every live unlock with its ORIGINAL
+ * expiry, so the outgoing process can pass them to the incoming one.
+ */
+export function exportSessions(): Array<{ userId: string; dek: string; expiresAt: number }> {
+  const out: Array<{ userId: string; dek: string; expiresAt: number }> = [];
+  for (const userId of [...store().keys()]) {
+    const dek = getSessionKey(userId);
+    if (dek) out.push({ userId, dek: dek.toString("base64"), expiresAt: store().get(userId)!.expiresAt });
+  }
+  return out;
+}
+
+/** Take over an unlock from the previous process. Keeps its expiry; never extends it. */
+export function importSession(userId: string, dek: Uint8Array, expiresAt: number): boolean {
+  if (!userId || dek.length !== 32 || !Number.isFinite(expiresAt) || expiresAt - now() < 60_000) return false;
+  drop(userId);
+  store().set(userId, { dek: Buffer.from(dek), unlockedAt: now(), expiresAt });
+  return true;
+}
