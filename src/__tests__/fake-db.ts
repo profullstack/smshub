@@ -1,6 +1,6 @@
 /**
  * A small in-memory stand-in for the supabase-js query builder: enough of
- * select/insert/update/delete with eq/in/gt/lt/order/limit/single/maybeSingle
+ * select/insert/update/delete with eq/in/gt/lt/not/order/limit/single/maybeSingle
  * and head counts to run service code against real rows instead of mocks.
  */
 
@@ -69,6 +69,11 @@ class Query implements PromiseLike<{ data: unknown; error: unknown; count?: numb
   }
   lt(c: string, v: unknown) {
     this.filters.push((r) => r[c] != null && (typeof v === "number" ? Number(r[c]) < v : String(r[c]) < String(v)));
+    return this;
+  }
+  /** Only `not(col, "is", null)`, the one form the services use. */
+  not(c: string, _op: "is", _v: null) {
+    this.filters.push((r) => r[c] != null);
     return this;
   }
   order(col: string, o?: { ascending?: boolean }) {

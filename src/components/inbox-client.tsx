@@ -120,6 +120,7 @@ export function InboxClient({
     handleSend,
     handleSuggestReply,
     handleArchive,
+    handleBlock,
     handleDelete,
     handleLogout,
     reloadConversations,
@@ -329,6 +330,7 @@ export function InboxClient({
                     <div className={`font-medium truncate ${unread > 0 ? "text-white" : ""}`}>
                       {convo.contacts?.name || convo.contacts?.phone || "Unknown"}
                       {convo.archived && <span className="text-xs text-yellow-500 ml-1">📦</span>}
+                      {convo.contacts?.blocked_at && <span className="text-xs text-orange-400 ml-1" title={`Blocked: ${convo.contacts.block_reason ?? "spam"}`}>🚫</span>}
                     </div>
                     <div className="text-sm text-gray-400 truncate">
                       {convo.phone_numbers?.friendly_name || convo.phone_numbers?.number}
@@ -374,6 +376,30 @@ export function InboxClient({
                   >
                     {selectedConvo.archived ? "📤 Unarchive" : "📦 Archive"}
                   </button>
+                  {selectedConvo.contacts?.blocked_at ? (
+                    <button
+                      onClick={() => handleBlock(null)}
+                      className="px-3 py-1.5 bg-gray-800 hover:bg-gray-700 rounded-lg text-xs font-medium text-orange-300 transition-colors"
+                      title={`Blocked as ${selectedConvo.contacts.block_reason ?? "spam"}; click to unblock`}
+                    >
+                      🚫 Blocked ({selectedConvo.contacts.block_reason ?? "spam"}) · Unblock
+                    </button>
+                  ) : (
+                    <select
+                      value=""
+                      onChange={(e) => handleBlock(e.target.value as "spam" | "scam" | "other")}
+                      className="px-2 py-1.5 bg-orange-900/40 hover:bg-orange-800/50 rounded-lg text-xs font-medium text-orange-300 transition-colors"
+                      title="Flag this number and drop its texts and calls on every line"
+                      aria-label="Block this number"
+                    >
+                      <option value="" disabled>
+                        🚫 Block…
+                      </option>
+                      <option value="spam">Spam</option>
+                      <option value="scam">Scam</option>
+                      <option value="other">Other</option>
+                    </select>
+                  )}
                   <button
                     onClick={handleDelete}
                     className="px-3 py-1.5 bg-red-900/50 hover:bg-red-800/50 rounded-lg text-xs font-medium text-red-400 transition-colors"

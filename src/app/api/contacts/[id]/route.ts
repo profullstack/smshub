@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { isBlockReason, setBlocked } from "@/lib/blocking";
 
 export async function PATCH(
   request: NextRequest,
@@ -16,6 +17,14 @@ export async function PATCH(
     const { id } = await params;
     const body = await request.json();
     const { name, email, company, notes, tags } = body;
+
+    // { blocked: true, block_reason: "spam" | "scam" | "other" } blocks the sender; { blocked: false } unblocks.
+    if (typeof body.blocked === "boolean") {
+      const reason = body.blocked ? (isBlockReason(body.block_reason) ? body.block_reason : "spam") : null;
+      const result = await setBlocked(supabase, user.id, { contactId: id }, reason);
+      if ("error" in result) return NextResponse.json({ error: result.error }, { status: result.status });
+      return NextResponse.json(result);
+    }
 
     if (name !== undefined && name !== null && typeof name !== "string") {
       return NextResponse.json({ error: "name must be a string or null" }, { status: 400 });

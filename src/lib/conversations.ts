@@ -36,7 +36,7 @@ export interface ListConversationsOptions {
 export async function listConversations(db: SupabaseClient, userId: string, opts: ListConversationsOptions = {}) {
   let query = db
     .from("conversations")
-    .select("*, unread_count, contacts(id, phone, name), phone_numbers(id, number, friendly_name)")
+    .select("*, unread_count, contacts(id, phone, name, blocked_at, block_reason), phone_numbers(id, number, friendly_name)")
     .eq("user_id", userId);
   if (opts.phoneNumberId) query = query.eq("phone_number_id", opts.phoneNumberId);
   if (opts.archived !== undefined) query = query.eq("archived", opts.archived);

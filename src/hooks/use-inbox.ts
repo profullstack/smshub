@@ -21,7 +21,13 @@ export interface Conversation {
   last_message_at: string;
   last_read_at: string | null;
   archived: boolean;
-  contacts: { id: string; phone: string; name: string | null } | null;
+  contacts: {
+    id: string;
+    phone: string;
+    name: string | null;
+    blocked_at?: string | null;
+    block_reason?: "spam" | "scam" | "other" | null;
+  } | null;
   phone_numbers: {
     id: string;
     number: string;
@@ -247,6 +253,34 @@ export function useInbox(initialConversations: Conversation[], numbers: LineNumb
     }
   };
 
+  /** Block the thread's sender as spam/scam/other on every line, or unblock it (reason null). */
+  const handleBlock = async (reason: "spam" | "scam" | "other" | null) => {
+    const contact = selectedConvo?.contacts;
+    if (!contact) return;
+    if (reason && !confirm(`Block ${contact.name || contact.phone} as ${reason}? Its texts and calls will be dropped on every line.`)) return;
+    try {
+      const res = await fetch(`/api/contacts/${contact.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(reason ? { blocked: true, block_reason: reason } : { blocked: false }),
+      });
+      if (!res.ok) throw new Error();
+      const blocked_at = reason ? new Date().toISOString() : null;
+      setConversations((prev) =>
+        prev.map((c) =>
+          c.contact_id === contact.id
+            ? { ...c, archived: reason ? true : c.archived, contacts: c.contacts && { ...c.contacts, blocked_at, block_reason: reason } }
+            : c
+        )
+      );
+      addToast(reason ? `Blocked ${contact.phone} as ${reason}` : `Unblocked ${contact.phone}`, "success");
+      if (reason) setSelectedConvo(null);
+      else setSelectedConvo((c) => c && c.contacts && { ...c, contacts: { ...c.contacts, blocked_at, block_reason: null } });
+    } catch {
+      addToast("Failed to update the block", "error");
+    }
+  };
+
   const handleDelete = async () => {
     if (!selectedConvo) return;
     if (!confirm("Delete this conversation? This cannot be undone.")) return;
@@ -321,6 +355,7 @@ export function useInbox(initialConversations: Conversation[], numbers: LineNumb
     handleSend,
     handleSuggestReply,
     handleArchive,
+    handleBlock,
     handleDelete,
     handleLogout,
     reloadConversations,

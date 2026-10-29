@@ -30,6 +30,9 @@
 //   smshub-cli webhook retry <delivery-id>   send one delivery again
 //   smshub-cli conversations [--line <number>] [--limit 20]   the inbox, optionally one line
 //   smshub-cli thread <conversation-id> [--limit 50]   messages in one conversation
+//   smshub-cli block <number> [--reason spam|scam|other]   drop its texts and calls on every line
+//   smshub-cli unblock <number>             stop blocking it
+//   smshub-cli blocked                      numbers you blocked, with dropped counts
 //   smshub-cli lines                        who shares each number (contacts book)
 //   smshub-cli contacts <number> add --name Kim --cell +14155550123 [--digit 1] [--prefix K] [--forward-sms]
 //   smshub-cli contacts <number> edit <contact-id> [--name ..] [--cell ..] [--digit 1|none] [--prefix K|none]
@@ -54,7 +57,7 @@ import { join } from "node:path";
 import { createInterface } from "node:readline";
 import { webcrypto } from "node:crypto";
 
-const VERSION = "1.10.0";
+const VERSION = "1.11.0";
 const CONFIG_DIR = join(process.env.XDG_CONFIG_HOME || join(homedir(), ".config"), "smshub");
 const CONFIG_FILE = join(CONFIG_DIR, "config.json");
 
@@ -545,6 +548,32 @@ const commands = {
       if (!rows.length) console.log("No messages.");
       for (const m of rows) console.log(`${m.created_at.slice(0, 19).replace("T", " ")}  ${m.direction === "outbound" ? ">" : "<"}  ${m.body ?? ""}${m.status === "failed" ? "  (FAILED)" : ""}`);
     });
+  },
+
+  async blocked(args) {
+    const { blocked } = await api("/api/v1/blocked");
+    print(args, { blocked }, () => {
+      if (!blocked.length) console.log("Nothing blocked.");
+      for (const b of blocked) {
+        const who = b.name ? `${b.name} (${b.phone})` : b.phone;
+        console.log(`${date(b.blocked_at)}  ${who}  ${b.reason ?? ""}  ${b.blocked_count} dropped`);
+      }
+    });
+  },
+
+  async block(args) {
+    const phone = args._[1];
+    if (!phone) throw new ApiError("Which number? smshub-cli block +14155551234 [--reason spam|scam|other]");
+    const reason = args.reason && args.reason !== true ? String(args.reason) : "spam";
+    const { blocked } = await api("/api/v1/blocked", { method: "POST", body: { phone, reason } });
+    print(args, { blocked }, () => console.log(`Blocked ${blocked.phone} as ${blocked.reason}. Its texts and calls are dropped on every line.`));
+  },
+
+  async unblock(args) {
+    const phone = args._[1];
+    if (!phone) throw new ApiError("Which number? smshub-cli unblock +14155551234");
+    const { blocked } = await api(`/api/v1/blocked?phone=${encodeURIComponent(phone)}`, { method: "DELETE" });
+    print(args, { blocked }, () => console.log(`Unblocked ${blocked.phone}.`));
   },
 
   async conversations(args) {

@@ -22,7 +22,7 @@ export default async function InboxPage() {
       `
       *,
       unread_count,
-      contacts (id, phone, name),
+      contacts (id, phone, name, blocked_at, block_reason),
       phone_numbers (id, number, friendly_name)
     `
     )

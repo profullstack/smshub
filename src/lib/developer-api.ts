@@ -165,6 +165,33 @@ export const ENDPOINTS: Endpoint[] = [
     mcp: "get_conversation",
   },
   {
+    method: "GET",
+    path: "/api/v1/blocked",
+    summary: "Numbers you blocked as spam, scam or other, with how many texts and calls were dropped since.",
+    params: [],
+    cli: "blocked",
+    mcp: "list_blocked",
+  },
+  {
+    method: "POST",
+    path: "/api/v1/blocked",
+    summary: "Block a sender on every line: its texts are dropped unstored, its calls hung up, its threads archived.",
+    params: [
+      { name: "phone", in: "body", type: "string", required: true, description: "E.164, e.g. +14155551234." },
+      { name: "reason", in: "body", type: "string", description: "spam (default), scam or other." },
+    ],
+    cli: "block",
+    mcp: "block_number",
+  },
+  {
+    method: "DELETE",
+    path: "/api/v1/blocked",
+    summary: "Unblock a number.",
+    params: [{ name: "phone", in: "query", type: "string", required: true, description: "E.164." }],
+    cli: "unblock",
+    mcp: "unblock_number",
+  },
+  {
     method: "POST",
     path: "/api/v1/alerts",
     summary: "Text or call your alert phone (Settings > Alerts). Same message within 10 minutes is sent once.",

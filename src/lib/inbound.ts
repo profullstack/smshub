@@ -12,6 +12,7 @@ import { onGroupInbound } from "@/lib/groups";
 import { bookLineId, matchPrefix, type LineContact } from "@/lib/lines/contacts";
 import { sendSMS } from "@/lib/providers";
 import { noteAlertOptOut } from "@/lib/alerts/opt-out";
+import { dropIfBlocked } from "@/lib/blocking";
 
 export interface OwnedNumber {
   id: string;
@@ -50,6 +51,9 @@ export async function recordInbound(
       .limit(1);
     if (dup?.[0]) return { messageId: dup[0].id, duplicate: true };
   }
+
+  // A sender the owner blocked as spam or scam: counted, never stored or passed on.
+  if (await dropIfBlocked(db, userId, inbound.from)) return { messageId: null, duplicate: false };
 
   // "K: running late" on a line whose contacts book has prefix K is filed
   // into K's thread, keeping who really sent it; anything else stays in the
