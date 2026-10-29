@@ -12,6 +12,7 @@ const NAV_LINKS = [
   { href: "/#pricing", label: "Pricing" },
   { href: "/#api", label: "API" },
   { href: "/verification-numbers", label: "Verification numbers" },
+  { href: "/blog", label: "Guides" },
 ];
 
 export function Header() {
