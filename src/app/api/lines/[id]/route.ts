@@ -10,7 +10,7 @@ type Params = { params: Promise<{ id: string }> };
  * - contacts_from: "<line id>" answers this number from another line's
  *   contacts book (same voice menu, same text prefixes); null gives it its own
  *   again. Sharing a book with a menu also points this number's calls at it.
- * - record_calls: true records calls the voice menu answers, as MP3 (callers
+ * - record_calls: true records incoming menu calls and outbound alert calls, as MP3 (callers
  *   hear "This call may be recorded" first).
  */
 export async function PATCH(request: Request, { params }: Params) {

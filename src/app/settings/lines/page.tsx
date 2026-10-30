@@ -238,7 +238,7 @@ function LineCard({ line, lines, reload }: { line: Line; lines: Line[]; reload: 
       {line.provider_type === "telnyx" && (
         <label className="flex items-center gap-2 text-sm text-gray-400">
           <input type="checkbox" checked={line.record_calls} disabled={busy} onChange={(e) => setRecording(e.target.checked)} />
-          Record calls as MP3 (callers first hear &ldquo;This call may be recorded&rdquo;; play them in the inbox)
+          Record incoming and alert calls as MP3 (callers hear &ldquo;This call may be recorded&rdquo;; play them in the inbox)
         </label>
       )}
 
