@@ -10,7 +10,7 @@
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { encodeState, type CallCommand } from "@/lib/voice/telnyx-voice";
-import { callLength, type CallEvent, type CallState } from "@/lib/voice/ivr";
+import { callLength, RECORDING_NOTICE, type CallEvent, type CallState } from "@/lib/voice/ivr";
 
 const VOICE = { voice: "female", language: "en-US" };
 
@@ -44,7 +44,8 @@ export function alertSpeech(message: string): string {
 export async function handleAlertCall(
   deps: { db: SupabaseClient; command: CallCommand },
   event: CallEvent,
-  state: CallState & { al: string }
+  state: CallState & { al: string },
+  recordCalls = false
 ): Promise<string> {
   const { db, command } = deps;
   const p = event.payload;
@@ -57,8 +58,15 @@ export async function handleAlertCall(
         await command(callId, "hangup", {});
         return "alert gone";
       }
+      if (recordCalls) {
+        await command(callId, "record_start", {
+          format: "mp3", channels: "dual",
+          command_id: `alert-record:${state.al}:${callId}`,
+          client_state: encodeState({ ...state }),
+        });
+      }
       await command(callId, "speak", {
-        payload: alertSpeech(String((alert as { message: string }).message)),
+        payload: `${recordCalls ? `${RECORDING_NOTICE} ` : ""}${alertSpeech(String((alert as { message: string }).message))}`,
         ...VOICE,
         client_state: encodeState({ ...state, h: 1 }),
       });

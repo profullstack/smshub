@@ -258,3 +258,33 @@ describe("alert call flow", () => {
     expect(fdb.tables.messages[0]).toMatchObject({ body: "Alert call not answered (timeout): x", status: "failed" });
   });
 });
+
+
+describe("alert call recordings", () => {
+  it("records enabled lines, announces recording and saves duration on the alert's message", async () => {
+    const { fdb } = setup();
+    fdb.tables.alerts = [{ id: "alert-record", message: "SSH key changed" }];
+    fdb.tables.messages = [{ id: "message-record", body: "Alert call: SSH key changed", provider_message_id: "alert:session" }];
+    const calls: Array<{ action: string; body: Record<string, unknown> }> = [];
+    const command = vi.fn(async (_id: string, action: string, body: Record<string, unknown>) => { calls.push({ action, body }); return { ok: true as const, data: {} }; });
+    const deps = { db: fdb as unknown as SupabaseClient, command };
+    const line = { ...FAMILY, user_id: USER, record_calls: true };
+    const state = { l: FAMILY.id, m: "message-record", al: "alert-record" };
+    await handleCallEvent(deps, line, { event_type: "call.answered", payload: { call_control_id: "cc-record" } }, state);
+    expect(calls[0]).toMatchObject({ action: "record_start", body: { format: "mp3", channels: "dual", command_id: "alert-record:alert-record:cc-record" } });
+    expect(calls[1].body.payload).toMatch(/^This call may be recorded\. This is an alert from SMS Hub/);
+    expect(decodeState(String(calls[0].body.client_state))).toMatchObject(state);
+    expect(await handleCallEvent(deps, line, { event_type: "call.recording.saved", payload: { call_control_id: "cc-record", recording_started_at: "2026-10-30T13:00:00Z", recording_ended_at: "2026-10-30T13:01:24Z" } }, state)).toBe("recording saved");
+    expect(fdb.rows("messages")[0].recording_seconds).toBe(84);
+    expect(await handleCallEvent(deps, line, { event_type: "call.speak.ended", payload: { call_control_id: "cc-record" } }, { ...state, h: 1 })).toBe("hung up after goodbye");
+  });
+
+  it("leaves recording disabled for other lines", async () => {
+    const { fdb } = setup();
+    fdb.tables.alerts = [{ id: "alert-off", message: "Backup done" }];
+    const command = vi.fn(async (_id: string, _action: string, _body: Record<string, unknown>) => ({ ok: true as const, data: {} }));
+    await handleCallEvent({ db: fdb as unknown as SupabaseClient, command }, { ...FAMILY, user_id: USER, record_calls: false }, { event_type: "call.answered", payload: { call_control_id: "cc-off" } }, { l: FAMILY.id, al: "alert-off" });
+    expect(command).toHaveBeenCalledTimes(1);
+    expect(command.mock.calls[0]).toEqual(expect.arrayContaining(["speak", expect.objectContaining({ payload: expect.not.stringContaining("recorded") })]));
+  });
+});

@@ -103,8 +103,8 @@ export async function handleCallEvent(
   const callId = String(p.call_control_id ?? "");
   if (!callId) return "ignored: no call_control_id";
   if (state?.t) return "ignored: transferred leg";
-  if (state?.al && event.event_type !== "call.speak.ended") {
-    return handleAlertCall(deps, event, state as CallState & { al: string });
+  if (state?.al && !["call.speak.ended", "call.recording.saved"].includes(event.event_type)) {
+    return handleAlertCall(deps, event, state as CallState & { al: string }, Boolean(line.record_calls));
   }
 
   switch (event.event_type) {

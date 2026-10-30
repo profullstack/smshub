@@ -41,6 +41,14 @@ describe("GET /api/messages/:id/recording", () => {
     expect(fetchMock.mock.calls[0][1].headers.Authorization).toBe("Bearer KEY_CUSTOMER");
   });
 
+  it("streams outbound alert recordings using their unprefixed session id", async () => {
+    const { GET } = await import("@/app/api/messages/[id]/recording/route");
+    db.rows("messages")[0].provider_message_id = "alert:alert-session";
+    const response = await GET(new Request("http://localhost/x"), { params: Promise.resolve({ id: MSG }) });
+    expect(response.status).toBe(200);
+    expect(fetchMock.mock.calls[0][0]).toContain("filter[call_session_id]=alert-session");
+  });
+
   it("is a 404 for someone else's call or a call without a recording", async () => {
     const { GET } = await import("@/app/api/messages/[id]/recording/route");
     db.rows("messages")[0].conversations = { user_id: "u2", phone_number_id: "pn-1" };

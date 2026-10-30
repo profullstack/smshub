@@ -28,7 +28,7 @@ export async function GET(request: Request, { params }: Params) {
   if (!msg || !convo || convo.user_id !== who.user.userId || msg.kind !== "call" || msg.recording_seconds === null) {
     return NextResponse.json({ error: "Recording not found" }, { status: 404 });
   }
-  const session = String(msg.provider_message_id ?? "").replace(/^call:/, "");
+  const session = String(msg.provider_message_id ?? "").replace(/^(?:call|alert):/, "");
 
   const { data: line } = await db
     .from("phone_numbers")
