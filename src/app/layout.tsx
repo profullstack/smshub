@@ -22,6 +22,22 @@ const stationDisplay = Space_Grotesk({ subsets: ["latin"], variable: "--font-sta
 const stationMono = JetBrains_Mono({ subsets: ["latin"], variable: "--font-station-mono" });
 const siteUrl = getSiteUrl();
 const price = priceUsdPerMonth();
+const publisherBadges = [
+  {
+    href: "https://built.indie.pit.world/for?site=https://smshub.dev/",
+    src: "https://logicsrc.com/openicon/set/hq/svg/built-indie.svg",
+    alt: "Find this site on built.indie",
+    width: 24,
+    height: 24,
+  },
+  {
+    href: "https://pwamart.com/for?site=https://smshub.dev/",
+    src: "https://logicsrc.com/openicon/set/hq/svg/pwamart.svg",
+    alt: "Find this site on PwaMart",
+    width: 24,
+    height: 24,
+  },
+];
 
 const smshubMetadata: Metadata = {
   metadataBase: new URL(siteUrl),
@@ -182,6 +198,7 @@ export default async function RootLayout({
               bottom={
                 <PfsFooter
                   site="https://smshub.dev/"
+                  badges={publisherBadges}
                   links={[
                     { label: "Pricing", href: "/#pricing" },
                     { label: "Rent a number", href: "/phonenumbers" },
