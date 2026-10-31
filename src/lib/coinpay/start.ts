@@ -23,36 +23,39 @@ const CONNECT_SCOPES = [...SIGN_IN_SCOPES, "wallet:read"];
  * host first hops to smshub.dev: the state cookie has to live where the
  * callback lands.
  */
-export async function startCoinpay(request: NextRequest, mode: OAuthMode) {
+export async function startCoinpay(request: NextRequest, mode: OAuthMode, fallbackNext?: string, minimalScopes = false) {
   const site = getSiteUrl();
   const here = new URL(request.url);
   const forwardedHost = request.headers.get("x-forwarded-host") ?? request.headers.get("host");
   if (forwardedHost && forwardedHost !== new URL(site).host) {
-    return NextResponse.redirect(new URL(here.pathname + here.search, site));
+    const canonical = new URL(here.pathname + here.search, site);
+    if (fallbackNext && !canonical.searchParams.has("next")) canonical.searchParams.set("next", fallbackNext);
+    return NextResponse.redirect(canonical, { status: 303 });
   }
 
   const cfg = coinpaySignInConfig(site);
   if (!cfg) {
     return NextResponse.redirect(
-      new URL(mode === "connect" ? "/settings?coinpay=error&reason=not_configured" : "/login?error=coinpay_off", site)
+      new URL(mode === "login" ? "/login?error=coinpay_off" : "/settings?coinpay=error&reason=not_configured", site),
+      { status: 303 }
     );
   }
 
   let linkUserId: string | null = null;
-  if (mode === "connect") {
+  if (mode !== "login") {
     // Connecting happens only from inside the account it joins.
     const supabase = await createServerSupabaseClient();
     const {
       data: { user },
     } = await supabase.auth.getUser();
-    if (!user) return NextResponse.redirect(new URL("/login?next=/settings", site));
+    if (!user) return NextResponse.redirect(new URL("/login?next=/settings", site), { status: 303 });
     linkUserId = user.id;
   }
 
   const state = randomToken();
   const nonce = randomToken();
   const { verifier, challenge } = pkce();
-  const next = safeNextPath(here.searchParams.get("next"), mode === "connect" ? "/settings" : "/inbox");
+  const next = safeNextPath(here.searchParams.get("next"), fallbackNext ?? (mode === "login" ? "/inbox" : "/settings"));
   await savePending(supabaseCoinpayStore(createServiceClient()), state, { verifier, nonce, mode, next, linkUserId });
 
   const res = NextResponse.redirect(
@@ -62,8 +65,9 @@ export async function startCoinpay(request: NextRequest, mode: OAuthMode) {
       state,
       challenge,
       nonce,
-      scopes: mode === "connect" ? CONNECT_SCOPES : SIGN_IN_SCOPES,
-    })
+      scopes: mode === "login" || minimalScopes ? SIGN_IN_SCOPES : CONNECT_SCOPES,
+    }),
+    { status: 303 }
   );
   res.headers.set("cache-control", "no-store");
   res.cookies.set(STATE_COOKIE, state, {
