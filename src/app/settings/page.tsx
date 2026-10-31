@@ -7,6 +7,7 @@ import { useToast } from "@/contexts/toast-context";
 import { ProfileCard } from "@/components/profile-card";
 import { RedeemCard } from "@/components/redeem-card";
 import { CoinpayCard } from "@/components/coinpay-card";
+import { GroupCallIntegrationCard } from "@/components/groupcall-integration-card";
 import { KeyVaultCard } from "@/components/key-vault-card";
 import {
   ProviderTestPanel,
@@ -215,6 +216,7 @@ export default function SettingsPage() {
         <ProfileCard />
 
         <CoinpayCard />
+        <GroupCallIntegrationCard />
 
         <RedeemCard />
 
