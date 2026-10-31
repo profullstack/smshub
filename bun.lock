@@ -6,7 +6,7 @@
       "name": "smshub",
       "dependencies": {
         "@profullstack/affiliates": "^0.3.0",
-        "@profullstack/coinpay-onboard": "0.3.1",
+        "@profullstack/coinpay-onboard": "0.4.0",
         "@profullstack/footer": "latest",
         "@profullstack/profile": "0.1.6",
         "@profullstack/redeem-credits": "^0.2.0",
@@ -295,7 +295,7 @@
 
     "@profullstack/affiliates": ["@profullstack/affiliates@0.3.0", "", { "dependencies": { "@profullstack/referrals": "^0.1.0" }, "bin": { "affiliates": "dist/cli.js" } }, "sha512-bp0iREciWetDWrQYOsa6SJRTzviekKwgJQuATT7vql+4equu7pN76q8tb3SP1oBMczydsv6rYUMvPpS6+QT7yQ=="],
 
-    "@profullstack/coinpay-onboard": ["@profullstack/coinpay-onboard@0.3.1", "", { "dependencies": { "@modelcontextprotocol/sdk": "^1.32.2", "zod": "^4.6.7" }, "bin": { "coinpay-onboard": "bin/coinpay-onboard" } }, "sha512-+K7D6uaX10y+0V5sg7To1jKwNG8iCNbN9SSW6q5ACzoiDNswMox3G7gzY/Swxd128klq7ecN2Ni4JVNr50nRIQ=="],
+    "@profullstack/coinpay-onboard": ["@profullstack/coinpay-onboard@0.4.0", "", { "dependencies": { "@modelcontextprotocol/sdk": "^1.32.2", "zod": "^4.6.7" }, "bin": { "coinpay-onboard": "bin/coinpay-onboard" } }, "sha512-L2P0fxNswZnXt1tvo6t19L/RrJN204vrWnIEY65QI+zriZN7JJPY4Ap6Nv8MLkyA5wDvY88s0+Dgjf9Myw/tUA=="],
 
     "@profullstack/emailer": ["@profullstack/emailer@1.0.3", "", {}, "sha512-VyAtCcfnSI6LOwJvWogCr3ZNmEsaZw+iuWrqnosLsdcKsbRyCrCmXigMNZJZEjlgYlR+lK//PwNPG+xtCFvWAw=="],
 
