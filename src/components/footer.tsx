@@ -14,5 +14,5 @@ export function Footer({ bottom }: { bottom?: React.ReactNode }) {
 
   if (APP_ROUTES.some((r) => pathname.startsWith(r))) return null;
 
-  return <footer className="border-t border-gray-800 bg-gray-950 mt-auto text-gray-400">{bottom}</footer>;
+  return <div className="bg-gray-950 mt-auto text-gray-400">{bottom}</div>;
 }
