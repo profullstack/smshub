@@ -122,3 +122,9 @@
 .pfs-profile__row input:focus { outline: none; border-color: transparent; box-shadow: 0 0 0 2px var(--color-blue-500); }
 .pfs-profile__optional { font-weight: 400; color: var(--color-gray-500); }
 .pfs-profile__error { margin-top: 0.25rem; font-size: 0.875rem; color: var(--color-red-400); }
+
+/* Keep the shared publisher marks compact in SMSHub's dense footer. */
+[data-pfs-footer] .pfs-footer__badge--publisher img {
+  width: 24px;
+  height: 24px;
+}
