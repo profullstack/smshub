@@ -50,7 +50,7 @@ export function ProfileCard() {
     <section className="space-y-4">
       <h2 className="text-lg font-semibold">Profile</h2>
       <form onSubmit={save} className="bg-gray-900 rounded-lg p-4 border border-gray-800 space-y-4">
-        <ProfileFields idPrefix="settings-" values={values} onChange={setValues} errors={errors} disabled={!loaded} />
+        <ProfileFields idPrefix="settings-" values={values} onChange={setValues} errors={errors} disabled={!loaded}  importOpenProfile/>
         <div className="flex items-center gap-3">
           <button
             type="submit"

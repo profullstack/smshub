@@ -1,5 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { finishSignIn } from "@profullstack/coinpay-onboard/oauth";
+import { saveOpenProfileContact } from "@profullstack/profile";
+import { profileStore } from "@/lib/profile";
 import { createServerSupabaseClient, createServiceClient } from "@/lib/supabase/server";
 import { getSiteUrl } from "@/lib/site-url";
 import {
@@ -91,6 +93,10 @@ export async function GET(request: NextRequest) {
     claims,
   }, store);
   if (!resolved.ok) return fail(resolved.code);
+  if (pending.mode === "connect" && groupcallAction !== "disconnect" && typeof result.userinfo.openprofile_url === "string") {
+    try { await saveOpenProfileContact(profileStore(), resolved.userId, result.userinfo.openprofile_url); }
+    catch { console.warn("[coinpay] OpenProfile import skipped"); }
+  }
   if (pending.mode === "connect" && !groupcallAction) return to("/settings?coinpay=connected");
 
   if (groupcallAction) {
