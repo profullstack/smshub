@@ -27,7 +27,7 @@
     "@profullstack/affiliates": "^0.3.0",
     "@profullstack/coinpay-onboard": "0.4.0",
     "@profullstack/footer": "latest",
-    "@profullstack/profile": "0.1.7",
+    "@profullstack/profile": "0.1.8",
     "@profullstack/redeem-credits": "^0.2.0",
     "@profullstack/referrals": "^0.1.0",
     "@profullstack/stack": "^0.5.0",
