@@ -34,9 +34,24 @@ export function spokenDurations(text: string): string {
   });
 }
 
+/**
+ * Links read as domain + path: nobody wants "h t t p colon slash slash" on a
+ * phone call. "https://threatcrush.com/incidents/42?x=1#a" ->
+ * "threatcrush.com/incidents/42". Query strings and fragments are dropped
+ * (tokens read aloud are noise), as is a trailing slash. Texts keep the full
+ * link; only the spoken copy changes.
+ */
+export function spokenLinks(text: string): string {
+  return text.replace(/\bhttps?:\/\/(\S+)/gi, (_all, rest: string) => {
+    const trailing = rest.match(/[.,;:!?)]+$/)?.[0] ?? "";
+    const link = rest.slice(0, rest.length - trailing.length).replace(/[?#].*$/, "").replace(/\/+$/, "");
+    return link + trailing;
+  });
+}
+
 /** What the call says: the alert, then once more, then goodbye. */
 export function alertSpeech(message: string): string {
-  const text = spokenDurations(message).replace(/[^\p{L}\p{N}\s'.,:;!?%$@#&()+=\/-]/gu, " ").replace(/\s+/g, " ").trim();
+  const text = spokenDurations(spokenLinks(message)).replace(/[^\p{L}\p{N}\s'.,:;!?%$@#&()+=\/-]/gu, " ").replace(/\s+/g, " ").trim();
   const said = /[.!?]$/.test(text) ? text : `${text}.`;
   return `This is an alert from SMS Hub. ${said} Again: ${said} Goodbye.`;
 }
