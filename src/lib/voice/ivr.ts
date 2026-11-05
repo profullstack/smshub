@@ -103,7 +103,10 @@ export async function handleCallEvent(
   const callId = String(p.call_control_id ?? "");
   if (!callId) return "ignored: no call_control_id";
   if (state?.t) return "ignored: transferred leg";
-  if (state?.al && !["call.speak.ended", "call.recording.saved"].includes(event.event_type)) {
+  if (
+    state?.al &&
+    !["call.speak.ended", "call.playback.ended", "call.recording.saved"].includes(event.event_type)
+  ) {
     return handleAlertCall(deps, event, state as CallState & { al: string }, Boolean(line.record_calls));
   }
 
@@ -204,7 +207,10 @@ export async function handleCallEvent(
       return "recording saved";
     }
 
-    case "call.speak.ended": {
+    // Telnyx finished reading our text, or finished playing a file we
+    // synthesized ourselves. Either way the goodbye has been said.
+    case "call.speak.ended":
+    case "call.playback.ended": {
       if (!state?.h) return "ignored: not a goodbye";
       await command(callId, "hangup", {});
       return "hung up after goodbye";
