@@ -233,8 +233,12 @@ describe("alert call flow", () => {
       handleCallEvent(deps, LINE, { event_type, payload: { call_control_id: "cc-1", ...payload } }, s);
 
     expect(await send("call.initiated", { direction: "outgoing" }, state)).toBe("ignored: call.initiated");
-    expect(await send("call.answered", {}, state)).toBe("alert read");
+    expect(await send("call.answered", {}, state)).toBe("alert read in the agent's voice, rendered by Telnyx");
     expect(cmds[0].action).toBe("speak");
+    // The voice is the agent's Kokoro voice, not a generic one. (With a
+    // c0mpute speech gateway configured this would be a playback_start of
+    // audio we rendered ourselves; see lib/voice/kokoro.ts.)
+    expect(cmds[0].body.voice).toBe("Telnyx.KokoroTTS.am_michael");
     expect(cmds[0].body.payload).toBe(alertSpeech("fleet-db-backup failed"));
     expect(String(cmds[0].body.payload).match(/fleet-db-backup failed/g)).toHaveLength(2);
     const after = decodeState(cmds[0].body.client_state) as CallState;

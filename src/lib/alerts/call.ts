@@ -3,15 +3,29 @@
  * webhook as the voice menu. client_state carries al = alert id, m = the
  * call's log message, h = 1 once the alert is being read (hang up after it).
  *
- *   call.answered     read the alert twice
- *   call.speak.ended  hang up (the shared h = 1 rule in ivr.ts)
- *   call.hangup       note answered / not answered on the log entry
+ *   call.answered        read the alert twice
+ *   call.speak.ended     hang up (the shared h = 1 rule in ivr.ts)
+ *   call.playback.ended  hang up, same rule, when we played our own audio
+ *   call.hangup          note answered / not answered on the log entry
+ *
+ * How the line is spoken: first choice is one of our agents' own voices,
+ * synthesized on the c0mpute network (Kokoro) and played back as a file —
+ * see lib/voice/kokoro.ts. If this deployment has no speech gateway, or the
+ * network cannot render it in time, the call falls back to a Telnyx `speak`.
+ * An alert is worth more than the voice it arrives in.
  */
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { encodeState, type CallCommand } from "@/lib/voice/telnyx-voice";
 import { callLength, RECORDING_NOTICE, type CallEvent, type CallState } from "@/lib/voice/ivr";
+import { speakOnC0mpute, telnyxKokoroVoice } from "@/lib/voice/kokoro";
+import { getSiteUrl } from "@/lib/site-url";
 
+/**
+ * The last-resort voice. Tier one is our own network (lib/voice/kokoro.ts),
+ * tier two is Telnyx's copy of the same Kokoro model; this is only what a
+ * `speak` falls back to if a Kokoro voice id is ever rejected.
+ */
 const VOICE = { voice: "female", language: "en-US" };
 
 const UNITS: Record<string, string> = {
@@ -80,12 +94,25 @@ export async function handleAlertCall(
           client_state: encodeState({ ...state }),
         });
       }
-      await command(callId, "speak", {
-        payload: `${recordCalls ? `${RECORDING_NOTICE} ` : ""}${alertSpeech(String((alert as { message: string }).message))}`,
-        ...VOICE,
-        client_state: encodeState({ ...state, h: 1 }),
+      const line = `${recordCalls ? `${RECORDING_NOTICE} ` : ""}${alertSpeech(String((alert as { message: string }).message))}`;
+      const spoken = await speakOnC0mpute(line, { id: `${state.al}:${callId}`, publicBase: getSiteUrl() });
+      if (spoken) {
+        await command(callId, "playback_start", {
+          audio_url: spoken.url,
+          client_state: encodeState({ ...state, h: 1 }),
+        });
+        return `alert read in our own voice (${spoken.seconds}s)`;
+      }
+      const spokenState = encodeState({ ...state, h: 1 });
+      const kokoro = await command(callId, "speak", {
+        payload: line,
+        ...telnyxKokoroVoice(),
+        client_state: spokenState,
       });
-      return "alert read";
+      if (kokoro.ok) return "alert read in the agent's voice, rendered by Telnyx";
+      // A voice id Telnyx would not take is no reason to drop an alert.
+      await command(callId, "speak", { payload: line, ...VOICE, client_state: spokenState });
+      return "alert read in the fallback voice";
     }
 
     case "call.hangup": {

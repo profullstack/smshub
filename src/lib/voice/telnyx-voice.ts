@@ -237,7 +237,16 @@ export async function configureVoice(
 
 export type CallCommand = (
   callControlId: string,
-  action: "answer" | "gather_using_speak" | "speak" | "transfer" | "hangup" | "record_start",
+  action:
+    | "answer"
+    | "gather_using_speak"
+    | "speak"
+    // playback_start plays a file we host, which is how a call speaks in one
+    // of our agents' voices instead of a vendor's (see lib/voice/kokoro.ts).
+    | "playback_start"
+    | "transfer"
+    | "hangup"
+    | "record_start",
   body: Record<string, unknown>
 ) => Promise<TelnyxResult<unknown>>;
 
