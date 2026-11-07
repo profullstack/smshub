@@ -33,7 +33,7 @@ export default async function PrivacyPage() {
         <ul className="list-disc list-inside space-y-1 text-gray-300">
           <li>Send and receive SMS messages on your behalf through connected providers</li>
           <li>Display your conversations, contacts, and message history</li>
-          <li>Provide AI-powered reply suggestions (when enabled, using OpenAI)</li>
+          <li>Provide AI-powered reply suggestions (when enabled, using c0mpute, with OpenAI as a fallback)</li>
           <li>Send push notifications for new messages</li>
           <li>Improve the platform and fix bugs</li>
           <li>Communicate with you about your account and service updates</li>
@@ -60,7 +60,8 @@ export default async function PrivacyPage() {
         </p>
         <p>
           We do not sell, rent, or share your personal data or message content with third parties,
-          except as necessary to provide the service (e.g., sending messages through Twilio/Telnyx).
+          except as necessary to provide the service (e.g., sending messages through Twilio/Telnyx,
+          or generating an AI reply suggestion you asked for).
         </p>
         <p>
           No mobile information will be shared with third parties or affiliates for marketing or
@@ -73,7 +74,8 @@ export default async function PrivacyPage() {
         <p>{name} integrates with the following third-party services:</p>
         <ul className="list-disc list-inside space-y-1 text-gray-300">
           <li><strong>Twilio / Telnyx / phonenumbers.bot:</strong> SMS sending and receiving</li>
-          <li><strong>OpenAI:</strong> AI reply suggestions (opt-in, per conversation)</li>
+          <li><strong>c0mpute:</strong> AI reply suggestions (opt-in, per conversation). The recent messages in that conversation are processed by nodes on a peer-to-peer inference network, which may be run by independent operators.</li>
+          <li><strong>OpenAI:</strong> Fallback for AI reply suggestions when c0mpute is unavailable</li>
           <li><strong>Supabase:</strong> Database, authentication, and real-time messaging</li>
           <li><strong>Sentry:</strong> Error tracking and performance monitoring</li>
           <li><strong>Expo:</strong> Mobile app push notifications</li>

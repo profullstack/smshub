@@ -25,6 +25,7 @@
   },
   "dependencies": {
     "@profullstack/affiliates": "^0.3.0",
+    "@profullstack/ai-providers": "0.1.2",
     "@profullstack/coinpay-onboard": "0.4.0",
     "@profullstack/footer": "latest",
     "@profullstack/profile": "0.1.8",

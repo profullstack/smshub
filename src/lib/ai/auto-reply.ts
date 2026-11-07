@@ -1,6 +1,10 @@
 /**
- * AI Auto-Reply using OpenAI API (gpt-4o-mini)
+ * AI Auto-Reply: c0mpute first, OpenAI (gpt-4o-mini) behind it.
  */
+import { createAiProviders, type AiRouter } from "@profullstack/ai-providers";
+
+// c0mpute takes 30 s or more, and someone is waiting on the suggestion.
+const C0MPUTE_TIMEOUT_MS = 100_000;
 
 export interface Message {
   direction: "inbound" | "outbound";
@@ -18,31 +22,26 @@ export interface SuggestReplyResult {
   suggestion: string;
 }
 
-/**
- * Generate a reply suggestion using OpenAI's gpt-4o-mini model.
- */
-export async function suggestReply(
-  options: SuggestReplyOptions
-): Promise<SuggestReplyResult> {
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) {
-    throw new Error("OPENAI_API_KEY is not configured");
+const c0mputeOn = (): boolean =>
+  Boolean(process.env.C0MPUTE_API_KEY) && !/^(1|true|yes|on)$/i.test(process.env.C0MPUTE_DISABLED ?? "");
+
+let shared: { keys: string; router: AiRouter } | undefined;
+
+/** One router per set of keys, so a parked provider stays parked across calls. */
+function router(): AiRouter {
+  const keys = `${c0mputeOn()}|${process.env.OPENAI_API_KEY ?? ""}`;
+  if (shared?.keys !== keys) {
+    shared = {
+      keys,
+      router: createAiProviders({
+        env: { ...process.env, C0MPUTE_DISABLED: c0mputeOn() ? "" : "1" },
+      }),
+    };
   }
+  return shared.router;
+}
 
-  const { messages, contactName, contactPhone } = options;
-
-  const conversationContext = messages
-    .slice(-20) // Last 20 messages for context
-    .map(
-      (m) =>
-        `${m.direction === "inbound" ? (contactName || contactPhone || "Contact") : "You"}: ${m.body}`
-    )
-    .join("\n");
-
-  const systemPrompt = `You are an SMS reply assistant. Generate a brief, natural reply suggestion for an SMS conversation. Keep it concise (1-2 sentences max) and appropriate for text messaging. Do not use emojis unless the conversation style uses them. Reply with ONLY the suggested message text, nothing else.`;
-
-  const userPrompt = `Here is the recent SMS conversation with ${contactName || contactPhone || "a contact"}:\n\n${conversationContext}\n\nSuggest a reply:`;
-
+async function openaiReply(apiKey: string, systemPrompt: string, userPrompt: string): Promise<string> {
   const response = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
     headers: {
@@ -66,11 +65,51 @@ export async function suggestReply(
   }
 
   const data = await response.json();
-  const suggestion = data.choices?.[0]?.message?.content?.trim();
+  return data.choices?.[0]?.message?.content ?? "";
+}
 
-  if (!suggestion) {
-    throw new Error("No suggestion generated");
+/**
+ * Generate a reply suggestion, c0mpute first with OpenAI as the fallback.
+ */
+export async function suggestReply(
+  options: SuggestReplyOptions
+): Promise<SuggestReplyResult> {
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey && !c0mputeOn()) {
+    throw new Error("OPENAI_API_KEY is not configured");
   }
+
+  const { messages, contactName } = options;
+  // Never the phone number: the model has no use for it, and c0mpute nodes are
+  // run by strangers.
+  const contact = contactName || "Contact";
+
+  const conversationContext = messages
+    .slice(-20) // Last 20 messages for context
+    .map((m) => `${m.direction === "inbound" ? contact : "You"}: ${m.body}`)
+    .join("\n");
+
+  const systemPrompt = `You are an SMS reply assistant. Generate a brief, natural reply suggestion for an SMS conversation. Keep it concise (1-2 sentences max) and appropriate for text messaging. Do not use emojis unless the conversation style uses them. Reply with ONLY the suggested message text, nothing else.`;
+
+  const userPrompt = `Here is the recent SMS conversation with ${contactName || "a contact"}:\n\n${conversationContext}\n\nSuggest a reply:`;
+
+  const { value: suggestion } = await router().run(async (provider) => {
+    const text =
+      provider.name === "openai"
+        ? await openaiReply(apiKey as string, systemPrompt, userPrompt)
+        : (
+            await provider.generate({
+              system: systemPrompt,
+              user: userPrompt,
+              maxTokens: 150,
+              temperature: 0.7,
+              timeoutMs: C0MPUTE_TIMEOUT_MS,
+            })
+          ).text;
+    const reply = text.replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
+    if (!reply) throw new Error("No suggestion generated");
+    return reply;
+  });
 
   return { suggestion };
 }
