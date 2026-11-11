@@ -170,6 +170,8 @@ export default async function RootLayout({
       <head>
         <script data-site="0f7a1259-e26d-4705-a07a-c38aba040251" src="https://crawlproof.com/stats.js" async></script>
         <script src="https://crawlproof.com/ad.js" async></script>
+        {/* WebMCP (@profullstack/webmcp): site_info and open_page for the AI agent in the visitor's browser. /api/mcp is Bearer-key only, so it is not bridged. */}
+        <script type="module" data-webmcp="" src="https://cdn.jsdelivr.net/npm/@profullstack/webmcp@0/src/embed.js" data-pages='{"verification_numbers":"/verification-numbers","inbox":"/inbox","numbers":"/numbers","contacts":"/contacts","campaigns":"/campaigns","docs":"/docs","blog":"/blog"}'></script>
       </head>
       <body
         className={`${inter.className} bg-gray-950 text-gray-100 min-h-screen flex flex-col`}
