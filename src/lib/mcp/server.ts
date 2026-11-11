@@ -362,6 +362,37 @@ const TOOLS: Tool[] = [
 
 const ALL_TOOLS: Tool[] = [...TOOLS, ...LINE_TOOLS];
 
+/**
+ * Tool annotations (MCP 2025-06-18): a title and the read-only / destructive /
+ * open-world hints Claude's directory and ChatGPT require on every tool.
+ */
+const READ_ONLY = new Set([
+  "account_overview", "list_numbers", "list_conversations", "get_conversation", "list_blocked", "list_groups", "get_group",
+  "credit_balance", "list_invites", "order_status", "list_orders", "get_messages", "wait_for_code", "list_alerts",
+  "list_webhooks", "webhook_deliveries", "list_lines",
+]);
+const DESTRUCTIVE = new Set(["delete_webhook", "remove_line_contact", "rotate_webhook_secret", "unblock_number", "voice_menu", "share_line_contacts"]);
+/** Reaches people or systems outside the account: texts, calls to webhooks, purchases. */
+const OPEN_WORLD = new Set(["send_message", "send_to_group", "send_alert", "test_webhook", "rent_number", "renew_number", "create_webhook", "update_webhook"]);
+
+const SMALL = new Set(["a", "an", "and", "for", "of", "on", "to"]);
+export const toolTitle = (name: string) =>
+  name
+    .split("_")
+    .map((w, i) => (i > 0 && SMALL.has(w) ? w : w.charAt(0).toUpperCase() + w.slice(1)))
+    .join(" ");
+
+export function toolAnnotations(name: string) {
+  const readOnly = READ_ONLY.has(name);
+  return {
+    title: toolTitle(name),
+    readOnlyHint: readOnly,
+    destructiveHint: !readOnly && DESTRUCTIVE.has(name),
+    idempotentHint: readOnly,
+    openWorldHint: OPEN_WORLD.has(name),
+  };
+}
+
 /** Names and descriptions, for the docs. */
 export const MCP_TOOLS = ALL_TOOLS.map(({ name, description }) => ({ name, description }));
 
@@ -383,7 +414,7 @@ export async function handleRpc(ctx: Ctx, msg: RpcRequest): Promise<unknown | nu
       return ok(msg.id, {
         protocolVersion: PROTOCOL_VERSION,
         capabilities: { tools: { listChanged: false } },
-        serverInfo: { name: "smshub", version: "1.0.0" },
+        serverInfo: { name: "smshub", title: "smshub", version: "1.0.0" },
         instructions:
           "Rent a US phone number that receives SMS, then wait for verification codes on it. rent_number returns a pay_url that a human or a paying agent must complete; poll order_status until active, then use wait_for_code. With your own Twilio/Telnyx number connected, send_message texts anyone and list_conversations/get_conversation read the inbox.",
       });
@@ -393,7 +424,19 @@ export async function handleRpc(ctx: Ctx, msg: RpcRequest): Promise<unknown | nu
     case "ping":
       return ok(msg.id, {});
     case "tools/list":
-      return ok(msg.id, { tools: ALL_TOOLS.map(({ name, description, inputSchema }) => ({ name, description, inputSchema })) });
+      return ok(msg.id, {
+        tools: ALL_TOOLS.map(({ name, description, inputSchema }) => ({
+          name,
+          title: toolTitle(name),
+          description,
+          inputSchema,
+          annotations: toolAnnotations(name),
+        })),
+        // Cache fields the MCP clients' strict list schema requires (rev 2026-07-28).
+        resultType: "complete",
+        ttlMs: 0,
+        cacheScope: "private",
+      });
     case "tools/call": {
       const name = String(msg.params?.name ?? "");
       const tool = ALL_TOOLS.find((t) => t.name === name);

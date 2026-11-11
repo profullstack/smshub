@@ -9,7 +9,7 @@ import { createServerSupabaseClient, createServiceClient } from "@/lib/supabase/
 export interface RequestUser {
   userId: string;
   email: string | null;
-  via: "api-key" | "session";
+  via: "api-key" | "session" | "oauth";
 }
 
 export type ResolveResult = { user: RequestUser } | { error: string; status: number };
