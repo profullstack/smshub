@@ -105,8 +105,8 @@ npx ${NPM_PACKAGE} messages <number>        # every text, newest first`}</Code>
             <SisterSimLink lead="For those sites:" />
           </li>
           <li>
-            Payment is crypto or PayPal through CoinPay. For crypto, send the exact amount within{" "}
-            {CHECKOUT_WINDOW_MINUTES} minutes. The number is set up once the payment confirms.
+            You pay in crypto (USDC, USDT, BTC, ETH, SOL and others) on CoinPay&apos;s page: send the exact amount
+            within {CHECKOUT_WINDOW_MINUTES} minutes. The number is set up once the payment confirms.
           </li>
           <li>Numbers are US only for now, ${price} per number per month. Renew any time before it expires.</li>
           <li>
