@@ -33,7 +33,7 @@ export const ENDPOINTS: Endpoint[] = [
     params: [
       { name: "area_code", in: "body", type: "string", description: "Preferred 3-digit area code." },
       { name: "months", in: "body", type: "integer", description: "1 to 12, default 1." },
-      { name: "chain", in: "body", type: "string", description: "How to pay: CREDIT (store credit, no pay_url), PAYPAL, or a coin: USDC_POL (default), USDC_SOL, BTC, ETH..." },
+      { name: "chain", in: "body", type: "string", description: "How to pay: CREDIT (store credit, no pay_url) or a coin: USDC_POL (default), USDC_SOL, BTC, ETH... PAYPAL works only when GET /api/v1/numbers lists it in pricing.chains." },
     ],
     cli: "rent",
     mcp: "rent_number",
@@ -54,7 +54,7 @@ export const ENDPOINTS: Endpoint[] = [
     params: [
       id("Number id."),
       { name: "months", in: "body", type: "integer", description: "1 to 12, default 1." },
-      { name: "chain", in: "body", type: "string", description: "CREDIT, PAYPAL or a coin." },
+      { name: "chain", in: "body", type: "string", description: "CREDIT or a coin (PAYPAL only when pricing.chains lists it)." },
     ],
     cli: "renew",
     mcp: "renew_number",

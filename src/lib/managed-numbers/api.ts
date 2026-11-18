@@ -4,7 +4,7 @@
  */
 
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { availableChains, CHECKOUT_WINDOW_MINUTES, coinpayConfig, DEFAULT_CHAIN, methodsFor } from "@/lib/coinpay/checkout";
+import { availableChains, CHECKOUT_WINDOW_MINUTES, coinpayConfig, DEFAULT_CHAIN, methodsFor, paypalEnabled } from "@/lib/coinpay/checkout";
 import { getPlanUsage, priceUsdPerMonth } from "@/lib/plans";
 import { extractOtp } from "@/lib/otp";
 import { CREDIT_METHOD, GRACE_DAYS, orderingStatus } from "./service";
@@ -73,10 +73,10 @@ export async function overview(db: SupabaseClient, userId: string, email: string
     ordering: orderingStatus(email),
     pricing: {
       usd_per_month: priceUsdPerMonth(),
-      // Every coin CoinPay has live for the business, plus PayPal.
-      chains: methodsFor(chains),
+      // Every coin CoinPay has live for the business, plus PayPal when SMSHUB_PAYPAL_ENABLED (#146).
+      chains: methodsFor(chains, paypalEnabled()),
       default_chain: chains.includes(DEFAULT_CHAIN) ? DEFAULT_CHAIN : chains[0] ?? DEFAULT_CHAIN,
-      paypal: true,
+      paypal: paypalEnabled(),
       grace_days: GRACE_DAYS,
       // CoinPay's pay page expires this long after the order is created.
       checkout_window_minutes: CHECKOUT_WINDOW_MINUTES,

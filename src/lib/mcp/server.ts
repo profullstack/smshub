@@ -184,7 +184,7 @@ const TOOLS: Tool[] = [
     inputSchema: obj({
       area_code: { type: "string", description: "Preferred 3-digit US area code; nearest available if none." },
       months: { type: "integer", minimum: 1, maximum: 12, default: 1 },
-      chain: { type: "string", description: "How to pay: CREDIT (store credit, set up at once, no pay_url), PAYPAL, or a coin such as USDC_POL (default), USDC_SOL, USDC_BASE, USDT_POL, BTC, ETH, SOL, DOGE, XRP, ADA, BNB, BCH. GET /api/v1/numbers lists what is live." },
+      chain: { type: "string", description: "How to pay: CREDIT (store credit, set up at once, no pay_url) or a coin such as USDC_POL (default), USDC_SOL, USDC_BASE, USDT_POL, BTC, ETH, SOL, DOGE, XRP, ADA, BNB, BCH. PAYPAL works only when GET /api/v1/numbers lists it in pricing.chains. GET /api/v1/numbers lists what is live." },
     }),
     run: (c, a) =>
       createOrder({ db: c.db }, { userId: c.user.userId, email: c.user.email, kind: "new", areaCode: a.area_code, months: a.months, chain: a.chain, siteUrl: c.siteUrl, source: c.source }),

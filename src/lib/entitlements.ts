@@ -1,4 +1,4 @@
-import { CHECKOUT_METHODS, coinpayConfig } from "@/lib/coinpay/checkout";
+import { CHECKOUT_METHODS, coinpayConfig, PAYPAL_METHOD, paypalEnabled } from "@/lib/coinpay/checkout";
 import { PLANS, priceUsdPerMonth } from "@/lib/plans";
 import { managedMode } from "@/lib/telnyx/numbers";
 
@@ -24,7 +24,7 @@ export function getEntitlements(
         mode,
         usdPerMonth: priceUsdPerMonth(env),
         checkout: "coinpay",
-        chains: CHECKOUT_METHODS,
+        chains: paypalEnabled(env) ? CHECKOUT_METHODS : CHECKOUT_METHODS.filter((m) => m !== PAYPAL_METHOD),
         provider: "telnyx",
         receiveOnly: true,
         requiresUserProviderCredentials: false,
