@@ -37,6 +37,10 @@ curl -fsSL https://smshub.dev/cli/install.sh | sh
 
 `https://smshub.dev/install.sh` stays the desktop app installer.
 
+Giving an AI agent its own number? [examples/agent-inbox](examples/agent-inbox/README.md) is a
+dependency-free Node quickstart: wait for a one-time code over REST, verify and print signed
+`message.received` webhooks, and MCP config for Claude Code and Cursor.
+
 ## Features
 
 - **Unified Inbox** — Threaded conversations across all devices
