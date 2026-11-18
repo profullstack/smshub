@@ -9,6 +9,7 @@ import {
   FALLBACK_CHAINS,
   availableChains,
   methodsFor,
+  paypalEnabled,
   paymentMetadata,
   resetChainsCache,
 } from "../checkout";
@@ -43,7 +44,7 @@ describe("coinpay checkout", () => {
     expect(FALLBACK_CHAINS).not.toContain("USDT_TRON");
   });
 
-  it("offers what CoinPay reports active, PayPal second, and falls back when CoinPay cannot answer", async () => {
+  it("offers what CoinPay reports active, PayPal second when enabled, and falls back when CoinPay cannot answer", async () => {
     resetChainsCache();
     const cfg = coinpayConfig({
       COINPAY_API_KEY: "cp_live_" + "0".repeat(20),
@@ -68,7 +69,8 @@ describe("coinpay checkout", () => {
     }) as unknown as typeof fetch;
     const chains = await availableChains(cfg, ok, 1000);
     expect(chains).toEqual(["USDC_POL", "BTC", "DOGE"]);
-    expect(methodsFor(chains)).toEqual(["USDC_POL", "PAYPAL", "BTC", "DOGE"]);
+    expect(methodsFor(chains, true)).toEqual(["USDC_POL", "PAYPAL", "BTC", "DOGE"]);
+    expect(methodsFor(chains, false)).toEqual(["USDC_POL", "BTC", "DOGE"]);
     await availableChains(cfg, ok, 2000);
     expect(calls).toBe(1); // cached
 
@@ -76,6 +78,13 @@ describe("coinpay checkout", () => {
     const down = (async () => new Response("nope", { status: 502 })) as unknown as typeof fetch;
     expect(await availableChains(cfg, down)).toEqual([...FALLBACK_CHAINS]);
     resetChainsCache();
+  });
+
+  it("keeps PayPal off unless SMSHUB_PAYPAL_ENABLED says otherwise (#146)", () => {
+    const env = (v?: string) => (v === undefined ? {} : { SMSHUB_PAYPAL_ENABLED: v }) as unknown as NodeJS.ProcessEnv;
+    expect(paypalEnabled(env())).toBe(false);
+    for (const off of ["", "0", "false", "no", "off", "maybe"]) expect(paypalEnabled(env(off))).toBe(false);
+    for (const on of ["1", "true", "TRUE", "yes", "on", " on "]) expect(paypalEnabled(env(on))).toBe(true);
   });
 
   it("tags every payment with the property, user, order and email", () => {

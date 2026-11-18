@@ -55,7 +55,24 @@ export function normalizeChain(chain: unknown): CheckoutChain {
  */
 export const PAYPAL_METHOD = "PAYPAL" as const;
 
-/** Everything the buyer can pick: the default coin, PayPal, then the other coins. */
+/**
+ * PayPal is off unless SMSHUB_PAYPAL_ENABLED is 1/true/yes/on (issue #146).
+ * None of the 11 PayPal orders ever completed: CoinPay opened the PayPal order,
+ * no buyer ever approved one, PayPal webhooks never reach CoinPay (0 rows in
+ * paypal_webhook_events), and while the merchant's CoinPay secrets vault is
+ * locked, picking PayPal answers 423 "PayPal locked". Until the rail is proven
+ * end to end, buyers are offered crypto and store credit only.
+ * Read through a parameter, not a literal process.env.X, so Next.js cannot inline
+ * it at build time: flipping the flag needs a restart, not a rebuild.
+ */
+export function paypalEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
+  return /^(1|true|yes|on)$/i.test(String(env["SMSHUB_PAYPAL_ENABLED"] ?? "").trim());
+}
+
+export const PAYPAL_DISABLED_MESSAGE =
+  "PayPal checkout is turned off for now. Pay with crypto (USDC, USDT, BTC, ETH...) or store credit.";
+
+/** Everything the code can take: the default coin, PayPal, then the other coins. Buyers see methodsFor(). */
 export const CHECKOUT_METHODS = [DEFAULT_CHAIN, PAYPAL_METHOD, ...FALLBACK_CHAINS.filter((c) => c !== DEFAULT_CHAIN)] as const;
 export type CheckoutMethod = CheckoutChain | typeof PAYPAL_METHOD;
 
@@ -98,10 +115,10 @@ export function resetChainsCache(): void {
   chainsCache = null;
 }
 
-/** Buyer-facing methods: the default coin, PayPal, then the other live coins. */
-export function methodsFor(chains: readonly CheckoutChain[]): CheckoutMethod[] {
+/** Buyer-facing methods: the default coin, PayPal when enabled, then the other live coins. */
+export function methodsFor(chains: readonly CheckoutChain[], paypal: boolean = paypalEnabled()): CheckoutMethod[] {
   const first = chains.includes(DEFAULT_CHAIN) ? [DEFAULT_CHAIN] : [];
-  return [...first, PAYPAL_METHOD, ...chains.filter((c) => c !== DEFAULT_CHAIN)];
+  return [...first, ...(paypal ? [PAYPAL_METHOD] : []), ...chains.filter((c) => c !== DEFAULT_CHAIN)];
 }
 
 /** Every payment carries this, so CoinPay rows map back to the site, user and order. */
@@ -127,7 +144,7 @@ export function paymentMetadata(input: {
   return meta;
 }
 
-/** Like normalizeChain, but PayPal is also a valid answer. */
+/** Like normalizeChain, but PayPal is also a valid answer (createOrder checks paypalEnabled). */
 export function normalizeMethod(method: unknown): CheckoutMethod {
   const m = String(method ?? "").trim().toUpperCase();
   return m === PAYPAL_METHOD ? PAYPAL_METHOD : normalizeChain(m);
@@ -300,6 +317,8 @@ export async function createCheckoutSession(
     successUrl: string;
     cancelUrl: string;
     idempotencyKey: string;
+    /** CoinPay method codes ("CRYPTO" = every coin, "PAYPAL"); omitted = everything CoinPay offers. */
+    allowedMethods?: string[];
   },
   fetchImpl: typeof fetch = fetch,
   nowMs: number = Date.now()
@@ -325,6 +344,7 @@ export async function createCheckoutSession(
         success_url: opts.successUrl,
         cancel_url: opts.cancelUrl,
         expires_in_minutes: CHECKOUT_WINDOW_MINUTES,
+        ...(opts.allowedMethods?.length ? { allowed_methods: opts.allowedMethods } : {}),
       }),
       signal: AbortSignal.timeout(8000),
     });

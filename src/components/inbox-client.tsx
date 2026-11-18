@@ -17,7 +17,7 @@ interface UnfinishedOrder {
 }
 
 /** One click back into an expired, unpaid number order. */
-function FinishOrderBanner({ order }: { order: UnfinishedOrder }) {
+function FinishOrderBanner({ order, paypal }: { order: UnfinishedOrder; paypal: boolean }) {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const go = async (chain?: string) => {
@@ -51,7 +51,7 @@ function FinishOrderBanner({ order }: { order: UnfinishedOrder }) {
       >
         {busy ? "Opening..." : "Finish your order"}
       </button>
-      {order.chain !== "PAYPAL" && (
+      {paypal && order.chain !== "PAYPAL" && (
         <button
           type="button"
           disabled={busy}
@@ -90,6 +90,7 @@ export function InboxClient({
   userId: _userId,
   rentPriceUsd = 5,
   unfinishedOrder = null,
+  paypalEnabled = false,
 }: {
   conversations: Conversation[];
   numbers?: LineNumber[];
@@ -98,6 +99,8 @@ export function InboxClient({
   rentPriceUsd?: number;
   /** An order that expired unpaid, offered back in one click. */
   unfinishedOrder?: UnfinishedOrder | null;
+  /** PayPal checkout is offered (SMSHUB_PAYPAL_ENABLED, issue #146). */
+  paypalEnabled?: boolean;
 }) {
   const {
     filteredConversations,
@@ -195,7 +198,7 @@ export function InboxClient({
 
   return (
     <div className="h-screen flex flex-col">
-      {unfinishedOrder && <FinishOrderBanner order={unfinishedOrder} />}
+      {unfinishedOrder && <FinishOrderBanner order={unfinishedOrder} paypal={paypalEnabled} />}
       <div className="flex flex-1 min-h-0">
       {/* New Message Modal */}
       <NewMessageModal
@@ -515,7 +518,7 @@ export function InboxClient({
                 <div className="text-4xl">📱</div>
                 <h2 className="text-xl font-semibold text-white">Get a number for your verification codes</h2>
                 <p className="text-sm text-gray-300">
-                  Rent your own US number for ${rentPriceUsd}/month, paid with PayPal or crypto through CoinPay. It is ready once
+                  Rent your own US number for ${rentPriceUsd}/month, paid with {paypalEnabled ? "PayPal or " : ""}crypto through CoinPay. It is ready once
                   the payment confirms, and every text and code lands right here.
                 </p>
                 <a

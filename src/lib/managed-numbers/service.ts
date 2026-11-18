@@ -21,7 +21,9 @@ import {
   createPaypalPayment,
   paymentMetadata,
   normalizeMethod,
+  PAYPAL_DISABLED_MESSAGE,
   PAYPAL_METHOD,
+  paypalEnabled,
   type CoinPayConfig,
   type WebhookEvent,
 } from "@/lib/coinpay/checkout";
@@ -154,6 +156,10 @@ export async function createOrder(
   const months = clampMonths(input.months);
   const payWithCredit = isCreditMethod(input.chain);
   const chain = normalizeMethod(input.chain);
+  // Before any row is written: a disabled PayPal must not leave a dead order behind (#146).
+  if (chain === PAYPAL_METHOD && !payWithCredit && !paypalEnabled(env)) {
+    throw new OrderError(PAYPAL_DISABLED_MESSAGE, 400);
+  }
   const areaCode = cleanAreaCode(input.areaCode);
   const { db } = deps;
 
@@ -223,6 +229,8 @@ export async function createOrder(
         successUrl: backUrl,
         cancelUrl,
         idempotencyKey: `smshub-session-${order.id}`,
+        // CoinPay's own picker would otherwise still offer PayPal (#146).
+        ...(paypalEnabled(env) ? {} : { allowedMethods: ["CRYPTO"] }),
       },
       deps.fetchImpl
     );
@@ -687,7 +695,9 @@ export async function reopenOrder(
     phoneNumberId: o.phone_number_id,
     areaCode: o.area_code ?? "",
     months: o.months,
-    chain: input.chain ?? o.chain,
+    // An old PayPal order reopens on the default coin while PayPal is off (#146);
+    // an explicit PAYPAL from the caller still gets createOrder's clear error.
+    chain: input.chain ?? (o.chain === PAYPAL_METHOD && !paypalEnabled(deps.env ?? process.env) ? undefined : o.chain),
     siteUrl: input.siteUrl,
   });
 }

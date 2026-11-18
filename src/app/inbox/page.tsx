@@ -5,6 +5,7 @@ import { StationInbox } from "@/components/station/station-inbox";
 import { getBrand } from "@/lib/brand-server";
 import { priceUsdPerMonth } from "@/lib/plans";
 import { unfinishedOrder } from "@/lib/managed-numbers/recovery";
+import { paypalEnabled } from "@/lib/coinpay/checkout";
 
 export default async function InboxPage() {
   const supabase = await createServerSupabaseClient();
@@ -56,6 +57,7 @@ export default async function InboxPage() {
       numbers={numbers || []}
       userId={user.id}
       rentPriceUsd={priceUsdPerMonth()}
+      paypalEnabled={paypalEnabled()}
       unfinishedOrder={
         unfinished
           ? { id: unfinished.id, amountUsd: Number(unfinished.amount_usd), months: unfinished.months, chain: unfinished.chain }

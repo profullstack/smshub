@@ -22,6 +22,11 @@ function baseEnv(mode: "off" | "test" | "live"): NodeJS.ProcessEnv {
   } as unknown as NodeJS.ProcessEnv;
 }
 
+/** baseEnv("live") with the PayPal rail switched on (SMSHUB_PAYPAL_ENABLED). */
+function paypalEnv(): NodeJS.ProcessEnv {
+  return { ...baseEnv("live"), SMSHUB_PAYPAL_ENABLED: "1" } as unknown as NodeJS.ProcessEnv;
+}
+
 /** Fake CoinPay + Telnyx. Records every call so tests can assert nothing was bought. */
 function fakeFetch() {
   const calls: { method: string; url: string; body?: unknown }[] = [];
@@ -101,7 +106,7 @@ describe("managed numbers", () => {
 
   it("opens a PayPal order through CoinPay when the buyer picks PayPal, and settles on its webhook", async () => {
     const f = fakeFetch();
-    const deps = { db, env: baseEnv("live"), fetchImpl: f.impl };
+    const deps = { db, env: paypalEnv(), fetchImpl: f.impl };
     const order = await createOrder(deps, {
       userId: USER, email: EMAIL, months: 1, chain: "paypal", siteUrl: "https://smshub.dev",
     });
@@ -259,7 +264,7 @@ describe("managed numbers", () => {
 
   it("tags every crypto and PayPal payment with property, user, order and email", async () => {
     const f = fakeFetch();
-    const deps = { db, env: baseEnv("live"), fetchImpl: f.impl };
+    const deps = { db, env: paypalEnv(), fetchImpl: f.impl };
     const a = await createOrder(deps, { userId: USER, email: EMAIL, siteUrl: "https://smshub.dev" });
     const b = await createOrder(deps, { userId: USER, email: EMAIL, chain: "PAYPAL", siteUrl: "https://smshub.dev" });
     const crypto = f.calls.find((c) => c.url.endsWith("/api/payments/create"))!.body as Record<string, unknown>;
@@ -319,7 +324,7 @@ describe("managed numbers", () => {
 
   it("reopens an expired order in one click with the same terms, optionally on PayPal", async () => {
     const f = fakeFetch();
-    const deps = { db, env: baseEnv("live"), fetchImpl: f.impl };
+    const deps = { db, env: paypalEnv(), fetchImpl: f.impl };
     const old = await createOrder(deps, { userId: USER, email: EMAIL, areaCode: "415", months: 3, chain: "BTC", siteUrl: "x" });
     const row = fdb.rows("number_orders")[0];
     row.created_at = new Date(Date.now() - 61 * 60_000).toISOString();
@@ -335,5 +340,47 @@ describe("managed numbers", () => {
     await expect(reopenOrder(deps, { userId: "other", email: EMAIL, orderId: old.id, siteUrl: "x" })).rejects.toThrow(OrderError);
     row.status = "active";
     await expect(reopenOrder(deps, { userId: USER, email: EMAIL, orderId: old.id, siteUrl: "x" })).rejects.toThrow(/cannot be reopened/);
+  });
+
+  describe("with PayPal switched off (the default, #146)", () => {
+    it("refuses a PayPal order with a clear error before writing a row or calling CoinPay", async () => {
+      const f = fakeFetch();
+      const deps = { db, env: baseEnv("live"), fetchImpl: f.impl };
+      const err = await createOrder(deps, { userId: USER, email: EMAIL, chain: "paypal", siteUrl: "x" }).catch((e) => e);
+      expect(err).toBeInstanceOf(OrderError);
+      expect(err.status).toBe(400);
+      expect(err.message).toMatch(/PayPal checkout is turned off/);
+      expect(fdb.rows("number_orders")).toHaveLength(0);
+      expect(f.calls).toHaveLength(0);
+    });
+
+    it("keeps PayPal off CoinPay's hosted picker, and back on it once enabled", async () => {
+      const sessionBodies: Record<string, unknown>[] = [];
+      const impl = (async (_input: RequestInfo | URL, init?: RequestInit) => {
+        sessionBodies.push(JSON.parse(String(init?.body)));
+        return new Response(JSON.stringify({ id: `cs_${sessionBodies.length}`, url: "https://coinpayportal.com/checkout/cs_x" }), {
+          status: 201,
+          headers: { "content-type": "application/json" },
+        });
+      }) as unknown as typeof fetch;
+      await createOrder({ db, env: baseEnv("live"), fetchImpl: impl }, { userId: USER, email: EMAIL, siteUrl: "x" });
+      expect(sessionBodies[0].allowed_methods).toEqual(["CRYPTO"]);
+      await createOrder({ db, env: paypalEnv(), fetchImpl: impl }, { userId: USER, email: EMAIL, siteUrl: "x" });
+      expect(sessionBodies[1]).not.toHaveProperty("allowed_methods");
+    });
+
+    it("reopens an old PayPal order on the default coin instead of dead-ending", async () => {
+      const f = fakeFetch();
+      const old = await createOrder({ db, env: paypalEnv(), fetchImpl: f.impl }, { userId: USER, email: EMAIL, months: 2, chain: "PAYPAL", siteUrl: "x" });
+      fdb.rows("number_orders")[0].status = "expired";
+      const deps = { db, env: baseEnv("live"), fetchImpl: f.impl };
+      const fresh = await reopenOrder(deps, { userId: USER, email: EMAIL, orderId: old.id, siteUrl: "x" });
+      expect(fresh).toMatchObject({ months: 2, chain: "USDC_POL", status: "pending" });
+      // Asking for PayPal outright still gets the clear error.
+      fdb.rows("number_orders").forEach((r) => (r.status = "expired"));
+      await expect(reopenOrder(deps, { userId: USER, email: EMAIL, orderId: old.id, chain: "PAYPAL", siteUrl: "x" })).rejects.toThrow(
+        /PayPal checkout is turned off/
+      );
+    });
   });
 });

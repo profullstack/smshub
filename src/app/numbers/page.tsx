@@ -32,7 +32,7 @@ interface OrderRow {
 
 interface Overview {
   ordering: { open: boolean; mode: string; reason?: string };
-  pricing: { usd_per_month: number; chains: string[]; default_chain: string; grace_days: number };
+  pricing: { usd_per_month: number; chains: string[]; default_chain: string; grace_days: number; paypal?: boolean };
   plan: { plan: "free" | "pro"; limits: Record<string, number | boolean>; usage: Record<string, number> };
   numbers: NumberRow[];
   orders: OrderRow[];
@@ -202,7 +202,9 @@ export default function NumbersPage() {
     checkout(`/api/numbers/orders/${o.id}/reopen`, method ? { chain: method } : {});
   const unfinished = !openCheckout && data.ordering.open ? unfinishedOrder(data.orders, now) : null;
   const coins = data.pricing.chains.filter((c) => c !== "PAYPAL");
-  const payByPaypal = chain === "PAYPAL";
+  // PayPal is offered only when the server says so (SMSHUB_PAYPAL_ENABLED, #146).
+  const paypalOn = data.pricing.paypal === true;
+  const payByPaypal = paypalOn && chain === "PAYPAL";
   // Store credit from a redeemed code or an accepted invite pays the whole order.
   const credit = data.credit?.balance_usd ?? 0;
   const creditCovers = (m: number) => credit + 1e-9 >= price * m;
@@ -255,9 +257,9 @@ export default function NumbersPage() {
               onClick={() => retry(unfinished)}
               className="rounded-lg bg-green-600 px-4 py-2 font-semibold text-white hover:bg-green-700 disabled:opacity-50"
             >
-              Finish your order ({CHAIN_LABELS[unfinished.chain] || unfinished.chain})
+              Finish your order ({!paypalOn && unfinished.chain === "PAYPAL" ? "crypto" : CHAIN_LABELS[unfinished.chain] || unfinished.chain})
             </button>
-            {unfinished.chain !== "PAYPAL" && (
+            {paypalOn && unfinished.chain !== "PAYPAL" && (
               <button
                 type="button"
                 disabled={busy}
@@ -362,8 +364,8 @@ export default function NumbersPage() {
       <section className="rounded-xl border border-gray-800 bg-gray-900 p-6 space-y-4">
         <h2 className="text-lg font-semibold">Rent a number</h2>
         <p className="text-sm text-gray-400">
-          A US number that receives texts and verification codes, ${price}/month, paid with PayPal or in
-          any of {coins.length} cryptocurrencies through CoinPay.
+          A US number that receives texts and verification codes, ${price}/month, paid {paypalOn ? "with PayPal or " : ""}in
+          any of {coins.length} cryptocurrencies through CoinPay, or with store credit.
           It is set up as soon as the payment confirms. Rented numbers receive only; some services refuse
           virtual numbers.
         </p>
@@ -378,10 +380,12 @@ export default function NumbersPage() {
               Press Pay: CoinPay shows an address and an exact amount (a few cents over ${price} covers the network
               fee). Send exactly that, on the network you picked. USDC on Polygon costs the least to send.
             </li>
-            <li>
-              No crypto? Pick <strong className="text-gray-300">PayPal</strong> and pay ${price} a month on
-              PayPal&apos;s page. The number is set up once PayPal confirms the payment.
-            </li>
+            {paypalOn && (
+              <li>
+                No crypto? Pick <strong className="text-gray-300">PayPal</strong> and pay ${price} a month on
+                PayPal&apos;s page. The number is set up once PayPal confirms the payment.
+              </li>
+            )}
             <li>
               The payment page stays open for {CHECKOUT_WINDOW_MINUTES} minutes. If it closes before you pay, press
               Finish your order here and you get a fresh one in one click. If you already sent the coins, do not pay again: a late payment is still credited,
@@ -403,6 +407,7 @@ export default function NumbersPage() {
           <p className="text-sm text-yellow-300">{data.ordering.reason}</p>
         ) : (
           <div className="space-y-3">
+          {paypalOn && (
           <div className="grid gap-2 sm:grid-cols-2" role="radiogroup" aria-label="How to pay">
             <button
               type="button"
@@ -427,6 +432,7 @@ export default function NumbersPage() {
               </div>
             </button>
           </div>
+          )}
           <form
             onSubmit={(e) => {
               e.preventDefault();
