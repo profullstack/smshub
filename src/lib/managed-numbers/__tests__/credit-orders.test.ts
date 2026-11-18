@@ -75,6 +75,16 @@ describe("paying for a rented number with store credit", () => {
     expect(await credits.balance(USER, CREDIT_UNIT)).toBe(0);
   });
 
+  it("records the order's first-touch source, and leaves it out when unknown", async () => {
+    await credits.grant(USER, { unit: CREDIT_UNIT, amount: 1000 }, "code:crd_1");
+    const source = { utm_source: "test", utm_medium: "qa", utm_campaign: "rev7", at: "2026-11-18" };
+    const order = await createOrder(deps(), { userId: USER, email: EMAIL, chain: "CREDIT", siteUrl: "x", source });
+    expect(order.source).toEqual(source);
+    expect(fdb.rows("number_orders")[0].source).toEqual(source);
+    await createOrder(deps(), { userId: USER, email: EMAIL, chain: "CREDIT", siteUrl: "x", source: null });
+    expect(fdb.rows("number_orders")[1]).not.toHaveProperty("source");
+  });
+
   it("gives the credit back when provisioning gives up for good", async () => {
     // The one pool number is already lent to someone else, so provisioning keeps failing.
     fdb.rows("phone_numbers").push({ id: "other", user_id: "u2", number: "+14085550001", status: "active", managed: true });

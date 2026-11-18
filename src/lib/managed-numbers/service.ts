@@ -44,6 +44,7 @@ import { centsToUsd, CREDIT_UNIT, getCredits } from "@/lib/rewards";
 import { emitEvent } from "@/lib/webhooks/hub";
 import { getMailer, type MailSender } from "@/lib/email/mailer";
 import { expiryReminderEmail } from "./expiry-email";
+import type { Source } from "@/lib/attribution";
 
 /**
  * Store credit (from a redeemed code or an accepted invite) pays for an order
@@ -101,6 +102,8 @@ export interface NumberOrder {
   attempts: number;
   paid_at: string | null;
   created_at: string;
+  /** First-touch attribution (utm_*, ref, at); null when unknown. */
+  source?: Source | null;
 }
 
 export class OrderError extends Error {
@@ -150,6 +153,8 @@ export async function createOrder(
     months?: unknown;
     chain?: unknown;
     siteUrl: string;
+    /** First-touch attribution (lib/attribution): the smshub_src cookie or an X-Source header. */
+    source?: Source | null;
   }
 ): Promise<NumberOrder> {
   const env = deps.env ?? process.env;
@@ -206,6 +211,8 @@ export async function createOrder(
       months,
       amount_usd: amount,
       chain: payWithCredit ? CREDIT_METHOD : chain,
+      // Only sent when known, so an order never fails on attribution.
+      ...(input.source ? { source: input.source } : {}),
     })
     .select()
     .single();

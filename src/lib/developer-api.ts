@@ -275,6 +275,16 @@ export const WEBHOOK_GUIDE = [
 ];
 export const NPM_PACKAGE = "@profullstack/smshub";
 
+/**
+ * Optional X-Source header: where a rent or renew came from, stored on the
+ * order (number_orders.source) like the utm cookie a browser carries.
+ * Parsed by lib/attribution.
+ */
+export const SOURCE_HEADER_NAME = "X-Source";
+export const SOURCE_HEADER_DOC =
+  "Optional on rent and renew (REST and MCP): `X-Source: utm_source=devto&utm_medium=post&utm_campaign=launch` (or just `X-Source: devto`) records where the order came from. Keys: utm_source, utm_medium, utm_campaign, ref; letters, digits and . _ ~ + - only, 64 characters each. No personal data.";
+const SOURCE_PATHS = new Set(["/api/v1/numbers/orders", "/api/v1/numbers/{id}/renew"]);
+
 const schemaOf = (p: Param) => ({ type: p.type, description: p.description });
 
 /** OpenAPI 3.1 for the endpoints above. */
@@ -288,7 +298,12 @@ export function openApi(siteUrl: string, name: string) {
       operationId: `${e.method.toLowerCase()}${e.path.replace(/\{(\w+)\}/g, "By_$1").replace(/[^a-zA-Z0-9]+(.)?/g, (_, c) => (c ? c.toUpperCase() : ""))}`,
       parameters: params
         .filter((p) => p.in !== "body")
-        .map((p) => ({ name: p.name, in: p.in, required: p.in === "path" || !!p.required, schema: schemaOf(p) })),
+        .map((p): Record<string, unknown> => ({ name: p.name, in: p.in, required: p.in === "path" || !!p.required, schema: schemaOf(p) }))
+        .concat(
+          e.method === "POST" && SOURCE_PATHS.has(e.path)
+            ? [{ name: SOURCE_HEADER_NAME, in: "header", required: false, schema: { type: "string", description: SOURCE_HEADER_DOC } }]
+            : []
+        ),
       responses: { "200": { description: "OK" }, "401": { description: "Missing or invalid API key" }, "429": { description: "Rate limited" } },
     };
     if (body.length) {
@@ -334,6 +349,7 @@ export function llmsTxt(siteUrl: string, name: string) {
     `- API key: create one at ${siteUrl}/settings/api-keys and send it as \`X-API-Key: smshub_...\` or \`Authorization: Bearer smshub_...\`.`,
     `- MCP (streamable HTTP): ${siteUrl}${MCP_URL} with the same header. Stdio: \`npx -y ${NPM_PACKAGE} mcp\` with SMSHUB_API_KEY set.`,
     `- CLI: \`npx ${NPM_PACKAGE} help\` (bin: smshub-cli).`,
+    `- Attribution: ${SOURCE_HEADER_DOC}`,
     `- OpenAPI: ${siteUrl}/openapi.json`,
     `- Docs: ${siteUrl}/docs/api`,
     "",

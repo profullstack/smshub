@@ -3,6 +3,7 @@ import { createServiceClient } from "@/lib/supabase/server";
 import { resolveUser } from "@/lib/request-user";
 import { createOrder, OrderError } from "@/lib/managed-numbers/service";
 import { getBrandSiteUrl } from "@/lib/brand-server";
+import { sourceFromRequest } from "@/lib/attribution";
 
 /** Extend a rented number: { months?, chain? } -> an order with a CoinPay pay_url. */
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -21,6 +22,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         months: body.months,
         chain: body.chain,
         siteUrl: await getBrandSiteUrl(request),
+        source: sourceFromRequest(request),
       }
     );
     return NextResponse.json({ order }, { status: 201 });
