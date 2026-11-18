@@ -11,6 +11,7 @@ const PUBLIC_ROUTES = [
   "/auth",
   "/phonenumbers",
   "/verification-numbers",
+  "/agents",
   "/offline",
   "/install",
   "/privacy",

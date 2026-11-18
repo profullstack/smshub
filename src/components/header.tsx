@@ -11,6 +11,7 @@ const NAV_LINKS = [
   { href: "/#features", label: "Features" },
   { href: "/#pricing", label: "Pricing" },
   { href: "/#api", label: "API" },
+  { href: "/agents", label: "For agents" },
   { href: "/verification-numbers", label: "Verification numbers" },
   { href: "/blog", label: "Guides" },
 ];
