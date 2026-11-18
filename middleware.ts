@@ -44,7 +44,7 @@ export async function middleware(request: NextRequest) {
  * cheap (no I/O) and never overwrites an earlier source.
  */
 function rememberFirstTouch(request: NextRequest, response: NextResponse) {
-  if (request.method !== "GET" || request.nextUrl.pathname.startsWith("/api/")) return;
+  if ((request.method !== "GET" && request.method !== "HEAD") || request.nextUrl.pathname.startsWith("/api/")) return;
   if (!request.nextUrl.search || request.cookies.has(SOURCE_COOKIE)) return;
   const src = sourceFromParams(request.nextUrl.searchParams);
   if (!src) return;

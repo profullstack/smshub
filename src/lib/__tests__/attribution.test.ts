@@ -91,6 +91,12 @@ describe("first-touch source: middleware", () => {
     expect(c!.httpOnly).toBe(true);
   });
 
+  it("answers a HEAD (curl -I) the same way, but not a POST", async () => {
+    const url = "https://smshub.dev/agents?utm_source=test";
+    expect((await run(url, { method: "HEAD" })).cookies.get(SOURCE_COOKIE)).toBeTruthy();
+    expect((await run(url, { method: "POST" })).cookies.get(SOURCE_COOKIE)).toBeUndefined();
+  });
+
   it("keeps the first touch: no overwrite when the cookie exists", async () => {
     const res = await run("https://smshub.dev/agents?utm_source=second", { cookie: `${SOURCE_COOKIE}=utm_source%3Dfirst` });
     expect(res.cookies.get(SOURCE_COOKIE)).toBeUndefined();
