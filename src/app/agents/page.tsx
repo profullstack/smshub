@@ -3,6 +3,7 @@ import Link from "next/link";
 import { priceUsdPerMonth } from "@/lib/plans";
 import { CHECKOUT_WINDOW_MINUTES } from "@/lib/coinpay/window";
 import { MCP_URL, NPM_PACKAGE } from "@/lib/developer-api";
+import { cookies } from "next/headers";
 import { getBrandSiteUrl } from "@/lib/brand-server";
 import { SisterSimLink } from "@/components/sister-sim-link";
 
@@ -17,9 +18,23 @@ export function generateMetadata(): Metadata {
   };
 }
 
+/**
+ * Where "Get your agent a number" goes. Signed out (no Supabase auth cookie),
+ * straight to sign-up with next=/numbers, which the confirmation link and the
+ * "sign in" link both carry back, instead of loading /numbers only for it to
+ * bounce to /register. A stale cookie still works: /numbers sends a 401 there.
+ * Cookie presence only, no auth round trip on a public page.
+ */
+async function rentHref(): Promise<string> {
+  const jar = await cookies();
+  const signedIn = jar.getAll().some((c) => /^sb-.+-auth-token(\.\d+)?$/.test(c.name) && c.value);
+  return signedIn ? "/numbers" : "/register?next=%2Fnumbers";
+}
+
 export default async function AgentsPage() {
   const price = priceUsdPerMonth();
   const site = await getBrandSiteUrl();
+  const rent = await rentHref();
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-16 space-y-12">
@@ -33,14 +48,14 @@ export default async function AgentsPage() {
         </p>
         <div className="flex flex-col sm:flex-row gap-4 justify-center">
           <Link
-            href="/numbers"
-            className="px-8 py-3 bg-green-600 hover:bg-green-700 rounded-lg font-semibold text-lg transition-colors"
+            href={rent}
+            className="px-5 sm:px-8 py-3 bg-green-600 hover:bg-green-700 rounded-lg font-semibold text-base sm:text-lg transition-colors"
           >
             Get your agent a number · ${price}/mo
           </Link>
           <Link
             href="/docs/api#mcp"
-            className="px-8 py-3 bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded-lg font-semibold text-lg transition-colors"
+            className="px-5 sm:px-8 py-3 bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded-lg font-semibold text-base sm:text-lg transition-colors"
           >
             Read the API docs
           </Link>
@@ -122,8 +137,8 @@ npx ${NPM_PACKAGE} messages <number>        # every text, newest first`}</Code>
 
       <div className="text-center space-y-3">
         <Link
-          href="/numbers"
-          className="inline-block px-8 py-3 bg-green-600 hover:bg-green-700 rounded-lg font-semibold text-lg transition-colors"
+          href={rent}
+          className="inline-block px-5 sm:px-8 py-3 bg-green-600 hover:bg-green-700 rounded-lg font-semibold text-base sm:text-lg transition-colors"
         >
           Get your agent a number · ${price}/mo
         </Link>

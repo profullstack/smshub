@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { gate } from "@/lib/crawl-gateway";
 import { meter } from "@/lib/throttle";
 import { trackReferralCode } from "@profullstack/stack/referrals";
+import { SOURCE_COOKIE, SOURCE_MAX_AGE, encodeSource, sourceFromParams } from "@/lib/attribution";
 
 export async function middleware(request: NextRequest) {
   // /register is the human signup page. An MCP client that misses our OAuth
@@ -32,7 +33,28 @@ export async function middleware(request: NextRequest) {
   // caller, and going over is answered 402 with the same offer (lib/throttle).
   const overLimit = await meter(request);
   if (overLimit) return overLimit;
-  return trackReferralCode(request, NextResponse.next() as any);
+  const response = trackReferralCode(request, NextResponse.next() as any) as NextResponse;
+  rememberFirstTouch(request, response);
+  return response;
+}
+
+/**
+ * First-touch attribution (lib/attribution): a page opened with utm_* or ref
+ * query params, and no smshub_src cookie yet, gets one for 30 days. Pages only;
+ * cheap (no I/O) and never overwrites an earlier source.
+ */
+function rememberFirstTouch(request: NextRequest, response: NextResponse) {
+  if (request.method !== "GET" || request.nextUrl.pathname.startsWith("/api/")) return;
+  if (!request.nextUrl.search || request.cookies.has(SOURCE_COOKIE)) return;
+  const src = sourceFromParams(request.nextUrl.searchParams);
+  if (!src) return;
+  response.cookies.set(SOURCE_COOKIE, encodeSource(src), {
+    maxAge: SOURCE_MAX_AGE,
+    path: "/",
+    sameSite: "lax",
+    secure: request.nextUrl.protocol === "https:" || request.headers.get("x-forwarded-proto") === "https",
+    httpOnly: true,
+  });
 }
 
 export const config = {

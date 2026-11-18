@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { getBrand, getBrandSiteUrl } from "@/lib/brand-server";
-import { ENDPOINTS, MCP_URL, NPM_PACKAGE, WEBHOOK_GUIDE } from "@/lib/developer-api";
+import { ENDPOINTS, MCP_URL, NPM_PACKAGE, SOURCE_HEADER_NAME, WEBHOOK_GUIDE } from "@/lib/developer-api";
 import { WEBHOOK_EVENT_DOCS, WEBHOOK_EVENT_TYPES } from "@/lib/webhooks/catalog";
 import { MCP_TOOLS } from "@/lib/mcp/server";
 
@@ -57,6 +57,11 @@ curl -X POST -H "X-API-Key: $SMSHUB_API_KEY" -H "Content-Type: application/json"
         <p className="text-sm text-gray-400">
           JSON in, JSON out. Errors are <code>{`{ "error": "..." }`}</code> with a 4xx or 5xx status; 429 carries
           <code> Retry-After</code>. Sending uses your own Twilio or Telnyx number; rented numbers receive only.
+        </p>
+        <p className="text-sm text-gray-400">
+          Optional on rent and renew (REST and MCP): <code>{SOURCE_HEADER_NAME}: utm_source=devto&amp;utm_campaign=launch</code>{" "}
+          (or just <code>{SOURCE_HEADER_NAME}: devto</code>) records where the order came from. Keys are utm_source,
+          utm_medium, utm_campaign and ref; no personal data.
         </p>
         <div className="space-y-3">
           {ENDPOINTS.map((e) => (

@@ -11,6 +11,7 @@ import { addMembers, getGroup, listGroups, saveGroup, sendToGroup } from "@/lib/
 import { SendError, sendMessage } from "@/lib/messages/send";
 import { isBlockReason, listBlocked, setBlocked } from "@/lib/blocking";
 import type { RequestUser } from "@/lib/request-user";
+import type { Source } from "@/lib/attribution";
 import { LINE_TOOLS, LineToolError } from "./line-tools";
 import { AlertError, listAlerts, sendAlert } from "@/lib/alerts/service";
 import { createInvite, creditSummary, invitesSummary, redeemCode } from "@/lib/rewards";
@@ -32,6 +33,8 @@ interface Ctx {
   user: RequestUser;
   siteUrl: string;
   signal?: AbortSignal;
+  /** X-Source header on the MCP request, recorded on orders (lib/attribution). */
+  source?: Source | null;
 }
 
 const obj = (properties: Record<string, unknown>, required: string[] = []) => ({
@@ -184,7 +187,7 @@ const TOOLS: Tool[] = [
       chain: { type: "string", description: "How to pay: CREDIT (store credit, set up at once, no pay_url), PAYPAL, or a coin such as USDC_POL (default), USDC_SOL, USDC_BASE, USDT_POL, BTC, ETH, SOL, DOGE, XRP, ADA, BNB, BCH. GET /api/v1/numbers lists what is live." },
     }),
     run: (c, a) =>
-      createOrder({ db: c.db }, { userId: c.user.userId, email: c.user.email, kind: "new", areaCode: a.area_code, months: a.months, chain: a.chain, siteUrl: c.siteUrl }),
+      createOrder({ db: c.db }, { userId: c.user.userId, email: c.user.email, kind: "new", areaCode: a.area_code, months: a.months, chain: a.chain, siteUrl: c.siteUrl, source: c.source }),
   },
   {
     name: "renew_number",
@@ -194,7 +197,7 @@ const TOOLS: Tool[] = [
       ["number_id"]
     ),
     run: (c, a) =>
-      createOrder({ db: c.db }, { userId: c.user.userId, email: c.user.email, kind: "renew", phoneNumberId: String(a.number_id), months: a.months, chain: a.chain, siteUrl: c.siteUrl }),
+      createOrder({ db: c.db }, { userId: c.user.userId, email: c.user.email, kind: "renew", phoneNumberId: String(a.number_id), months: a.months, chain: a.chain, siteUrl: c.siteUrl, source: c.source }),
   },
   {
     name: "redeem_code",

@@ -4,6 +4,7 @@ import { resolveUser } from "@/lib/request-user";
 import { listOrders } from "@/lib/managed-numbers/api";
 import { createOrder, OrderError } from "@/lib/managed-numbers/service";
 import { getBrandSiteUrl } from "@/lib/brand-server";
+import { sourceFromRequest } from "@/lib/attribution";
 import { checkRateLimit } from "@/lib/rate-limit";
 
 export async function GET(request: Request) {
@@ -34,6 +35,7 @@ export async function POST(request: Request) {
         months: body.months,
         chain: body.chain,
         siteUrl: await getBrandSiteUrl(request),
+        source: sourceFromRequest(request),
       }
     );
     return NextResponse.json({ order }, { status: 201 });

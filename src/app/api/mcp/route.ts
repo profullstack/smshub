@@ -3,6 +3,7 @@ import { createServiceClient } from "@/lib/supabase/server";
 import { resolveUser, type ResolveResult } from "@/lib/request-user";
 import { handleRpc } from "@/lib/mcp/server";
 import { getSiteUrl } from "@/lib/site-url";
+import { SOURCE_HEADER, parseSource } from "@/lib/attribution";
 import { ACCESS_PREFIX, CORS_HEADERS, resolveAccessToken, resourceMetadataUrl } from "@/lib/mcp-oauth";
 
 /**
@@ -55,7 +56,7 @@ export async function POST(request: Request) {
   } catch {
     return NextResponse.json({ jsonrpc: "2.0", id: null, error: { code: -32700, message: "Parse error" } }, { status: 400, headers: CORS_HEADERS });
   }
-  const ctx = { db: createServiceClient(), user: who.user, siteUrl: getSiteUrl(), signal: request.signal };
+  const ctx = { db: createServiceClient(), user: who.user, siteUrl: getSiteUrl(), signal: request.signal, source: parseSource(request.headers.get(SOURCE_HEADER)) };
   const msgs = Array.isArray(body) ? body : [body];
   const replies = (await Promise.all(msgs.map((m) => handleRpc(ctx, m)))).filter((r) => r !== null);
   if (replies.length === 0) return new Response(null, { status: 202, headers: CORS_HEADERS });
