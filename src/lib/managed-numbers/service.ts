@@ -42,6 +42,8 @@ import { MANAGED_API_KEY } from "@/lib/providers";
 import type { Credits } from "@profullstack/redeem-credits";
 import { centsToUsd, CREDIT_UNIT, getCredits } from "@/lib/rewards";
 import { emitEvent } from "@/lib/webhooks/hub";
+import { getMailer, type MailSender } from "@/lib/email/mailer";
+import { expiryReminderEmail } from "./expiry-email";
 
 /**
  * Store credit (from a redeemed code or an accepted invite) pays for an order
@@ -74,6 +76,10 @@ export interface Deps {
   now?: () => Date;
   /** Store credit; defaults to the app's (lib/rewards). */
   credits?: Credits;
+  /** Transactional email; defaults to the env-configured sender (lib/email/mailer). */
+  mailer?: MailSender | null;
+  /** Owner's email address; defaults to the auth user, then user_profiles. */
+  ownerEmail?: (userId: string) => Promise<string | null>;
 }
 
 export interface NumberOrder {
@@ -565,7 +571,7 @@ export async function sweep(deps: Deps): Promise<SweepReport> {
     .select("id");
   report.expiredCheckouts = expired?.length ?? 0;
 
-  await notifyExpiring(db, now, report);
+  await notifyExpiring(deps, now, report);
 
   const releaseBefore = new Date(now.getTime() - GRACE_DAYS * 86400_000).toISOString();
   const { data: due } = await db
@@ -606,9 +612,11 @@ export const EXPIRING_NOTICE_DAYS = 3;
 /**
  * number.expiring, once per paid-until date: expiry_notified_for remembers the
  * expires_at that was reported, so a renewal (a new expires_at) is reported again
- * next time round, and the 5-minute sweep never repeats itself.
+ * next time round, and the 5-minute sweep never repeats itself. The owner also
+ * gets one reminder email for the same date (sendExpiryReminder).
  */
-async function notifyExpiring(db: SupabaseClient, now: Date, report: SweepReport) {
+async function notifyExpiring(deps: Deps, now: Date, report: SweepReport) {
+  const { db } = deps;
   try {
     const { data, error } = await db
       .from("phone_numbers")
@@ -619,7 +627,7 @@ async function notifyExpiring(db: SupabaseClient, now: Date, report: SweepReport
       .lt("expires_at", new Date(now.getTime() + EXPIRING_NOTICE_DAYS * 86400_000).toISOString())
       .limit(100);
     if (error) throw error;
-    for (const n of (data ?? []) as { id: string; user_id: string; number: string; expires_at: string; expiry_notified_for: string | null }[]) {
+    for (const n of (data ?? []) as ExpiringNumber[]) {
       if (n.expiry_notified_for && new Date(n.expiry_notified_for).getTime() === new Date(n.expires_at).getTime()) continue;
       await db.from("phone_numbers").update({ expiry_notified_for: n.expires_at }).eq("id", n.id);
       await emitEvent(
@@ -629,14 +637,75 @@ async function notifyExpiring(db: SupabaseClient, now: Date, report: SweepReport
           phone_number_id: n.id,
           number: n.number,
           expires_at: n.expires_at,
-          released_after: new Date(new Date(n.expires_at).getTime() + GRACE_DAYS * 86400_000).toISOString(),
+          released_after: releasedAfter(n.expires_at),
         },
         `number:${n.id}`,
         `evt_expiring_${n.id}_${new Date(n.expires_at).getTime()}`
       );
+      const sent = await sendExpiryReminder(deps, n);
+      if (sent.error) report.errors.push(`expiry email ${n.id}: ${sent.error}`);
     }
   } catch (e) {
     report.errors.push(`expiring notices: ${e instanceof Error ? e.message : String(e)}`);
+  }
+}
+
+export interface ExpiringNumber {
+  id: string;
+  user_id: string;
+  number: string;
+  expires_at: string;
+  expiry_notified_for?: string | null;
+}
+
+function releasedAfter(expiresAt: string): string {
+  return new Date(new Date(expiresAt).getTime() + GRACE_DAYS * 86400_000).toISOString();
+}
+
+async function defaultOwnerEmail(db: SupabaseClient, userId: string): Promise<string | null> {
+  try {
+    const { data } = await db.auth.admin.getUserById(userId);
+    if (data?.user?.email) return data.user.email;
+  } catch {
+    // fall through to the profile
+  }
+  const { data: profile } = await db.from("user_profiles").select("email").eq("user_id", userId).maybeSingle();
+  return (profile as { email?: string | null } | null)?.email ?? null;
+}
+
+/**
+ * Email the owner that this number's paid time ends soon, with the renew link
+ * and CLI command. Never throws: the result says whether it went out. The
+ * caller decides it is due (notifyExpiring does, once per paid-until date).
+ * Logs carry the phone_numbers id, never the address.
+ */
+export async function sendExpiryReminder(
+  deps: Deps,
+  n: ExpiringNumber
+): Promise<{ sent: boolean; id?: string; skipped?: string; error?: string }> {
+  try {
+    const mailer = deps.mailer === undefined ? getMailer(deps.env ?? process.env) : deps.mailer;
+    if (!mailer) {
+      console.warn(`[managed-numbers] expiry email skipped for ${n.id}: no mailer (RESEND_API_KEY unset)`);
+      return { sent: false, skipped: "no mailer" };
+    }
+    const to = await (deps.ownerEmail ?? ((uid: string) => defaultOwnerEmail(deps.db, uid)))(n.user_id);
+    if (!to) {
+      console.warn(`[managed-numbers] expiry email skipped for ${n.id}: owner has no email`);
+      return { sent: false, skipped: "no owner email" };
+    }
+    const mail = expiryReminderEmail({ number: n.number, expiresAt: n.expires_at, releasedAfter: releasedAfter(n.expires_at) });
+    const r = await mailer({ to, ...mail });
+    if (!r.sent) {
+      console.error(`[managed-numbers] expiry email failed for ${n.id}: ${r.error ?? "unknown"}`);
+      return { sent: false, error: r.error ?? "send failed" };
+    }
+    console.warn(`[managed-numbers] expiry email sent for ${n.id} (expires ${n.expires_at}) id=${r.id ?? "?"}`);
+    return { sent: true, id: r.id };
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    console.error(`[managed-numbers] expiry email failed for ${n.id}: ${msg}`);
+    return { sent: false, error: msg };
   }
 }
 
