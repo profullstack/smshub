@@ -1,6 +1,6 @@
 {
   "name": "smshub",
-  "version": "0.1.193",
+  "version": "0.1.194",
   "private": true,
   "scripts": {
     "dev": "bun --bun next dev",
