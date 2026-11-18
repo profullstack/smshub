@@ -1,0 +1,61 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.profullstack/smshub",
+  "title": "SMSHub",
+  "description": "Receive SMS on a dedicated US number for your AI agent: read texts and one-time codes. $5/month.",
+  "websiteUrl": "https://smshub.dev/agents",
+  "repository": {
+    "url": "https://github.com/profullstack/smshub",
+    "source": "github",
+    "subfolder": "cli"
+  },
+  "icons": [
+    {
+      "src": "https://smshub.dev/logo.svg",
+      "mimeType": "image/svg+xml",
+      "sizes": ["any"]
+    }
+  ],
+  "version": "1.11.1",
+  "packages": [
+    {
+      "registryType": "npm",
+      "registryBaseUrl": "https://registry.npmjs.org",
+      "identifier": "@profullstack/smshub",
+      "version": "1.11.1",
+      "transport": {
+        "type": "stdio"
+      },
+      "packageArguments": [
+        {
+          "type": "positional",
+          "value": "mcp",
+          "description": "Run the stdio MCP server"
+        }
+      ],
+      "environmentVariables": [
+        {
+          "name": "SMSHUB_API_KEY",
+          "description": "Your smshub.dev API key (create one at https://smshub.dev/settings/api-keys)",
+          "isRequired": true,
+          "isSecret": true,
+          "format": "string"
+        }
+      ]
+    }
+  ],
+  "remotes": [
+    {
+      "type": "streamable-http",
+      "url": "https://smshub.dev/api/mcp",
+      "headers": [
+        {
+          "name": "X-API-Key",
+          "description": "Your smshub.dev API key. Optional if your client signs in with OAuth.",
+          "isRequired": false,
+          "isSecret": true
+        }
+      ]
+    }
+  ]
+}
