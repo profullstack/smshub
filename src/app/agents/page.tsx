@@ -105,6 +105,19 @@ npx ${NPM_PACKAGE} messages <number>        # every text, newest first`}</Code>
           <code>message.received</code> event: <code>npx {NPM_PACKAGE} webhook add https://your.app/hook</code>. The
           full REST reference is in the <Link href="/docs/api" className="text-blue-400 hover:text-blue-300">API docs</Link>.
         </p>
+        <p>
+          Runnable, dependency-free Node scripts for both (wait for a code, verify a webhook) are in{" "}
+          <a
+            href="https://github.com/profullstack/smshub/tree/master/examples/agent-inbox"
+            className="text-blue-400 hover:text-blue-300"
+          >
+            examples/agent-inbox
+          </a>
+          . Step-by-step guides:{" "}
+          <Link href="/blog/ai-agent-sms-inbox" className="text-blue-400 hover:text-blue-300">give an AI agent its own SMS inbox</Link>{" "}
+          and{" "}
+          <Link href="/blog/sms-webhook-agent-workflow" className="text-blue-400 hover:text-blue-300">inbound SMS into a workflow via webhook</Link>.
+        </p>
       </Section>
 
       <Section title="Before you pay">

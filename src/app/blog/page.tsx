@@ -3,7 +3,7 @@ import Link from "next/link";
 
 export const metadata: Metadata = {
   title: "SMSHub Blog — Practical SMS guides",
-  description: "Clear guides to SMS delivery, verification codes, and managing a number in one inbox.",
+  description: "Clear guides to SMS delivery, verification codes, giving AI agents an SMS inbox, and inbound SMS webhooks.",
   alternates: { canonical: "/blog" },
 };
 
@@ -17,6 +17,36 @@ export default function BlogPage() {
           Straightforward help for receiving texts, verification codes, and keeping your SMS in one inbox.
         </p>
       </header>
+
+      <article className="rounded-2xl border border-gray-800 bg-gray-900 p-6 sm:p-8 space-y-4">
+        <p className="text-sm text-gray-500">Tutorial · November 18, 2026</p>
+        <h2 className="text-2xl font-semibold">
+          <Link href="/blog/sms-webhook-agent-workflow" className="hover:text-blue-300">
+            Inbound SMS into a workflow with a signed webhook
+          </Link>
+        </h2>
+        <p className="text-gray-400">
+          Add a webhook, verify the Standard Webhooks signature in a few lines of Node, and route each message.received event, with its one-time code, into your agent or job queue.
+        </p>
+        <Link href="/blog/sms-webhook-agent-workflow" className="inline-flex items-center font-medium text-blue-400 hover:text-blue-300">
+          Read the tutorial <span aria-hidden="true" className="ml-2">→</span>
+        </Link>
+      </article>
+
+      <article className="rounded-2xl border border-gray-800 bg-gray-900 p-6 sm:p-8 space-y-4">
+        <p className="text-sm text-gray-500">Tutorial · November 18, 2026</p>
+        <h2 className="text-2xl font-semibold">
+          <Link href="/blog/ai-agent-sms-inbox" className="hover:text-blue-300">
+            How to give an AI agent its own SMS inbox
+          </Link>
+        </h2>
+        <p className="text-gray-400">
+          Connect an agent to a dedicated, receive-only US number over MCP: rent it, pay the checkout link, and let the agent read one-time codes with wait_for_code.
+        </p>
+        <Link href="/blog/ai-agent-sms-inbox" className="inline-flex items-center font-medium text-blue-400 hover:text-blue-300">
+          Read the tutorial <span aria-hidden="true" className="ml-2">→</span>
+        </Link>
+      </article>
 
       <article className="rounded-2xl border border-gray-800 bg-gray-900 p-6 sm:p-8 space-y-4">
         <p className="text-sm text-gray-500">Troubleshooting · October 29, 2026</p>

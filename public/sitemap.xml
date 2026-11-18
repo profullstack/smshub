@@ -21,6 +21,16 @@
     <priority>0.7</priority>
   </url>
   <url>
+    <loc>https://smshub.dev/blog/ai-agent-sms-inbox</loc>
+    <lastmod>2026-11-18</lastmod>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://smshub.dev/blog/sms-webhook-agent-workflow</loc>
+    <lastmod>2026-11-18</lastmod>
+    <priority>0.8</priority>
+  </url>
+  <url>
     <loc>https://smshub.dev/blog/verification-code-not-arriving</loc>
     <lastmod>2026-10-29</lastmod>
     <priority>0.8</priority>
