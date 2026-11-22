@@ -1,5 +1,13 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { finishSignIn } from "@profullstack/coinpay-onboard/oauth";
+import { COINPAY_UA } from "@/lib/coinpay/checkout";
+
+// coinpay-onboard 0.4.x has no userAgent option, only `fetch`.
+const coinpayFetch: typeof fetch = (input, init = {}) => {
+  const headers = new Headers(init.headers);
+  if (!headers.has("user-agent")) headers.set("user-agent", COINPAY_UA);
+  return fetch(input, { ...init, headers });
+};
 import { saveOpenProfileContact } from "@profullstack/profile";
 import { profileStore } from "@/lib/profile";
 import { createServerSupabaseClient, createServiceClient } from "@/lib/supabase/server";
@@ -80,6 +88,7 @@ export async function GET(request: NextRequest) {
       clientId: cfg.clientId,
       clientSecret: cfg.clientSecret,
       redirectUri: cfg.redirectUri,
+      fetch: coinpayFetch,
     });
   } catch (err) {
     console.error("[coinpay] sign-in failed", err instanceof Error ? err.message : err);
