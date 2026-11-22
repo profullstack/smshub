@@ -94,7 +94,7 @@ export async function availableChains(
   if (chainsCache && nowMs - chainsCache.at < CHAINS_TTL_MS) return chainsCache.chains;
   try {
     const res = await fetchImpl(`${cfg.apiUrl}/supported-coins?active_only=true`, {
-      headers: { Authorization: `Bearer ${cfg.apiKey}` },
+      headers: { Authorization: `Bearer ${cfg.apiKey}`, "User-Agent": COINPAY_UA },
       signal: AbortSignal.timeout(4000),
     });
     const body = (await res.json().catch(() => ({}))) as { coins?: { symbol?: string; is_active?: boolean }[] };
@@ -123,6 +123,10 @@ export function methodsFor(chains: readonly CheckoutChain[], paypal: boolean = p
 
 /** Every payment carries this, so CoinPay rows map back to the site, user and order. */
 export const PAYMENT_PROPERTY = "smshub.dev";
+
+const APP_VERSION = process.env["npm_package_version"];
+/** Names this app on CoinPay's side: every fleet app reaches it from one IP. */
+export const COINPAY_UA = `smshub.dev${APP_VERSION ? `/${APP_VERSION}` : ""} (+https://smshub.dev)`;
 
 export function paymentMetadata(input: {
   orderId: string;
@@ -211,6 +215,7 @@ export async function createPayment(
     method: "POST",
     headers: {
       Authorization: `Bearer ${cfg.apiKey}`,
+      "User-Agent": COINPAY_UA,
       "Content-Type": "application/json",
       "Idempotency-Key": opts.idempotencyKey,
     },
@@ -268,7 +273,7 @@ export async function createPaypalPayment(
 ): Promise<CreatedPayment> {
   const res = await fetchImpl(`${cfg.apiUrl}/paypal/payments/create`, {
     method: "POST",
-    headers: { Authorization: `Bearer ${cfg.apiKey}`, "Content-Type": "application/json" },
+    headers: { Authorization: `Bearer ${cfg.apiKey}`, "User-Agent": COINPAY_UA, "Content-Type": "application/json" },
     body: JSON.stringify({
       business_id: cfg.businessId,
       amount: opts.amountUsd,
@@ -329,6 +334,7 @@ export async function createCheckoutSession(
       method: "POST",
       headers: {
         Authorization: `Bearer ${cfg.apiKey}`,
+        "User-Agent": COINPAY_UA,
         "Content-Type": "application/json",
         "Idempotency-Key": opts.idempotencyKey,
       },
