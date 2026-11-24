@@ -186,6 +186,16 @@ export default async function RootLayout({
                   site="https://smshub.dev/"
                   builtIndieHref="https://built.indie.pit.world/for?site=https://smshub.dev/"
                   pwamartHref="https://pwamart.com/for?site=https://smshub.dev/"
+                  // Serverdex listing badge. Keep it a followed link: it is the ownership proof for the free claim.
+                  badges={[
+                    {
+                      href: "https://serverdex.io/server/io-github-profullstack-smshub?utm_source=badge",
+                      src: "https://serverdex.io/brand/badge.svg",
+                      alt: "SMSHub — listed on Serverdex",
+                      width: 123,
+                      height: 40,
+                    },
+                  ]}
                   links={[
                     { label: "Pricing", href: "/#pricing" },
                     { label: "Rent a number", href: "/phonenumbers" },
